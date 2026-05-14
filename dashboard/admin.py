@@ -1,0 +1,91 @@
+from django.contrib import admin
+
+from .models import Bankroll
+from .models import BankrollTransaction
+from .models import Bet
+from .models import MonthlyGoal
+
+
+@admin.register(Bankroll)
+class BankrollAdmin(admin.ModelAdmin):
+    list_display = (
+        'owner',
+        'name',
+        'bookmaker',
+        'initial_balance',
+        'unit_percentage',
+        'max_stake_percentage',
+        'current_balance',
+        'available_balance',
+        'created_at',
+    )
+    fieldsets = (
+        (
+            None,
+            {
+                'fields': (
+                    'name',
+                    'bookmaker',
+                    'initial_balance',
+                )
+            },
+        ),
+        (
+            'Gestao de stake',
+            {
+                'fields': (
+                    'unit_percentage',
+                    'max_stake_percentage',
+                    'daily_stop_loss_percentage',
+                    'weekly_stop_loss_percentage',
+                    'monthly_stop_loss_percentage',
+                    'daily_stop_win_percentage',
+                )
+            },
+        ),
+    )
+    search_fields = ('owner__username', 'name', 'bookmaker')
+
+
+@admin.register(Bet)
+class BetAdmin(admin.ModelAdmin):
+    list_display = (
+        'bankroll',
+        'sport',
+        'competition',
+        'game',
+        'market',
+        'entry_type',
+        'odds',
+        'stake',
+        'exchange_commission',
+        'status',
+        'created_at',
+    )
+    list_filter = ('status', 'sport', 'entry_type', 'created_at')
+    search_fields = ('game', 'market', 'competition', 'strategy')
+
+
+@admin.register(BankrollTransaction)
+class BankrollTransactionAdmin(admin.ModelAdmin):
+    list_display = ('bankroll', 'kind', 'amount', 'note', 'created_at')
+    list_filter = ('kind', 'created_at')
+    search_fields = ('bankroll__name', 'note')
+
+
+@admin.register(MonthlyGoal)
+class MonthlyGoalAdmin(admin.ModelAdmin):
+    list_display = (
+        'bankroll',
+        'month',
+        'profit_target',
+        'roi_target',
+        'volume_target',
+        'max_loss',
+        'profit',
+        'roi',
+        'volume',
+    )
+    list_filter = ('month', 'bankroll')
+
+# Register your models here.

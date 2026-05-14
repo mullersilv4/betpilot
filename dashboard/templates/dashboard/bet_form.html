@@ -1,0 +1,128 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editar aposta | BetPilot</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}" />
+  </head>
+  <body>
+    <main class="standalone-page">
+      <article class="panel standalone-card">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Edicao</p>
+            <h1>Editar aposta</h1>
+          </div>
+          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Voltar</a>
+        </div>
+
+        <form class="bet-form" method="post" novalidate>
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="form-errors">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <label>
+            <span>Banca</span>
+            {{ form.bankroll }}
+            {{ form.bankroll.errors }}
+          </label>
+
+          <div class="form-row">
+            <label>
+              <span>Esporte</span>
+              {{ form.sport }}
+              {{ form.sport.errors }}
+            </label>
+            <label>
+              <span>Competicao</span>
+              {{ form.competition }}
+              {{ form.competition.errors }}
+            </label>
+          </div>
+
+          <label>
+            <span>Jogo</span>
+            {{ form.game }}
+            {{ form.game.errors }}
+          </label>
+
+          <label>
+            <span>Tipo de mercado</span>
+            {{ form.market }}
+            {{ form.market.errors }}
+          </label>
+
+          <div class="form-row">
+            <label>
+              <span>Estrategia / tipster</span>
+              {{ form.strategy }}
+              {{ form.strategy.errors }}
+            </label>
+            <label>
+              <span>Tipo</span>
+              {{ form.entry_type }}
+              {{ form.entry_type.errors }}
+            </label>
+          </div>
+
+          <label>
+            <span>Data do evento</span>
+            {{ form.event_date }}
+            {{ form.event_date.errors }}
+          </label>
+
+          <div class="form-row">
+            <label>
+              <span>Odd</span>
+              {{ form.odds }}
+              {{ form.odds.errors }}
+            </label>
+            <label>
+              <span>Valor da aposta</span>
+              {{ form.stake }}
+              {{ form.stake.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Comissao exchange (%)</span>
+              {{ form.exchange_commission }}
+              {{ form.exchange_commission.errors }}
+            </label>
+            <label>
+              <span>Resultado</span>
+              {{ form.status }}
+              {{ form.status.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Resultado exato</span>
+              {{ form.exact_score }}
+              {{ form.exact_score.errors }}
+            </label>
+            <label>
+              <span>Link do jogo</span>
+              {{ form.game_link }}
+              {{ form.game_link.errors }}
+            </label>
+          </div>
+
+          <label>
+            <span>Observacoes</span>
+            {{ form.notes }}
+            {{ form.notes.errors }}
+          </label>
+
+          <button class="primary-button" type="submit">Salvar alteracoes</button>
+        </form>
+      </article>
+    </main>
+  </body>
+</html>

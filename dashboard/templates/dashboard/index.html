@@ -1,0 +1,1015 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BetPilot | Dashboard de Apostas</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegacao principal">
+        <div class="brand">
+          <span class="brand-mark">BP</span>
+          <div>
+            <strong>BetPilot</strong>
+            <small>Gestao inteligente</small>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <a class="active" href="#dashboard">Dashboard</a>
+          <a href="#new-bet">Nova aposta</a>
+          <a href="#bankroll">Bancas</a>
+          <a href="#transactions">Movimentacoes</a>
+          <a href="#goals">Metas</a>
+          <a href="#bets">Historico</a>
+          <a href="#automation">Automacoes</a>
+          <a href="#analytics">Analytics</a>
+        </nav>
+
+        <div class="side-panel">
+          <span class="status-dot"></span>
+          <div>
+            <strong>{{ request.user.username }}</strong>
+            <small>{{ risk_alerts|length }} alerta(s) ativos</small>
+          </div>
+        </div>
+        <form method="post" action="{% url 'dashboard:logout' %}">
+          {% csrf_token %}
+          <button class="ghost-button compact full-button" type="submit">Sair</button>
+        </form>
+      </aside>
+
+      <main class="main-content">
+        {% if messages %}
+          <div class="message-stack" role="status">
+            {% for message in messages %}
+              <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <section id="dashboard" class="dashboard-filter-bar" data-screen="dashboard" aria-label="Filtros do dashboard">
+          <form method="get" action="#dashboard">
+            <label>
+              <span>Mes</span>
+              <select name="dashboard_month">
+                {% for value, label in dashboard_filter.month_choices %}
+                  <option value="{{ value }}" {% if value == dashboard_filter.month %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Ano</span>
+              <select name="dashboard_year">
+                {% for year in dashboard_filter.year_choices %}
+                  <option value="{{ year }}" {% if year == dashboard_filter.year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button class="ghost-button compact" type="submit">Aplicar</button>
+            <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#dashboard">Atual</a>
+          </form>
+        </section>
+
+        <section class="metric-grid" data-screen="dashboard" aria-label="Metricas principais">
+          <article class="metric-card">
+            <span>Saldo total</span>
+            <strong>R$ {{ metrics.total_current_balance|floatformat:2 }}</strong>
+            <small class="neutral">disponivel R$ {{ metrics.total_available_balance|floatformat:2 }}</small>
+          </article>
+          <article class="metric-card">
+            <span>Apostas abertas</span>
+            <strong>{{ metrics.open_bet_count }}</strong>
+            <small class="neutral">exposicao R$ {{ metrics.open_exposure|floatformat:2 }}</small>
+          </article>
+          <article class="metric-card">
+            <span>Lucro liquido</span>
+            <strong>R$ {{ metrics.net_profit|floatformat:2 }}</strong>
+            <small class="{% if metrics.net_profit >= 0 %}positive{% else %}negative{% endif %}">resultado fechado</small>
+          </article>
+          <article class="metric-card">
+            <span>ROI</span>
+            <strong>{{ metrics.roi|floatformat:1 }}%</strong>
+            <small class="{% if metrics.roi >= 0 %}positive{% else %}negative{% endif %}">{{ metrics.bet_count }} apostas registradas</small>
+          </article>
+        </section>
+
+        <section class="dashboard-visual-grid" data-screen="dashboard" aria-label="Graficos do dashboard">
+          <article id="calendar" class="panel calendar-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Calendario</p>
+                <h2>Resultado diario de {{ analytics.month_calendar.label }}</h2>
+              </div>
+              <div class="calendar-summary">
+                <span>{{ analytics.month_calendar.count }} aposta(s) fechada(s)</span>
+                <strong class="{% if analytics.month_calendar.profit >= 0 %}positive{% else %}negative{% endif %}">
+                  R$ {{ analytics.month_calendar.profit|floatformat:2 }}
+                </strong>
+              </div>
+            </div>
+
+            <div class="calendar-grid" aria-label="Calendario de resultado diario">
+              {% for weekday in analytics.month_calendar.weekdays %}
+                <div class="calendar-weekday">{{ weekday }}</div>
+              {% endfor %}
+
+              {% for week in analytics.month_calendar.weeks %}
+                {% for day in week %}
+                  {% if day.in_month %}
+                    <article class="calendar-day {{ day.tone }}{% if day.is_today %} today{% endif %}">
+                      <span>{{ day.day }}</span>
+                      <strong>R$ {{ day.profit|floatformat:2 }}</strong>
+                      <small>{{ day.count }} aposta(s)</small>
+                    </article>
+                  {% else %}
+                    <article class="calendar-day outside" aria-hidden="true"></article>
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+            </div>
+          </article>
+
+          <div class="dashboard-chart-stack">
+            <article class="panel chart-panel compact-chart">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Evolucao</p>
+                  <h2>Banca e resultado acumulado</h2>
+                </div>
+                <select aria-label="Periodo do grafico">
+                  <option>30 dias</option>
+                  <option>90 dias</option>
+                  <option>12 meses</option>
+                </select>
+              </div>
+              <canvas id="bankrollChart" width="860" height="320"></canvas>
+            </article>
+
+            <article class="panel chart-panel compact-chart">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Relatorios</p>
+                  <h2>Lucro por periodo</h2>
+                </div>
+              </div>
+              <canvas id="periodChart" width="720" height="260"></canvas>
+            </article>
+          </div>
+        </section>
+
+        {% if risk_alerts %}
+          <section class="risk-alert-list" data-screen="analytics" aria-label="Alertas de risco">
+            {% for alert in risk_alerts %}
+              <article>
+                <span>{{ alert.bankroll.name }}</span>
+                <strong>{{ alert.message }}</strong>
+              </article>
+            {% endfor %}
+          </section>
+        {% endif %}
+
+        <section id="bankroll" class="workspace-grid compact-grid" data-screen="bankroll">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Bancas</p>
+                <h2>Cadastrar banca</h2>
+              </div>
+            </div>
+
+            <form class="bet-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="bankroll" />
+
+              {% if bankroll_form.non_field_errors %}
+                <div class="form-errors">{{ bankroll_form.non_field_errors }}</div>
+              {% endif %}
+
+              <div class="form-row">
+                <label>
+                  <span>Nome da banca</span>
+                  {{ bankroll_form.name }}
+                  {{ bankroll_form.name.errors }}
+                </label>
+
+                <label>
+                  <span>Casa ou exchange</span>
+                  {{ bankroll_form.bookmaker }}
+                  {{ bankroll_form.bookmaker.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Saldo inicial</span>
+                  {{ bankroll_form.initial_balance }}
+                  {{ bankroll_form.initial_balance.errors }}
+                </label>
+                <label>
+                  <span>Unidade padrao (%)</span>
+                  {{ bankroll_form.unit_percentage }}
+                  {{ bankroll_form.unit_percentage.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Stake maxima (%)</span>
+                  {{ bankroll_form.max_stake_percentage }}
+                  {{ bankroll_form.max_stake_percentage.errors }}
+                </label>
+                <label>
+                  <span>Stop win diario (%)</span>
+                  {{ bankroll_form.daily_stop_win_percentage }}
+                  {{ bankroll_form.daily_stop_win_percentage.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Stop loss diario (%)</span>
+                  {{ bankroll_form.daily_stop_loss_percentage }}
+                  {{ bankroll_form.daily_stop_loss_percentage.errors }}
+                </label>
+                <label>
+                  <span>Stop loss semanal (%)</span>
+                  {{ bankroll_form.weekly_stop_loss_percentage }}
+                  {{ bankroll_form.weekly_stop_loss_percentage.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Stop loss mensal (%)</span>
+                {{ bankroll_form.monthly_stop_loss_percentage }}
+                {{ bankroll_form.monthly_stop_loss_percentage.errors }}
+              </label>
+
+              <button class="primary-button" type="submit">Salvar banca</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Controle</p>
+                <h2>Resumo por banca</h2>
+              </div>
+            </div>
+
+            <div class="bankroll-list">
+              {% for bankroll in bankrolls %}
+                <article class="bankroll-card">
+                  <div>
+                    <strong><a href="{% url 'dashboard:bankroll_detail' bankroll.pk %}">{{ bankroll.name }}</a></strong>
+                    <span>{{ bankroll.bookmaker|default:"Sem casa definida" }}</span>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Saldo atual</dt>
+                      <dd>R$ {{ bankroll.current_balance|floatformat:2 }}</dd>
+                    </div>
+                    <div>
+                      <dt>Disponivel</dt>
+                      <dd>R$ {{ bankroll.available_balance|floatformat:2 }}</dd>
+                    </div>
+                    <div>
+                      <dt>Exposicao</dt>
+                      <dd>R$ {{ bankroll.open_exposure|floatformat:2 }}</dd>
+                    </div>
+                    <div>
+                      <dt>Unidade {{ bankroll.unit_percentage|floatformat:2 }}%</dt>
+                      <dd>R$ {{ bankroll.suggested_unit|floatformat:2 }}</dd>
+                    </div>
+                    <div>
+                      <dt>Stake maxima</dt>
+                      <dd>R$ {{ bankroll.max_stake_amount|floatformat:2 }}</dd>
+                    </div>
+                  </dl>
+                  <div class="bankroll-actions">
+                    <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bankroll' bankroll.pk %}">Configurar risco</a>
+                    {% if bankroll.risk_alerts %}
+                      <span class="risk-badge">Alerta ativo</span>
+                    {% endif %}
+                  </div>
+                </article>
+              {% empty %}
+                <div class="empty-state">Cadastre sua primeira banca para comecar.</div>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
+        <section id="transactions" class="workspace-grid compact-grid" data-screen="transactions">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Financeiro</p>
+                <h2>Depositos, saques e ajustes</h2>
+              </div>
+            </div>
+
+            <form class="bet-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="transaction" />
+
+              <div class="form-row">
+                <label>
+                  <span>Banca</span>
+                  {{ transaction_form.bankroll }}
+                  {{ transaction_form.bankroll.errors }}
+                </label>
+                <label>
+                  <span>Tipo</span>
+                  {{ transaction_form.kind }}
+                  {{ transaction_form.kind.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Valor</span>
+                {{ transaction_form.amount }}
+                {{ transaction_form.amount.errors }}
+              </label>
+
+              <label>
+                <span>Observacao</span>
+                {{ transaction_form.note }}
+                {{ transaction_form.note.errors }}
+              </label>
+
+              <button class="primary-button" type="submit">Registrar movimentacao</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Transferencia</p>
+                <h2>Mover saldo entre bancas</h2>
+              </div>
+            </div>
+
+            <form class="bet-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="transfer" />
+
+              {% if transfer_form.non_field_errors %}
+                <div class="form-errors">{{ transfer_form.non_field_errors }}</div>
+              {% endif %}
+
+              <div class="form-row">
+                <label>
+                  <span>Origem</span>
+                  {{ transfer_form.source }}
+                  {{ transfer_form.source.errors }}
+                </label>
+                <label>
+                  <span>Destino</span>
+                  {{ transfer_form.target }}
+                  {{ transfer_form.target.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Valor</span>
+                {{ transfer_form.amount }}
+                {{ transfer_form.amount.errors }}
+              </label>
+
+              <button class="primary-button" type="submit">Transferir</button>
+            </form>
+
+            <div class="automation-list">
+              {% for transaction in latest_transactions %}
+                <div>
+                  <span>{{ transaction.bankroll.name }} - {{ transaction.get_kind_display }}</span>
+                  <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
+                </div>
+              {% empty %}
+                <div class="empty-state">Nenhuma movimentacao registrada.</div>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
+        <section id="goals" class="workspace-grid compact-grid" data-screen="goals">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Metas</p>
+                <h2>Criar meta mensal</h2>
+              </div>
+            </div>
+
+            <form class="bet-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="goal" />
+
+              {% if goal_form.non_field_errors %}
+                <div class="form-errors">{{ goal_form.non_field_errors }}</div>
+              {% endif %}
+
+              <div class="form-row">
+                <label>
+                  <span>Banca</span>
+                  {{ goal_form.bankroll }}
+                  {{ goal_form.bankroll.errors }}
+                </label>
+                <label>
+                  <span>Mes</span>
+                  {{ goal_form.month }}
+                  {{ goal_form.month.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Meta de lucro</span>
+                  {{ goal_form.profit_target }}
+                  {{ goal_form.profit_target.errors }}
+                </label>
+                <label>
+                  <span>Meta de ROI (%)</span>
+                  {{ goal_form.roi_target }}
+                  {{ goal_form.roi_target.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Meta de volume</span>
+                  {{ goal_form.volume_target }}
+                  {{ goal_form.volume_target.errors }}
+                </label>
+                <label>
+                  <span>Limite de perda</span>
+                  {{ goal_form.max_loss }}
+                  {{ goal_form.max_loss.errors }}
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit">Salvar meta</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Progresso</p>
+                <h2>Metas ativas</h2>
+              </div>
+            </div>
+
+            <div class="goal-list">
+              {% for goal in monthly_goals %}
+                <article class="goal-card">
+                  <div class="goal-title">
+                    <strong>{{ goal.bankroll.name }}</strong>
+                    <span>{{ goal.month|date:"m/Y" }}</span>
+                  </div>
+
+                  <div class="goal-row">
+                    <span>Lucro: R$ {{ goal.profit|floatformat:2 }} / R$ {{ goal.profit_target|floatformat:2 }}</span>
+                    <div class="progress-track"><i style="width: {{ goal.profit_progress }}%"></i></div>
+                  </div>
+                  <div class="goal-row">
+                    <span>ROI: {{ goal.roi|floatformat:1 }}% / {{ goal.roi_target|floatformat:1 }}%</span>
+                    <div class="progress-track"><i style="width: {{ goal.roi_progress }}%"></i></div>
+                  </div>
+                  <div class="goal-row">
+                    <span>Volume: {{ goal.volume }} / {{ goal.volume_target }}</span>
+                    <div class="progress-track"><i style="width: {{ goal.volume_progress }}%"></i></div>
+                  </div>
+                  <div class="goal-row">
+                    <span>Perda usada: {{ goal.loss_used_percent|floatformat:1 }}%</span>
+                    <div class="progress-track loss"><i style="width: {{ goal.loss_used_percent }}%"></i></div>
+                  </div>
+                  {% if goal.loss_limit_reached %}
+                    <span class="risk-badge">Limite de perda atingido</span>
+                  {% endif %}
+                </article>
+              {% empty %}
+                <div class="empty-state">Nenhuma meta mensal cadastrada.</div>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
+        <section id="new-bet" class="single-grid" data-screen="new-bet">
+          <article class="panel bet-form-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Cadastro</p>
+                <h2>Inserir aposta</h2>
+              </div>
+            </div>
+
+            <form class="bet-form compact-bet-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="bet" />
+
+              {% if form.non_field_errors %}
+                <div class="form-errors">{{ form.non_field_errors }}</div>
+              {% endif %}
+
+              <label>
+                <span>Banca</span>
+                {{ form.bankroll }}
+                {{ form.bankroll.errors }}
+              </label>
+
+              <div class="form-row">
+                <label>
+                  <span>Esporte</span>
+                  {{ form.sport }}
+                  {{ form.sport.errors }}
+                </label>
+
+                <label>
+                  <span>Competicao</span>
+                  {{ form.competition }}
+                  {{ form.competition.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Jogo</span>
+                {{ form.game }}
+                {{ form.game.errors }}
+              </label>
+
+              <label>
+                <span>Tipo de mercado</span>
+                {{ form.market }}
+                {{ form.market.errors }}
+              </label>
+
+              <div class="form-row">
+                <label>
+                  <span>Estrategia / tipster</span>
+                  {{ form.strategy }}
+                  {{ form.strategy.errors }}
+                </label>
+
+                <label>
+                  <span>Tipo</span>
+                  {{ form.entry_type }}
+                  {{ form.entry_type.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Data do evento</span>
+                {{ form.event_date }}
+                {{ form.event_date.errors }}
+              </label>
+
+              <div class="form-row">
+                <label>
+                  <span>Odd</span>
+                  {{ form.odds }}
+                  {{ form.odds.errors }}
+                </label>
+
+                <label>
+                  <span>Valor da aposta</span>
+                  {{ form.stake }}
+                  {{ form.stake.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Link do jogo</span>
+                {{ form.game_link }}
+                {{ form.game_link.errors }}
+              </label>
+
+              <div class="form-row">
+                <label>
+                  <span>Resultado exato</span>
+                  {{ form.exact_score }}
+                  {{ form.exact_score.errors }}
+                </label>
+
+                <label>
+                  <span>Observacoes</span>
+                  {{ form.notes }}
+                  {{ form.notes.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Comissao exchange (%)</span>
+                  {{ form.exchange_commission }}
+                  {{ form.exchange_commission.errors }}
+                </label>
+
+                <label>
+                  <span>Resultado</span>
+                  {{ form.status }}
+                  {{ form.status.errors }}
+                </label>
+              </div>
+
+              <div class="calculation-preview" aria-live="polite">
+                <div>
+                  <span>Lucro potencial</span>
+                  <strong id="previewProfit">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Comissao</span>
+                  <strong id="previewCommission">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Retorno total</span>
+                  <strong id="previewReturn">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Unidades</span>
+                  <strong id="previewUnits">0.00u</strong>
+                </div>
+              </div>
+
+              <button class="primary-button" type="submit">Salvar aposta</button>
+            </form>
+          </article>
+        </section>
+
+        <section id="analytics" class="single-grid" data-screen="analytics">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Risco</p>
+                <h2>Drawdown e sequencia</h2>
+              </div>
+            </div>
+            <div class="report-metrics">
+              <article>
+                <span>Maior drawdown</span>
+                <strong class="negative">R$ {{ analytics.drawdown|floatformat:2 }}</strong>
+              </article>
+              <article>
+                <span>Sequencia atual</span>
+                <strong class="{{ analytics.streak.kind }}">{{ analytics.streak.count }} {{ analytics.streak.label }}</strong>
+              </article>
+              <article>
+                <span>Melhor mercado</span>
+                {% if analytics.best_market %}
+                  <strong>{{ analytics.best_market.label }}</strong>
+                {% else %}
+                  <strong>-</strong>
+                {% endif %}
+              </article>
+              <article>
+                <span>Pior mercado</span>
+                {% if analytics.worst_market %}
+                  <strong>{{ analytics.worst_market.label }}</strong>
+                {% else %}
+                  <strong>-</strong>
+                {% endif %}
+              </article>
+            </div>
+          </article>
+        </section>
+
+        <section class="workspace-grid lower" data-screen="analytics">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">ROI</p>
+                <h2>Performance por banca</h2>
+              </div>
+            </div>
+            <div class="analytics-list">
+              {% for row in analytics.bankroll_rows %}
+                <div class="analytics-row">
+                  <div>
+                    <strong>{{ row.label }}</strong>
+                    <span>{{ row.count }} apostas | Win rate {{ row.win_rate|floatformat:1 }}%</span>
+                  </div>
+                  <div>
+                    <strong class="{% if row.profit >= 0 %}positive{% else %}negative{% endif %}">R$ {{ row.profit|floatformat:2 }}</strong>
+                    <span>{{ row.roi|floatformat:1 }}% ROI</span>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="empty-state">Sem apostas fechadas para analisar.</div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Esportes</p>
+                <h2>Win rate por esporte</h2>
+              </div>
+            </div>
+            <div class="analytics-list">
+              {% for row in analytics.sport_rows %}
+                <div class="analytics-row">
+                  <div>
+                    <strong>{{ row.label }}</strong>
+                    <span>{{ row.count }} apostas | Win rate {{ row.win_rate|floatformat:1 }}%</span>
+                  </div>
+                  <div>
+                    <strong class="{% if row.profit >= 0 %}positive{% else %}negative{% endif %}">R$ {{ row.profit|floatformat:2 }}</strong>
+                    <span>{{ row.roi|floatformat:1 }}% ROI</span>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="empty-state">Sem esportes fechados para analisar.</div>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
+        <section class="workspace-grid lower" data-screen="analytics">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Mercados</p>
+                <h2>Melhores e piores recortes</h2>
+              </div>
+            </div>
+            <div class="analytics-list">
+              {% for row in analytics.market_rows %}
+                <div class="analytics-row">
+                  <div>
+                    <strong>{{ row.label }}</strong>
+                    <span>{{ row.count }} apostas | Win rate {{ row.win_rate|floatformat:1 }}%</span>
+                  </div>
+                  <div>
+                    <strong class="{% if row.profit >= 0 %}positive{% else %}negative{% endif %}">R$ {{ row.profit|floatformat:2 }}</strong>
+                    <span>{{ row.roi|floatformat:1 }}% ROI</span>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="empty-state">Sem mercados fechados para analisar.</div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Contexto</p>
+                <h2>Melhores recortes</h2>
+              </div>
+            </div>
+            <div class="report-metrics">
+              <article>
+                <span>Melhor esporte</span>
+                {% if analytics.best_sport %}
+                  <strong>{{ analytics.best_sport.label }}</strong>
+                {% else %}
+                  <strong>-</strong>
+                {% endif %}
+              </article>
+              <article>
+                <span>Pior esporte</span>
+                {% if analytics.worst_sport %}
+                  <strong>{{ analytics.worst_sport.label }}</strong>
+                {% else %}
+                  <strong>-</strong>
+                {% endif %}
+              </article>
+            </div>
+          </article>
+        </section>
+
+        <section id="automation" class="workspace-grid compact-grid" data-screen="automation">
+          <article class="panel automation-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Entrada inteligente</p>
+                <h2>Colar texto livre</h2>
+              </div>
+            </div>
+            <div class="upload-zone">
+              <strong>Use pares como banca, jogo, mercado, odd e valor</strong>
+              <span>Ex: banca: Banca principal; jogo: Palmeiras x Flamengo; mercado: Over 2.5; odd: 1.90; valor: 100</span>
+              <span>O sistema ignora duplicadas e alerta odds muito baixas ou muito altas.</span>
+            </div>
+          </article>
+
+          <article class="panel automation-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Importacao</p>
+                <h2>Colar texto ou CSV</h2>
+              </div>
+            </div>
+
+            <form class="bet-form" method="post" enctype="multipart/form-data" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="import" />
+              {% if import_form.non_field_errors %}
+                <div class="form-errors">{{ import_form.non_field_errors }}</div>
+              {% endif %}
+              <label>
+                <span>Texto</span>
+                {{ import_form.raw_text }}
+                {{ import_form.raw_text.errors }}
+              </label>
+              <label>
+                <span>Arquivo CSV</span>
+                {{ import_form.csv_file }}
+                {{ import_form.csv_file.errors }}
+              </label>
+              <button class="secondary-button" type="submit">Importar apostas</button>
+            </form>
+          </article>
+        </section>
+
+        <section id="bets" class="workspace-grid lower" data-screen="bets">
+          <article class="panel table-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Historico</p>
+                <h2>Apostas recentes</h2>
+              </div>
+            </div>
+
+            <form class="filter-form" method="get">
+              <label>
+                <span>Banca</span>
+                {{ filter_form.bankroll }}
+              </label>
+              <label>
+                <span>Status</span>
+                {{ filter_form.status }}
+              </label>
+              <label>
+                <span>Tipo</span>
+                {{ filter_form.entry_type }}
+              </label>
+              <label>
+                <span>Esporte</span>
+                {{ filter_form.sport }}
+              </label>
+              <label>
+                <span>Competicao</span>
+                {{ filter_form.competition }}
+              </label>
+              <label>
+                <span>Estrategia</span>
+                {{ filter_form.strategy }}
+              </label>
+              <label>
+                <span>Mercado</span>
+                {{ filter_form.market }}
+              </label>
+              <label>
+                <span>Busca</span>
+                {{ filter_form.query }}
+              </label>
+              <label>
+                <span>Odd min.</span>
+                {{ filter_form.min_odds }}
+              </label>
+              <label>
+                <span>Odd max.</span>
+                {{ filter_form.max_odds }}
+              </label>
+              <button class="ghost-button compact" type="submit">Filtrar</button>
+              <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Limpar</a>
+            </form>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Esporte</th>
+                    <th>Competicao</th>
+                    <th>Banca</th>
+                    <th>Mercado</th>
+                    <th>Tipo</th>
+                    <th>Estrategia</th>
+                    <th>Odd</th>
+                    <th>Stake</th>
+                    <th>Comissao</th>
+                    <th>Status</th>
+                    <th>Retorno possivel</th>
+                    <th>Lucro</th>
+                    <th>Acoes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for bet in bets %}
+                    <tr>
+                      <td><strong>{{ bet.game }}</strong></td>
+                      <td>{{ bet.sport|default:"-" }}</td>
+                      <td>{{ bet.competition|default:"-" }}</td>
+                      <td>{{ bet.bankroll.name|default:"-" }}</td>
+                      <td>{{ bet.market }}</td>
+                      <td>{{ bet.get_entry_type_display }}</td>
+                      <td>{{ bet.strategy|default:"-" }}</td>
+                      <td>{{ bet.odds|floatformat:2 }}</td>
+                      <td>R$ {{ bet.stake|floatformat:2 }}</td>
+                      <td>R$ {{ bet.commission_amount|floatformat:2 }}</td>
+                      <td><span class="pill {{ bet.status }}">{{ bet.get_status_display }}</span></td>
+                      <td>R$ {{ bet.potential_return|floatformat:2 }}</td>
+                      <td class="{% if bet.net_result >= 0 %}positive{% else %}negative{% endif %}">
+                        <strong>R$ {{ bet.net_result|floatformat:2 }}</strong>
+                      </td>
+                      <td>
+                        <div class="table-actions">
+                          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' bet.pk %}">Editar</a>
+                          {% if bet.status == 'open' %}
+                            <form method="post" action="{% url 'dashboard:settle_bet' bet.pk 'won' %}">
+                              {% csrf_token %}
+                              <button class="mini-button won" type="submit">Ganha</button>
+                            </form>
+                            <form method="post" action="{% url 'dashboard:settle_bet' bet.pk 'lost' %}">
+                              {% csrf_token %}
+                              <button class="mini-button lost" type="submit">Perdida</button>
+                            </form>
+                          {% endif %}
+                          <form method="post" action="{% url 'dashboard:delete_bet' bet.pk %}">
+                            {% csrf_token %}
+                            <button class="mini-button danger" type="submit">Excluir</button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="14" class="empty-state">Nenhuma aposta cadastrada ainda.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Diagnostico</p>
+                <h2>Onde voce performa melhor</h2>
+              </div>
+            </div>
+            <div class="breakdown-list">
+              {% for market in market_stats %}
+                <div class="breakdown-row">
+                  <div>
+                    <strong>{{ market.label }}</strong>
+                    <div class="bar-track" aria-hidden="true">
+                      <span
+                        class="bar-fill"
+                        style="width: {{ market.bar_width }}%;"
+                      ></span>
+                    </div>
+                  </div>
+                  <div>
+                    <strong class="{% if market.roi >= 0 %}positive{% else %}negative{% endif %}">
+                      {{ market.roi|floatformat:1 }}%
+                    </strong>
+                    <span>{{ market.volume }} entradas</span>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="empty-state">Os diagnosticos aparecem depois das primeiras apostas.</div>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
+        <section class="bankroll-band" data-screen="analytics">
+          <div>
+            <p class="eyebrow">CX inteligente</p>
+            <h2>O sistema te avisa antes da emocao virar decisao.</h2>
+          </div>
+          <div class="risk-grid">
+            <article>
+              <span>Stop loss diario</span>
+              <strong>Configurado por banca</strong>
+            </article>
+            <article>
+              <span>Stop win</span>
+              <strong>Trava diaria ativa</strong>
+            </article>
+            <article>
+              <span>Stake sugerida</span>
+              <strong>Unidade personalizada</strong>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    {{ chart_values|json_script:"chart-values" }}
+    {{ analytics.period_chart|json_script:"period-values" }}
+    {{ analytics.period_labels|json_script:"period-labels" }}
+    {{ analytics.equity_curve|json_script:"equity-values" }}
+    {{ bankroll_risk_data|json_script:"bankroll-options" }}
+    <script src="{% static 'dashboard/app.js' %}"></script>
+  </body>
+</html>

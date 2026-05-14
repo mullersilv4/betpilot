@@ -1,0 +1,57 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Criar conta | BetPilot</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}" />
+  </head>
+  <body>
+    <main class="standalone-page">
+      <article class="panel standalone-card auth-card">
+        <div class="brand auth-brand">
+          <span class="brand-mark">BP</span>
+          <div>
+            <strong>BetPilot</strong>
+            <small>Criar conta</small>
+          </div>
+        </div>
+
+        <form class="bet-form" method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="form-errors">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <label>
+            <span>Usuario</span>
+            {{ form.username }}
+            {{ form.username.errors }}
+          </label>
+
+          <label>
+            <span>Email</span>
+            {{ form.email }}
+            {{ form.email.errors }}
+          </label>
+
+          <label>
+            <span>Senha</span>
+            {{ form.password1 }}
+            {{ form.password1.errors }}
+          </label>
+
+          <label>
+            <span>Confirmar senha</span>
+            {{ form.password2 }}
+            {{ form.password2.errors }}
+          </label>
+
+          <button class="primary-button" type="submit">Criar conta</button>
+          <a class="ghost-button link-button subtle-link" href="{% url 'dashboard:login' %}">Ja tenho conta</a>
+        </form>
+      </article>
+    </main>
+  </body>
+</html>

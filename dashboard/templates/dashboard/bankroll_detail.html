@@ -1,0 +1,206 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ bankroll.name }} | BetPilot</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}" />
+  </head>
+  <body>
+    <main class="standalone-page">
+      <section class="panel standalone-card wide-card">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Banca</p>
+            <h1>{{ bankroll.name }}</h1>
+            <p class="muted-copy">{{ bankroll.bookmaker|default:"Sem casa definida" }}</p>
+          </div>
+          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bankroll">Voltar</a>
+        </div>
+
+        <div class="metric-grid detail-metrics">
+          <article class="metric-card">
+            <span>Saldo atual</span>
+            <strong>R$ {{ bankroll.current_balance|floatformat:2 }}</strong>
+          </article>
+          <article class="metric-card">
+            <span>Disponivel</span>
+            <strong>R$ {{ bankroll.available_balance|floatformat:2 }}</strong>
+          </article>
+          <article class="metric-card">
+            <span>Exposicao</span>
+            <strong>R$ {{ bankroll.open_exposure|floatformat:2 }}</strong>
+          </article>
+          <article class="metric-card">
+            <span>Unidade {{ bankroll.unit_percentage|floatformat:2 }}%</span>
+            <strong>R$ {{ bankroll.suggested_unit|floatformat:2 }}</strong>
+          </article>
+          <article class="metric-card">
+            <span>Stake maxima</span>
+            <strong>R$ {{ bankroll.max_stake_amount|floatformat:2 }}</strong>
+          </article>
+        </div>
+
+        <div class="risk-alert-list detail-alerts">
+          <article>
+            <span>Resultado hoje</span>
+            <strong>R$ {{ bankroll.today_result|floatformat:2 }}</strong>
+          </article>
+          <article>
+            <span>Stop loss diario</span>
+            <strong>R$ {{ bankroll.daily_stop_loss_amount|floatformat:2 }}</strong>
+          </article>
+          <article>
+            <span>Stop win diario</span>
+            <strong>R$ {{ bankroll.daily_stop_win_amount|floatformat:2 }}</strong>
+          </article>
+          <article>
+            <span>Semana / mes</span>
+            <strong>R$ {{ bankroll.week_result|floatformat:2 }} / R$ {{ bankroll.month_result|floatformat:2 }}</strong>
+          </article>
+        </div>
+
+        <section class="workspace-grid compact-grid detail-grid">
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Relatorios</p>
+                <h2>Lucro por periodo</h2>
+              </div>
+            </div>
+            <canvas id="periodChart" width="720" height="260"></canvas>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Esportes</p>
+                <h2>Performance desta banca</h2>
+              </div>
+            </div>
+            <div class="analytics-list">
+              {% for row in analytics.sport_rows %}
+                <div class="analytics-row">
+                  <div>
+                    <strong>{{ row.label }}</strong>
+                    <span>{{ row.count }} apostas | Win rate {{ row.win_rate|floatformat:1 }}%</span>
+                  </div>
+                  <div>
+                    <strong class="{% if row.profit >= 0 %}positive{% else %}negative{% endif %}">R$ {{ row.profit|floatformat:2 }}</strong>
+                    <span>{{ row.roi|floatformat:1 }}% ROI</span>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="empty-state">Sem apostas fechadas para analisar.</div>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
+        <section class="panel detail-grid">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Metas</p>
+              <h2>Metas desta banca</h2>
+            </div>
+          </div>
+
+          <div class="goal-list">
+            {% for goal in goals %}
+              <article class="goal-card">
+                <div class="goal-title">
+                  <strong>{{ goal.month|date:"m/Y" }}</strong>
+                  <span>Lucro R$ {{ goal.profit|floatformat:2 }} | ROI {{ goal.roi|floatformat:1 }}% | Volume {{ goal.volume }}</span>
+                </div>
+                <div class="goal-row">
+                  <span>Lucro</span>
+                  <div class="progress-track"><i style="width: {{ goal.profit_progress }}%"></i></div>
+                </div>
+                <div class="goal-row">
+                  <span>ROI</span>
+                  <div class="progress-track"><i style="width: {{ goal.roi_progress }}%"></i></div>
+                </div>
+                <div class="goal-row">
+                  <span>Volume</span>
+                  <div class="progress-track"><i style="width: {{ goal.volume_progress }}%"></i></div>
+                </div>
+              </article>
+            {% empty %}
+              <div class="empty-state">Nenhuma meta cadastrada para esta banca.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <div class="workspace-grid lower detail-grid">
+          <article>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Historico</p>
+                <h2>Apostas desta banca</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Esporte</th>
+                    <th>Competicao</th>
+                    <th>Mercado</th>
+                    <th>Tipo</th>
+                    <th>Odd</th>
+                    <th>Stake</th>
+                    <th>Status</th>
+                    <th>Lucro</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for bet in bets %}
+                    <tr>
+                      <td><strong>{{ bet.game }}</strong></td>
+                      <td>{{ bet.sport|default:"-" }}</td>
+                      <td>{{ bet.competition|default:"-" }}</td>
+                      <td>{{ bet.market }}</td>
+                      <td>{{ bet.get_entry_type_display }}</td>
+                      <td>{{ bet.odds|floatformat:2 }}</td>
+                      <td>R$ {{ bet.stake|floatformat:2 }}</td>
+                      <td><span class="pill {{ bet.status }}">{{ bet.get_status_display }}</span></td>
+                      <td class="{% if bet.net_result >= 0 %}positive{% else %}negative{% endif %}">
+                        <strong>R$ {{ bet.net_result|floatformat:2 }}</strong>
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="9" class="empty-state">Nenhuma aposta nesta banca.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article>
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Financeiro</p>
+                <h2>Movimentacoes</h2>
+              </div>
+            </div>
+            <div class="automation-list">
+              {% for transaction in transactions %}
+                <div>
+                  <span>{{ transaction.get_kind_display }}{% if transaction.note %} - {{ transaction.note }}{% endif %}</span>
+                  <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
+                </div>
+              {% empty %}
+                <div class="empty-state">Sem movimentacoes.</div>
+              {% endfor %}
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+    {{ analytics.period_chart|json_script:"period-values" }}
+    {{ analytics.period_labels|json_script:"period-labels" }}
+    <script src="{% static 'dashboard/app.js' %}"></script>
+  </body>
+</html>

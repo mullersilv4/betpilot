@@ -1,0 +1,91 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configurar banca | BetPilot</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}" />
+  </head>
+  <body>
+    <main class="standalone-page">
+      <article class="panel standalone-card">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Risco</p>
+            <h1>Configurar {{ bankroll.name }}</h1>
+          </div>
+          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bankroll">Voltar</a>
+        </div>
+
+        <form class="bet-form" method="post" novalidate>
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="form-errors">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="form-row">
+            <label>
+              <span>Nome da banca</span>
+              {{ form.name }}
+              {{ form.name.errors }}
+            </label>
+            <label>
+              <span>Casa ou exchange</span>
+              {{ form.bookmaker }}
+              {{ form.bookmaker.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Saldo inicial</span>
+              {{ form.initial_balance }}
+              {{ form.initial_balance.errors }}
+            </label>
+            <label>
+              <span>Unidade padrao (%)</span>
+              {{ form.unit_percentage }}
+              {{ form.unit_percentage.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Stake maxima (%)</span>
+              {{ form.max_stake_percentage }}
+              {{ form.max_stake_percentage.errors }}
+            </label>
+            <label>
+              <span>Stop win diario (%)</span>
+              {{ form.daily_stop_win_percentage }}
+              {{ form.daily_stop_win_percentage.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Stop loss diario (%)</span>
+              {{ form.daily_stop_loss_percentage }}
+              {{ form.daily_stop_loss_percentage.errors }}
+            </label>
+            <label>
+              <span>Stop loss semanal (%)</span>
+              {{ form.weekly_stop_loss_percentage }}
+              {{ form.weekly_stop_loss_percentage.errors }}
+            </label>
+          </div>
+
+          <label>
+            <span>Stop loss mensal (%)</span>
+            {{ form.monthly_stop_loss_percentage }}
+            {{ form.monthly_stop_loss_percentage.errors }}
+          </label>
+
+          <button class="primary-button" type="submit">Salvar configuracoes</button>
+        </form>
+      </article>
+    </main>
+  </body>
+</html>

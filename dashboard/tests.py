@@ -214,7 +214,7 @@ class AnalyticsTests(TestCase):
         )
 
     def test_build_analytics_returns_grouped_roi_and_streak(self):
-        now = timezone.now()
+        now = timezone.localtime().replace(hour=12, minute=0, second=0, microsecond=0)
         Bet.objects.create(
             bankroll=self.bankroll,
             game='Time A x Time B',

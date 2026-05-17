@@ -290,7 +290,7 @@ textarea {
 }
 
 .metric-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   align-items: start;
   grid-auto-rows: max-content;
@@ -427,6 +427,36 @@ textarea {
   margin-top: 18px;
 }
 
+.bet-mode-tabs {
+  display: inline-flex;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111615;
+}
+
+.bet-mode-tab {
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.bet-mode-tab.is-active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.bet-mode-panel:not(.is-active) {
+  display: none;
+}
+
 .bet-form label {
   display: grid;
   gap: 8px;
@@ -436,6 +466,18 @@ textarea {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .bet-form input,
@@ -591,6 +633,130 @@ textarea {
   justify-self: end;
   min-width: 150px;
   min-height: 34px;
+}
+
+.surebet-form {
+  max-width: 980px;
+}
+
+.surebet-grid {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #121817;
+}
+
+.surebet-entry-header,
+.surebet-entry-row {
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 1.05fr)
+    minmax(120px, 1fr)
+    minmax(76px, 0.55fr)
+    minmax(96px, 0.68fr)
+    minmax(82px, 0.6fr)
+    minmax(82px, 0.6fr)
+    minmax(82px, 0.6fr)
+    42px;
+  gap: 10px;
+  align-items: end;
+}
+
+.surebet-entry-group {
+  display: grid;
+  gap: 8px;
+}
+
+.surebet-entry-header {
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.freebet-control {
+  display: grid;
+  align-items: center;
+}
+
+.freebet-toggle {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.surebet-entry-group.has-freebet .freebet-toggle {
+  border-color: rgb(244 185 80 / 60%);
+  background: rgb(244 185 80 / 14%);
+}
+
+.freebet-fields {
+  display: none;
+  max-width: 220px;
+}
+
+.surebet-entry-group.has-freebet .freebet-fields {
+  display: block;
+}
+
+.surebet-add-button {
+  justify-self: start;
+}
+
+.surebet-preview {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.calculated-stake {
+  color: var(--green) !important;
+  font-weight: 700;
+}
+
+.surebet-result-table {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.surebet-result-head,
+.surebet-result-row {
+  display: grid;
+  grid-template-columns:
+    minmax(100px, 0.9fr)
+    minmax(120px, 1fr)
+    minmax(66px, 0.5fr)
+    minmax(90px, 0.68fr)
+    minmax(90px, 0.68fr)
+    minmax(90px, 0.68fr)
+    minmax(105px, 0.78fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.surebet-result-head {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.surebet-result-row {
+  min-height: 36px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.surebet-result-row strong {
+  font-weight: 600;
 }
 
 .filter-form {
@@ -1233,6 +1399,37 @@ th {
   margin-top: 18px;
 }
 
+.settle-surebet-list {
+  display: grid;
+  gap: 10px;
+}
+
+.settle-surebet-option {
+  display: grid !important;
+  grid-template-columns: auto minmax(220px, 1fr) minmax(160px, 0.5fr) auto;
+  gap: 12px !important;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.settle-surebet-option input {
+  width: 18px !important;
+  min-height: 18px !important;
+}
+
+.settle-surebet-option strong,
+.settle-surebet-option span {
+  display: block;
+}
+
+.settle-surebet-option span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 @media (max-width: 1080px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -1339,6 +1536,21 @@ th {
 
   .sidebar {
     padding: 18px;
+  }
+
+  .bet-mode-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .surebet-grid,
+  .surebet-entry-header,
+  .surebet-entry-row,
+  .surebet-preview,
+  .surebet-result-head,
+  .surebet-result-row,
+  .settle-surebet-option {
+    grid-template-columns: 1fr;
   }
 }
 

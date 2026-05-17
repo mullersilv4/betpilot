@@ -53,6 +53,13 @@ class Bet(models.Model):
     exact_score = models.CharField('resultado exato', max_length=40, blank=True)
     game_link = models.URLField('link do jogo', blank=True)
     notes = models.TextField('observacoes', blank=True)
+    actual_net_result = models.DecimalField(
+        'resultado liquido real',
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField('criada em', default=timezone.now)
 
     class Meta:
@@ -85,6 +92,8 @@ class Bet(models.Model):
 
     @property
     def net_result(self):
+        if self.status != self.Status.OPEN and self.actual_net_result is not None:
+            return self.actual_net_result
         if self.status == self.Status.WON:
             return self.potential_profit
         if self.status == self.Status.LOST:
@@ -96,6 +105,59 @@ class Bet(models.Model):
         if self.stake == 0:
             return Decimal('0.00')
         return (self.net_result / self.stake) * Decimal('100')
+
+
+class FreeBet(models.Model):
+    source_bet = models.ForeignKey(
+        Bet,
+        verbose_name='aposta de origem',
+        related_name='generated_freebets',
+        on_delete=models.CASCADE,
+    )
+    bookmaker = models.CharField('casa de aposta', max_length=80)
+    amount = models.DecimalField('valor', max_digits=10, decimal_places=2)
+    is_used = models.BooleanField('utilizada', default=False)
+    created_at = models.DateTimeField('criada em', default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'freebet'
+        verbose_name_plural = 'freebets'
+
+    def __str__(self):
+        return f'{self.bookmaker} - R$ {self.amount}'
+
+
+class SureBetEntry(models.Model):
+    bet = models.ForeignKey(
+        Bet,
+        verbose_name='surebet',
+        related_name='surebet_entries',
+        on_delete=models.CASCADE,
+    )
+    bookmaker = models.CharField('casa de aposta', max_length=80)
+    label = models.CharField('tipo/resultado', max_length=80)
+    odds = models.DecimalField('odd', max_digits=8, decimal_places=2)
+    effective_odds = models.DecimalField('odd efetiva', max_digits=8, decimal_places=2)
+    stake = models.DecimalField('valor apostado', max_digits=10, decimal_places=2)
+    commission = models.DecimalField('comissao (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    cashback = models.DecimalField('cashback (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    boost = models.DecimalField('aumento (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    return_amount = models.DecimalField('retorno', max_digits=12, decimal_places=2)
+    cashback_return = models.DecimalField('cashback no cenario', max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    net_result = models.DecimalField('resultado liquido', max_digits=12, decimal_places=2)
+    freebet_enabled = models.BooleanField('gera freebet', default=False)
+    freebet_amount = models.DecimalField('valor da freebet', max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    is_winner = models.BooleanField('entrada vencedora', default=False)
+    created_at = models.DateTimeField('criada em', default=timezone.now)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'entrada de surebet'
+        verbose_name_plural = 'entradas de surebet'
+
+    def __str__(self):
+        return f'{self.bookmaker} - {self.label}'
 
 
 class BankrollTransaction(models.Model):

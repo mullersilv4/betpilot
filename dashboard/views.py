@@ -1,4 +1,5 @@
 from decimal import Decimal
+from decimal import InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth import login
@@ -11,6 +12,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Q
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -29,7 +31,9 @@ from .forms import TransferForm
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import FreeBet
 from .models import MonthlyGoal
+from .models import SureBetEntry
 
 
 MONTH_CHOICES = [
@@ -188,6 +192,10 @@ def build_dashboard_context(request, **forms):
         start=Decimal('0.00'),
     )
     open_bet_count = sum(1 for bet in dashboard_bets if bet.status == Bet.Status.OPEN)
+    available_freebets = FreeBet.objects.filter(
+        source_bet__bankroll__owner=request.user,
+        is_used=False,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     total_initial_balance = sum(
         (bankroll.initial_balance for bankroll in bankrolls),
         start=Decimal('0.00'),
@@ -250,6 +258,9 @@ def build_dashboard_context(request, **forms):
         'filter_form': filter_form,
         'import_form': forms.get('import_form') or ImportTextForm(),
         'goal_form': forms.get('goal_form') or MonthlyGoalForm(user=request.user),
+        'surebet_errors': forms.get('surebet_errors') or [],
+        'surebet_data': forms.get('surebet_data') or {},
+        'surebet_rows': build_surebet_rows(forms.get('surebet_data')),
         'bankrolls': bankrolls,
         'bankroll_risk_data': [
             {
@@ -279,11 +290,119 @@ def build_dashboard_context(request, **forms):
             'total_initial_balance': total_initial_balance,
             'total_current_balance': total_current_balance,
             'total_available_balance': total_available_balance,
+            'available_freebets': available_freebets,
         },
         'market_stats': market_stats[:5],
         'chart_values': chart_values,
         'analytics': analytics,
     }
+
+
+def decimal_from_post(post_data, field_name, default='0'):
+    raw_value = (post_data.get(field_name) or default).replace(',', '.').strip()
+    try:
+        return Decimal(raw_value)
+    except InvalidOperation:
+        return None
+
+
+def surebet_indices_from_post(post_data):
+    indices = set()
+    for key in post_data.keys():
+        if not key.startswith('surebet_'):
+            continue
+        suffix = key.rsplit('_', 1)[-1]
+        if suffix.isdigit():
+            indices.add(int(suffix))
+    entry_count = decimal_from_post(post_data, 'surebet_entry_count')
+    if entry_count:
+        indices.update(range(1, int(entry_count) + 1))
+    return sorted(indices or {1, 2, 3})
+
+
+def build_surebet_rows(post_data=None):
+    indices = surebet_indices_from_post(post_data) if post_data else [1, 2, 3]
+    rows = []
+    for index in indices:
+        rows.append(
+            {
+                'index': index,
+                'bookmaker': (post_data.get(f'surebet_bookmaker_{index}') if post_data else '') or '',
+                'outcome': (post_data.get(f'surebet_outcome_{index}') if post_data else '') or '',
+                'odd': (post_data.get(f'surebet_odd_{index}') if post_data else '') or '',
+                'stake': (post_data.get(f'surebet_stake_{index}') if post_data else '') or '',
+                'commission': (post_data.get(f'surebet_commission_{index}') if post_data else '') or '',
+                'cashback': (post_data.get(f'surebet_cashback_{index}') if post_data else '') or '',
+                'boost': (post_data.get(f'surebet_boost_{index}') if post_data else '') or '',
+                'freebet_enabled': (post_data.get(f'surebet_freebet_enabled_{index}') if post_data else '') or '',
+                'freebet_amount': (post_data.get(f'surebet_freebet_amount_{index}') if post_data else '') or '',
+                'optional': index > 2,
+                'readonly': index > 1,
+            }
+        )
+    return rows
+
+
+def build_surebet_payload(post_data):
+    outcomes = []
+    target_return = None
+    for index in surebet_indices_from_post(post_data):
+        bookmaker = (post_data.get(f'surebet_bookmaker_{index}') or '').strip()
+        label = (post_data.get(f'surebet_outcome_{index}') or '').strip()
+        odd = decimal_from_post(post_data, f'surebet_odd_{index}')
+        stake = decimal_from_post(post_data, f'surebet_stake_{index}')
+        commission = decimal_from_post(post_data, f'surebet_commission_{index}')
+        cashback = decimal_from_post(post_data, f'surebet_cashback_{index}')
+        boost = decimal_from_post(post_data, f'surebet_boost_{index}')
+        freebet_enabled = post_data.get(f'surebet_freebet_enabled_{index}') == '1'
+        freebet_amount = decimal_from_post(post_data, f'surebet_freebet_amount_{index}')
+        if (
+            not bookmaker
+            and not label
+            and (not odd or odd == 0)
+            and (not stake or stake == 0)
+            and (not commission or commission == 0)
+            and (not cashback or cashback == 0)
+            and (not boost or boost == 0)
+            and not freebet_enabled
+            and (not freebet_amount or freebet_amount == 0)
+        ):
+            continue
+        commission = commission or Decimal('0.00')
+        cashback = cashback or Decimal('0.00')
+        boost = boost or Decimal('0.00')
+        freebet_amount = freebet_amount or Decimal('0.00')
+        effective_odd = odd * (Decimal('1.00') + boost / Decimal('100')) if odd else None
+        payout_multiplier = None
+        if effective_odd and effective_odd > 1:
+            payout_multiplier = Decimal('1.00') + (
+                (effective_odd - Decimal('1.00'))
+                * (Decimal('1.00') - commission / Decimal('100'))
+            )
+        if index == 1 and odd and odd > 1 and stake and stake > 0:
+            target_return = (stake * payout_multiplier).quantize(Decimal('0.01'))
+        elif target_return and payout_multiplier and payout_multiplier > 0:
+            stake = (target_return / payout_multiplier).quantize(Decimal('0.01'))
+        outcomes.append(
+            {
+                'bookmaker': bookmaker,
+                'label': label or f'Resultado {index}',
+                'odd': odd,
+                'stake': stake,
+                'commission': commission,
+                'cashback': cashback,
+                'boost': boost,
+                'freebet_enabled': freebet_enabled,
+                'freebet_amount': freebet_amount,
+                'effective_odd': effective_odd,
+                'payout_multiplier': payout_multiplier,
+            }
+        )
+    return outcomes
+
+
+def format_money(value):
+    return f'R$ {value.quantize(Decimal("0.01"))}'
 
 
 @login_required
@@ -367,6 +486,154 @@ def index(request):
             context = build_dashboard_context(request, goal_form=goal_form)
             return render(request, 'dashboard/index.html', context)
 
+        if form_type == 'surebet':
+            surebet_errors = []
+            bankroll_id = request.POST.get('surebet_bankroll')
+            bankroll = None
+            if bankroll_id:
+                bankroll = Bankroll.objects.filter(pk=bankroll_id, owner=request.user).first()
+            outcomes = build_surebet_payload(request.POST)
+            game = (request.POST.get('surebet_game') or '').strip()
+            sport = (request.POST.get('surebet_sport') or 'Futebol').strip()
+            competition = (request.POST.get('surebet_competition') or '').strip()
+            game_link = (request.POST.get('surebet_game_link') or '').strip()
+            notes = (request.POST.get('surebet_notes') or '').strip()
+
+            if bankroll is None:
+                surebet_errors.append('Selecione uma banca valida.')
+            if not game:
+                surebet_errors.append('Informe o jogo da surebet.')
+            if len(outcomes) < 2:
+                surebet_errors.append('Informe pelo menos dois resultados protegidos.')
+
+            for outcome in outcomes:
+                if not outcome['bookmaker']:
+                    surebet_errors.append(f'Informe a casa de aposta de {outcome["label"]}.')
+                if outcome['odd'] is None or outcome['odd'] <= 1:
+                    surebet_errors.append(f'A odd de {outcome["label"]} precisa ser maior que 1.00.')
+                if outcome['stake'] is None or outcome['stake'] <= 0:
+                    surebet_errors.append(f'O valor de {outcome["label"]} precisa ser maior que zero.')
+                for field, label in [
+                    ('commission', 'comissao'),
+                    ('cashback', 'cashback'),
+                    ('boost', 'aumento'),
+                ]:
+                    if outcome[field] < 0 or outcome[field] > 100:
+                        surebet_errors.append(
+                            f'O campo {label} de {outcome["label"]} precisa ficar entre 0% e 100%.'
+                        )
+                if outcome['freebet_enabled'] and outcome['freebet_amount'] <= 0:
+                    surebet_errors.append(
+                        f'Informe o valor da freebet gerada em {outcome["label"]}.'
+                    )
+
+            if not surebet_errors:
+                total_stake = sum((outcome['stake'] for outcome in outcomes), start=Decimal('0.00'))
+                outcome_results = [
+                    {
+                        **outcome,
+                        'return': (
+                            outcome['stake'] * outcome['payout_multiplier']
+                        ).quantize(Decimal('0.01')),
+                    }
+                    for outcome in outcomes
+                ]
+                for outcome in outcome_results:
+                    losing_cashback = sum(
+                        (
+                            other['stake'] * (other['cashback'] / Decimal('100'))
+                            for other in outcome_results
+                            if other is not outcome
+                        ),
+                        start=Decimal('0.00'),
+                    )
+                    outcome['cashback_return'] = losing_cashback.quantize(Decimal('0.01'))
+                    outcome['net'] = (
+                        outcome['return'] + outcome['cashback_return'] - total_stake
+                    ).quantize(Decimal('0.01'))
+                    outcome['effective_odd_display'] = outcome['effective_odd'].quantize(Decimal('0.01'))
+
+                if total_stake > bankroll.available_balance:
+                    surebet_errors.append(
+                        'O investimento total da surebet nao pode ser maior que o saldo disponivel da banca.'
+                    )
+                if total_stake > bankroll.max_stake_amount:
+                    surebet_errors.append(
+                        f'A stake maxima configurada para esta banca e R$ {bankroll.max_stake_amount}.'
+                    )
+                if bankroll.risk_lock_active:
+                    surebet_errors.append(
+                        'Esta banca esta com stop loss/stop win ativo. Revise a gestao antes de apostar.'
+                    )
+
+            if surebet_errors:
+                context = build_dashboard_context(
+                    request,
+                    surebet_errors=surebet_errors,
+                    surebet_data=request.POST,
+                )
+                return render(request, 'dashboard/index.html', context)
+
+            best_return = max((outcome['return'] for outcome in outcome_results), default=total_stake)
+            effective_odd = (best_return / total_stake).quantize(Decimal('0.01'))
+            market = 'Surebet: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
+            protection_lines = [
+                'Surebet cadastrada com protecoes:',
+                f'Investimento total: {format_money(total_stake)}',
+            ]
+            for outcome in outcome_results:
+                protection_lines.append(
+                    (
+                        f'{outcome["bookmaker"]} - {outcome["label"]}: odd {outcome["odd"]}, '
+                        f'comissao {outcome["commission"]}%, cashback {outcome["cashback"]}%, '
+                        f'aumento {outcome["boost"]}%, '
+                        f'aposta {format_money(outcome["stake"])}, '
+                        f'retorno {format_money(outcome["return"])}, '
+                        f'cashback no cenario {format_money(outcome["cashback_return"])}, '
+                        f'resultado liquido {format_money(outcome["net"])}'
+                        + (
+                            f', gera freebet de {format_money(outcome["freebet_amount"])}'
+                            if outcome['freebet_enabled'] else ''
+                        )
+                    )
+                )
+            if notes:
+                protection_lines.extend(['Observacoes:', notes])
+
+            bet = Bet.objects.create(
+                bankroll=bankroll,
+                sport=sport,
+                competition=competition,
+                game=game,
+                market=market[:120],
+                strategy='Surebet',
+                odds=effective_odd,
+                stake=total_stake,
+                exchange_commission=Decimal('0.00'),
+                status=Bet.Status.OPEN,
+                game_link=game_link,
+                notes='\n'.join(protection_lines),
+            )
+            for outcome in outcome_results:
+                SureBetEntry.objects.create(
+                    bet=bet,
+                    bookmaker=outcome['bookmaker'],
+                    label=outcome['label'],
+                    odds=outcome['odd'],
+                    effective_odds=outcome['effective_odd_display'],
+                    stake=outcome['stake'],
+                    commission=outcome['commission'],
+                    cashback=outcome['cashback'],
+                    boost=outcome['boost'],
+                    return_amount=outcome['return'],
+                    cashback_return=outcome['cashback_return'],
+                    net_result=outcome['net'],
+                    freebet_enabled=outcome['freebet_enabled'],
+                    freebet_amount=outcome['freebet_amount'],
+                )
+            messages.success(request, 'Surebet cadastrada com sucesso.')
+            return redirect('dashboard:index')
+
         bet_form = BetForm(request.POST, user=request.user)
         if bet_form.is_valid():
             bet_form.save()
@@ -418,11 +685,66 @@ def edit_bankroll(request, pk):
 @login_required
 def settle_bet(request, pk, status):
     bet = get_object_or_404(Bet, pk=pk, bankroll__owner=request.user)
+    if bet.strategy == 'Surebet':
+        messages.error(request, 'Use a finalizacao da surebet para escolher a casa vencedora.')
+        return redirect('dashboard:settle_surebet', pk=bet.pk)
     if request.method == 'POST' and status in {Bet.Status.WON, Bet.Status.LOST, Bet.Status.OPEN}:
         bet.status = status
-        bet.save(update_fields=['status'])
+        if status == Bet.Status.OPEN:
+            bet.actual_net_result = None
+            bet.save(update_fields=['status', 'actual_net_result'])
+        else:
+            bet.save(update_fields=['status'])
         messages.success(request, 'Status da aposta atualizado.')
     return redirect('dashboard:index')
+
+
+@login_required
+def settle_surebet(request, pk):
+    bet = get_object_or_404(
+        Bet.objects.prefetch_related('surebet_entries', 'generated_freebets'),
+        pk=pk,
+        bankroll__owner=request.user,
+        strategy='Surebet',
+    )
+    entries = bet.surebet_entries.all()
+
+    if request.method == 'POST':
+        entry_id = request.POST.get('winner_entry')
+        winner = entries.filter(pk=entry_id).first() if entry_id else None
+        if winner is None:
+            messages.error(request, 'Selecione a casa vencedora da surebet.')
+            return render(
+                request,
+                'dashboard/surebet_settle.html',
+                {'bet': bet, 'entries': entries},
+            )
+
+        with transaction.atomic():
+            entries.update(is_winner=False)
+            winner.is_winner = True
+            winner.save(update_fields=['is_winner'])
+            bet.actual_net_result = winner.net_result
+            bet.status = Bet.Status.WON if winner.net_result >= 0 else Bet.Status.LOST
+            bet.exact_score = f'{winner.bookmaker} - {winner.label}'[:40]
+            bet.save(update_fields=['actual_net_result', 'status', 'exact_score'])
+
+            if winner.freebet_enabled and winner.freebet_amount > 0:
+                FreeBet.objects.get_or_create(
+                    source_bet=bet,
+                    bookmaker=winner.bookmaker,
+                    amount=winner.freebet_amount,
+                    defaults={},
+                )
+
+        messages.success(request, 'Surebet finalizada com o resultado da casa vencedora.')
+        return redirect('dashboard:index')
+
+    return render(
+        request,
+        'dashboard/surebet_settle.html',
+        {'bet': bet, 'entries': entries},
+    )
 
 
 @login_required

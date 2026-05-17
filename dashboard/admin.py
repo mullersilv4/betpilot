@@ -3,7 +3,9 @@ from django.contrib import admin
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import FreeBet
 from .models import MonthlyGoal
+from .models import SureBetEntry
 
 
 @admin.register(Bankroll)
@@ -64,6 +66,31 @@ class BetAdmin(admin.ModelAdmin):
     )
     list_filter = ('status', 'sport', 'entry_type', 'created_at')
     search_fields = ('game', 'market', 'competition', 'strategy')
+
+
+@admin.register(FreeBet)
+class FreeBetAdmin(admin.ModelAdmin):
+    list_display = ('bookmaker', 'amount', 'is_used', 'source_bet', 'created_at')
+    list_filter = ('is_used', 'bookmaker', 'created_at')
+    search_fields = ('bookmaker', 'source_bet__game')
+
+
+@admin.register(SureBetEntry)
+class SureBetEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        'bet',
+        'bookmaker',
+        'label',
+        'odds',
+        'stake',
+        'return_amount',
+        'net_result',
+        'freebet_enabled',
+        'freebet_amount',
+        'is_winner',
+    )
+    list_filter = ('bookmaker', 'freebet_enabled', 'is_winner')
+    search_fields = ('bookmaker', 'label', 'bet__game')
 
 
 @admin.register(BankrollTransaction)

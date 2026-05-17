@@ -10,6 +10,7 @@ from django.contrib.auth.views import LoginView
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.db.models import ProtectedError
 from django.db import transaction
 from django.db.models import Q
 from django.db.models import Sum
@@ -680,6 +681,23 @@ def edit_bankroll(request, pk):
             'bankroll': bankroll,
         },
     )
+
+
+@login_required
+def delete_bankroll(request, pk):
+    bankroll = get_object_or_404(Bankroll, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        name = bankroll.name
+        try:
+            bankroll.delete()
+        except ProtectedError:
+            messages.error(
+                request,
+                'Nao foi possivel excluir essa banca porque ela ja possui apostas vinculadas.',
+            )
+        else:
+            messages.success(request, f'Banca "{name}" excluida com sucesso.')
+    return redirect('dashboard:index')
 
 
 @login_required

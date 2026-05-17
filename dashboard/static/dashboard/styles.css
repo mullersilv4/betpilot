@@ -406,10 +406,16 @@ textarea {
 }
 
 .panel h2,
-.bankroll-band h2 {
+.bankroll-band h2,
+.section-subheading h2 {
   margin: 4px 0 0;
   font-size: 1.05rem;
   font-weight: 600;
+}
+
+.section-subheading {
+  grid-column: 1 / -1;
+  margin-top: 4px;
 }
 
 .panel select {
@@ -1110,6 +1116,10 @@ td strong {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.bankroll-actions form {
+  margin: 0;
 }
 
 #bankroll {

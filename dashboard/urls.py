@@ -15,4 +15,5 @@ urlpatterns = [
     path('apostas/<int:pk>/excluir/', views.delete_bet, name='delete_bet'),
     path('bancas/<int:pk>/', views.bankroll_detail, name='bankroll_detail'),
     path('bancas/<int:pk>/editar/', views.edit_bankroll, name='edit_bankroll'),
+    path('bancas/<int:pk>/excluir/', views.delete_bankroll, name='delete_bankroll'),
 ]

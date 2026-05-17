@@ -22,7 +22,6 @@
           <a class="active" href="#dashboard">Dashboard</a>
           <a href="#new-bet">Nova aposta</a>
           <a href="#bankroll">Bancas</a>
-          <a href="#transactions">Movimentacoes</a>
           <a href="#goals">Metas</a>
           <a href="#bets">Historico</a>
           <a href="#automation">Automacoes</a>
@@ -296,6 +295,10 @@
                   </dl>
                   <div class="bankroll-actions">
                     <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bankroll' bankroll.pk %}">Configurar risco</a>
+                    <form method="post" action="{% url 'dashboard:delete_bankroll' bankroll.pk %}" onsubmit="return confirm('Excluir esta banca? Esta acao nao pode ser desfeita.');">
+                      {% csrf_token %}
+                      <button class="mini-button danger" type="submit">Excluir</button>
+                    </form>
                     {% if bankroll.risk_alerts %}
                       <span class="risk-badge">Alerta ativo</span>
                     {% endif %}
@@ -308,7 +311,12 @@
           </article>
         </section>
 
-        <section id="transactions" class="workspace-grid compact-grid" data-screen="transactions">
+        <section id="transactions" class="workspace-grid compact-grid" data-screen="bankroll">
+          <div class="section-subheading">
+            <p class="eyebrow">Movimentacoes</p>
+            <h2>Financeiro e transferencias</h2>
+          </div>
+
           <article class="panel">
             <div class="panel-header">
               <div>

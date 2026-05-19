@@ -1,5 +1,6 @@
 from decimal import Decimal
 from decimal import InvalidOperation
+import os
 
 from django.contrib import messages
 from django.contrib.auth import login
@@ -7,10 +8,10 @@ from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.views import LoginView
+from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.db.models import ProtectedError
 from django.db import transaction
 from django.db.models import Q
 from django.db.models import Sum
@@ -25,16 +26,23 @@ from .forms import BankrollForm
 from .forms import BankrollTransactionForm
 from .forms import BetFilterForm
 from .forms import BetForm
+from .forms import EntityForm
 from .forms import ImportTextForm
 from .forms import MonthlyGoalForm
+from .forms import OddsSearchForm
 from .forms import SignUpForm
 from .forms import TransferForm
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
 from .models import SureBetEntry
+from .odds_api import OddsApiClient
+from .odds_api import OddsApiError
+from .odds_api import build_odds_comparison
+from .odds_api import detect_surebets
 
 
 MONTH_CHOICES = [
@@ -52,19 +60,12 @@ MONTH_CHOICES = [
     (12, 'Dezembro'),
 ]
 
+ODDS_CACHE_TIMEOUT = 60 * 15
+
 
 def ensure_default_bankroll(user):
     Bankroll.objects.filter(owner__isnull=True).update(owner=user)
-    bankroll = Bankroll.objects.filter(owner=user, name='Banca principal').first()
-    if bankroll is None:
-        bankroll = Bankroll.objects.create(
-            owner=user,
-            name='Banca principal',
-            bookmaker='Geral',
-            initial_balance=1000,
-        )
-    Bet.objects.filter(bankroll__isnull=True).update(bankroll=bankroll)
-    return bankroll
+    return Bankroll.objects.filter(owner=user).first()
 
 
 def apply_bet_filters(bets, form):
@@ -172,8 +173,9 @@ def parse_import_lines(raw_text):
 def build_dashboard_context(request, **forms):
     ensure_default_bankroll(request.user)
 
-    bankrolls = Bankroll.objects.filter(owner=request.user).prefetch_related('bets', 'transactions')
-    all_bets = Bet.objects.filter(bankroll__owner=request.user).select_related('bankroll')
+    entities = Entity.objects.filter(owner=request.user).prefetch_related('bankrolls')
+    bankrolls = Bankroll.objects.filter(owner=request.user).select_related('entity').prefetch_related('bets', 'transactions')
+    all_bets = Bet.objects.filter(bankroll__owner=request.user).select_related('bankroll', 'bankroll__entity')
     all_bet_list = list(all_bets)
     dashboard_filter = dashboard_period(request, all_bet_list)
     dashboard_bets = [
@@ -252,30 +254,23 @@ def build_dashboard_context(request, **forms):
     )
 
     return {
-        'bankroll_form': forms.get('bankroll_form') or BankrollForm(),
+        'bankroll_form': forms.get('bankroll_form') or BankrollForm(user=request.user),
+        'entity_form': forms.get('entity_form') or EntityForm(user=request.user),
         'form': forms.get('bet_form') or BetForm(user=request.user),
         'transaction_form': forms.get('transaction_form') or BankrollTransactionForm(user=request.user),
         'transfer_form': forms.get('transfer_form') or TransferForm(user=request.user),
         'filter_form': filter_form,
         'import_form': forms.get('import_form') or ImportTextForm(),
+        'odds_form': forms.get('odds_form') or OddsSearchForm(),
+        'odds_opportunities': forms.get('odds_opportunities') or [],
+        'odds_comparisons': forms.get('odds_comparisons') or [],
+        'odds_searched': forms.get('odds_searched') or False,
         'goal_form': forms.get('goal_form') or MonthlyGoalForm(user=request.user),
         'surebet_errors': forms.get('surebet_errors') or [],
         'surebet_data': forms.get('surebet_data') or {},
         'surebet_rows': build_surebet_rows(forms.get('surebet_data')),
         'bankrolls': bankrolls,
-        'bankroll_risk_data': [
-            {
-                'id': bankroll.id,
-                'unit': float(bankroll.suggested_unit),
-                'maxStake': float(bankroll.max_stake_amount),
-            }
-            for bankroll in bankrolls
-        ],
-        'risk_alerts': [
-            {'bankroll': bankroll, 'message': alert}
-            for bankroll in bankrolls
-            for alert in bankroll.risk_alerts
-        ],
+        'entities': entities,
         'bets': bets[:30],
         'latest_transactions': latest_transactions,
         'monthly_goals': MonthlyGoal.objects.filter(bankroll__owner=request.user).select_related('bankroll')[:12],
@@ -406,6 +401,32 @@ def format_money(value):
     return f'R$ {value.quantize(Decimal("0.01"))}'
 
 
+def add_suggested_stakes(opportunities, total_stake):
+    enriched = []
+    total_stake = Decimal(total_stake)
+    for opportunity in opportunities:
+        implied = Decimal(str(opportunity['implied_probability'])) / Decimal('100')
+        expected_return = total_stake / implied if implied else Decimal('0.00')
+        outcomes = []
+        for outcome in opportunity['outcomes']:
+            price = Decimal(str(outcome['price']))
+            outcomes.append(
+                {
+                    **outcome,
+                    'suggested_stake': (expected_return / price).quantize(Decimal('0.01')),
+                }
+            )
+        enriched.append(
+            {
+                **opportunity,
+                'total_stake': total_stake.quantize(Decimal('0.01')),
+                'expected_return': expected_return.quantize(Decimal('0.01')),
+                'outcomes': outcomes,
+            }
+        )
+    return enriched
+
+
 @login_required
 def index(request):
     ensure_default_bankroll(request.user)
@@ -414,7 +435,7 @@ def index(request):
         form_type = request.POST.get('form_type')
 
         if form_type == 'bankroll':
-            bankroll_form = BankrollForm(request.POST)
+            bankroll_form = BankrollForm(request.POST, user=request.user)
             if bankroll_form.is_valid():
                 bankroll = bankroll_form.save(commit=False)
                 bankroll.owner = request.user
@@ -422,6 +443,17 @@ def index(request):
                 messages.success(request, 'Banca cadastrada com sucesso.')
                 return redirect('dashboard:index')
             context = build_dashboard_context(request, bankroll_form=bankroll_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'entity':
+            entity_form = EntityForm(request.POST, user=request.user)
+            if entity_form.is_valid():
+                entity = entity_form.save(commit=False)
+                entity.owner = request.user
+                entity.save()
+                messages.success(request, 'Entidade cadastrada com sucesso.')
+                return redirect('dashboard:index')
+            context = build_dashboard_context(request, entity_form=entity_form)
             return render(request, 'dashboard/index.html', context)
 
         if form_type == 'transaction':
@@ -476,6 +508,83 @@ def index(request):
                     messages.error(request, error)
                 return redirect('dashboard:index')
             context = build_dashboard_context(request, import_form=import_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'odds_search':
+            odds_form = OddsSearchForm(request.POST)
+            odds_opportunities = []
+            odds_comparisons = []
+            if odds_form.is_valid():
+                api_key = os.environ.get('THE_ODDS_API_KEY')
+                if not api_key:
+                    messages.error(
+                        request,
+                        'Defina THE_ODDS_API_KEY no ambiente para buscar odds.',
+                    )
+                else:
+                    client = OddsApiClient(api_key=api_key)
+                    try:
+                        cache_key = (
+                            'odds_api:h2h:'
+                            f'{odds_form.cleaned_data["sport"]}:'
+                            f'{odds_form.cleaned_data["regions"]}:'
+                            f'{odds_form.cleaned_data["bookmakers"]}:'
+                            f'{odds_form.cleaned_data["brazil_regulated_only"]}'
+                        )
+                        events = cache.get(cache_key)
+                        used_cache = events is not None
+                        if events is None:
+                            events = client.odds(
+                                sport_key=odds_form.cleaned_data['sport'],
+                                regions=odds_form.cleaned_data['regions'],
+                                markets='h2h',
+                                bookmakers=odds_form.cleaned_data['bookmakers'],
+                            )
+                            cache.set(cache_key, events, ODDS_CACHE_TIMEOUT)
+                        odds_opportunities = detect_surebets(
+                            events,
+                            limit=odds_form.cleaned_data['limit'],
+                            brazil_regulated_only=odds_form.cleaned_data[
+                                'brazil_regulated_only'
+                            ],
+                        )
+                        odds_comparisons = build_odds_comparison(
+                            events,
+                            limit=odds_form.cleaned_data['limit'],
+                            brazil_regulated_only=odds_form.cleaned_data[
+                                'brazil_regulated_only'
+                            ],
+                        )
+                        odds_opportunities = add_suggested_stakes(
+                            odds_opportunities,
+                            odds_form.cleaned_data['stake'],
+                        )
+                    except OddsApiError as error:
+                        messages.error(request, str(error))
+                    else:
+                        if odds_opportunities:
+                            messages.success(
+                                request,
+                                (
+                                    f'{len(odds_opportunities)} oportunidade(s) encontrada(s).'
+                                    + (' Resultado vindo do cache.' if used_cache else '')
+                                ),
+                            )
+                        else:
+                            messages.warning(
+                                request,
+                                (
+                                    'Nenhuma surebet encontrada para esses filtros.'
+                                    + (' Resultado vindo do cache.' if used_cache else '')
+                                ),
+                            )
+            context = build_dashboard_context(
+                request,
+                odds_form=odds_form,
+                odds_opportunities=odds_opportunities,
+                odds_comparisons=odds_comparisons,
+                odds_searched=True,
+            )
             return render(request, 'dashboard/index.html', context)
 
         if form_type == 'goal':
@@ -558,15 +667,6 @@ def index(request):
                     surebet_errors.append(
                         'O investimento total da surebet nao pode ser maior que o saldo disponivel da banca.'
                     )
-                if total_stake > bankroll.max_stake_amount:
-                    surebet_errors.append(
-                        f'A stake maxima configurada para esta banca e R$ {bankroll.max_stake_amount}.'
-                    )
-                if bankroll.risk_lock_active:
-                    surebet_errors.append(
-                        'Esta banca esta com stop loss/stop win ativo. Revise a gestao antes de apostar.'
-                    )
-
             if surebet_errors:
                 context = build_dashboard_context(
                     request,
@@ -665,13 +765,13 @@ def edit_bet(request, pk):
 def edit_bankroll(request, pk):
     bankroll = get_object_or_404(Bankroll, pk=pk, owner=request.user)
     if request.method == 'POST':
-        form = BankrollForm(request.POST, instance=bankroll)
+        form = BankrollForm(request.POST, instance=bankroll, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Configuracoes da banca atualizadas.')
             return redirect('dashboard:index')
     else:
-        form = BankrollForm(instance=bankroll)
+        form = BankrollForm(instance=bankroll, user=request.user)
 
     return render(
         request,
@@ -688,15 +788,39 @@ def delete_bankroll(request, pk):
     bankroll = get_object_or_404(Bankroll, pk=pk, owner=request.user)
     if request.method == 'POST':
         name = bankroll.name
-        try:
+        bet_count = bankroll.bets.count()
+        with transaction.atomic():
+            bankroll.bets.all().delete()
             bankroll.delete()
-        except ProtectedError:
-            messages.error(
+        if bet_count:
+            messages.success(
                 request,
-                'Nao foi possivel excluir essa banca porque ela ja possui apostas vinculadas.',
+                f'Banca "{name}" excluida com {bet_count} aposta(s) vinculada(s).',
             )
         else:
             messages.success(request, f'Banca "{name}" excluida com sucesso.')
+    return redirect('dashboard:index')
+
+
+@login_required
+def delete_entity(request, pk):
+    entity = get_object_or_404(Entity, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        name = entity.name
+        bankrolls = Bankroll.objects.filter(owner=request.user, entity=entity)
+        bankroll_count = bankrolls.count()
+        bet_count = Bet.objects.filter(bankroll__in=bankrolls).count()
+        with transaction.atomic():
+            Bet.objects.filter(bankroll__in=bankrolls).delete()
+            bankrolls.delete()
+            entity.delete()
+        messages.success(
+            request,
+            (
+                f'Entidade "{name}" excluida com {bankroll_count} banca(s) '
+                f'e {bet_count} aposta(s) vinculada(s).'
+            ),
+        )
     return redirect('dashboard:index')
 
 
@@ -816,7 +940,6 @@ def signup(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            ensure_default_bankroll(user)
             messages.success(request, 'Conta criada com sucesso.')
             return redirect('dashboard:index')
     else:

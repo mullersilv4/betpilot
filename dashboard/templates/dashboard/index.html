@@ -24,6 +24,7 @@
           <a href="#bankroll">Bancas</a>
           <a href="#goals">Metas</a>
           <a href="#bets">Historico</a>
+          <a href="#odds">Odds</a>
           <a href="#automation">Automacoes</a>
           <a href="#analytics">Analytics</a>
         </nav>
@@ -32,7 +33,7 @@
           <span class="status-dot"></span>
           <div>
             <strong>{{ request.user.username }}</strong>
-            <small>{{ risk_alerts|length }} alerta(s) ativos</small>
+            <small>Conta ativa</small>
           </div>
         </div>
         <form method="post" action="{% url 'dashboard:logout' %}">
@@ -165,18 +166,57 @@
           </div>
         </section>
 
-        {% if risk_alerts %}
-          <section class="risk-alert-list" data-screen="analytics" aria-label="Alertas de risco">
-            {% for alert in risk_alerts %}
-              <article>
-                <span>{{ alert.bankroll.name }}</span>
-                <strong>{{ alert.message }}</strong>
-              </article>
-            {% endfor %}
-          </section>
-        {% endif %}
-
         <section id="bankroll" class="workspace-grid compact-grid" data-screen="bankroll">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Entidades</p>
+                <h2>Cadastrar entidade</h2>
+              </div>
+            </div>
+
+            <form class="bet-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="entity" />
+
+              {% if entity_form.non_field_errors %}
+                <div class="form-errors">{{ entity_form.non_field_errors }}</div>
+              {% endif %}
+
+              <div class="form-row">
+                <label>
+                  <span>Nome da entidade</span>
+                  {{ entity_form.name }}
+                  {{ entity_form.name.errors }}
+                </label>
+                <label>
+                  <span>Observacao</span>
+                  {{ entity_form.notes }}
+                  {{ entity_form.notes.errors }}
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit">Salvar entidade</button>
+            </form>
+
+            <div class="entity-list">
+              {% for entity in entities %}
+                <div>
+                  <div>
+                    <strong>{{ entity.name }}</strong>
+                    <span>{{ entity.notes|default:"Sem observacao" }}</span>
+                  </div>
+                  <form method="post" action="{% url 'dashboard:delete_entity' entity.pk %}" onsubmit="return confirm('Excluir esta entidade? Bancas e apostas vinculadas tambem serao excluidas.');">
+                    {% csrf_token %}
+                    <button class="mini-button danger" type="submit">Excluir</button>
+                  </form>
+                </div>
+              {% empty %}
+                <div class="empty-state">Cadastre uma entidade para vincular suas bancas.</div>
+              {% endfor %}
+            </div>
+          </article>
+
           <article class="panel">
             <div class="panel-header">
               <div>
@@ -193,13 +233,13 @@
                 <div class="form-errors">{{ bankroll_form.non_field_errors }}</div>
               {% endif %}
 
-              <div class="form-row">
-                <label>
-                  <span>Nome da banca</span>
-                  {{ bankroll_form.name }}
-                  {{ bankroll_form.name.errors }}
-                </label>
+              <label>
+                <span>Entidade</span>
+                {{ bankroll_form.entity }}
+                {{ bankroll_form.entity.errors }}
+              </label>
 
+              <div class="form-row">
                 <label>
                   <span>Casa ou exchange</span>
                   {{ bankroll_form.bookmaker }}
@@ -213,44 +253,7 @@
                   {{ bankroll_form.initial_balance }}
                   {{ bankroll_form.initial_balance.errors }}
                 </label>
-                <label>
-                  <span>Unidade padrao (%)</span>
-                  {{ bankroll_form.unit_percentage }}
-                  {{ bankroll_form.unit_percentage.errors }}
-                </label>
               </div>
-
-              <div class="form-row">
-                <label>
-                  <span>Stake maxima (%)</span>
-                  {{ bankroll_form.max_stake_percentage }}
-                  {{ bankroll_form.max_stake_percentage.errors }}
-                </label>
-                <label>
-                  <span>Stop win diario (%)</span>
-                  {{ bankroll_form.daily_stop_win_percentage }}
-                  {{ bankroll_form.daily_stop_win_percentage.errors }}
-                </label>
-              </div>
-
-              <div class="form-row">
-                <label>
-                  <span>Stop loss diario (%)</span>
-                  {{ bankroll_form.daily_stop_loss_percentage }}
-                  {{ bankroll_form.daily_stop_loss_percentage.errors }}
-                </label>
-                <label>
-                  <span>Stop loss semanal (%)</span>
-                  {{ bankroll_form.weekly_stop_loss_percentage }}
-                  {{ bankroll_form.weekly_stop_loss_percentage.errors }}
-                </label>
-              </div>
-
-              <label>
-                <span>Stop loss mensal (%)</span>
-                {{ bankroll_form.monthly_stop_loss_percentage }}
-                {{ bankroll_form.monthly_stop_loss_percentage.errors }}
-              </label>
 
               <button class="primary-button" type="submit">Salvar banca</button>
             </form>
@@ -262,13 +265,22 @@
                 <p class="eyebrow">Controle</p>
                 <h2>Resumo por banca</h2>
               </div>
+              <label class="entity-filter">
+                <span>Entidade</span>
+                <select id="bankrollEntityFilter" aria-label="Filtrar bancas por entidade">
+                  <option value="">Todas</option>
+                  {% for entity in entities %}
+                    <option value="{{ entity.id }}">{{ entity.name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
             </div>
 
             <div class="bankroll-list">
               {% for bankroll in bankrolls %}
-                <article class="bankroll-card">
+                <article class="bankroll-card" data-entity-id="{{ bankroll.entity_id|default:'' }}">
                   <div>
-                    <strong><a href="{% url 'dashboard:bankroll_detail' bankroll.pk %}">{{ bankroll.name }}</a></strong>
+                    <strong><a href="{% url 'dashboard:bankroll_detail' bankroll.pk %}">{{ bankroll.entity.name|default:bankroll.name }}</a></strong>
                     <span>{{ bankroll.bookmaker|default:"Sem casa definida" }}</span>
                   </div>
                   <dl>
@@ -284,24 +296,13 @@
                       <dt>Exposicao</dt>
                       <dd>R$ {{ bankroll.open_exposure|floatformat:2 }}</dd>
                     </div>
-                    <div>
-                      <dt>Unidade {{ bankroll.unit_percentage|floatformat:2 }}%</dt>
-                      <dd>R$ {{ bankroll.suggested_unit|floatformat:2 }}</dd>
-                    </div>
-                    <div>
-                      <dt>Stake maxima</dt>
-                      <dd>R$ {{ bankroll.max_stake_amount|floatformat:2 }}</dd>
-                    </div>
                   </dl>
                   <div class="bankroll-actions">
-                    <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bankroll' bankroll.pk %}">Configurar risco</a>
+                    <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bankroll' bankroll.pk %}">Editar</a>
                     <form method="post" action="{% url 'dashboard:delete_bankroll' bankroll.pk %}" onsubmit="return confirm('Excluir esta banca? Esta acao nao pode ser desfeita.');">
                       {% csrf_token %}
                       <button class="mini-button danger" type="submit">Excluir</button>
                     </form>
-                    {% if bankroll.risk_alerts %}
-                      <span class="risk-badge">Alerta ativo</span>
-                    {% endif %}
                   </div>
                 </article>
               {% empty %}
@@ -646,10 +647,6 @@
                 <div>
                   <span>Retorno total</span>
                   <strong id="previewReturn">R$ 0,00</strong>
-                </div>
-                <div>
-                  <span>Unidades</span>
-                  <strong id="previewUnits">0.00u</strong>
                 </div>
               </div>
 
@@ -1003,6 +1000,180 @@
           </article>
         </section>
 
+        <section id="odds" class="single-grid" data-screen="odds">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">API</p>
+                <h2>Buscar oportunidades</h2>
+              </div>
+            </div>
+
+            <form class="bet-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="odds_search" />
+
+              {% if odds_form.non_field_errors %}
+                <div class="form-errors">{{ odds_form.non_field_errors }}</div>
+              {% endif %}
+
+              <div class="form-row">
+                <label>
+                  <span>Campeonato</span>
+                  {{ odds_form.sport }}
+                  {{ odds_form.sport.errors }}
+                </label>
+                <label>
+                  <span>Casas por regiao</span>
+                  {{ odds_form.regions }}
+                  {{ odds_form.regions.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Filtrar casas especificas</span>
+                {{ odds_form.bookmakers }}
+                {{ odds_form.bookmakers.errors }}
+                <small class="field-hint">Opcional. Deixe vazio para buscar em todas as casas disponiveis.</small>
+              </label>
+
+              <label class="checkbox-field">
+                {{ odds_form.brazil_regulated_only }}
+                <span>Apenas casas regulamentadas no Brasil</span>
+              </label>
+              <small class="field-hint">Usa uma lista inicial de casas autorizadas conhecidas e ignora as demais.</small>
+
+              <div class="form-row">
+                <label>
+                  <span>Valor total para simular</span>
+                  {{ odds_form.stake }}
+                  {{ odds_form.stake.errors }}
+                </label>
+                <label>
+                  <span>Quantidade maxima</span>
+                  {{ odds_form.limit }}
+                  {{ odds_form.limit.errors }}
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit">Buscar oportunidades</button>
+            </form>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Resultado</p>
+                <h2>Oportunidades encontradas</h2>
+              </div>
+            </div>
+
+            <div class="odds-opportunity-list">
+              {% for opportunity in odds_opportunities %}
+                <article class="odds-opportunity-card">
+                  <div class="goal-title">
+                    <strong>{{ opportunity.event }}</strong>
+                    <span>{{ opportunity.commence_time }}</span>
+                  </div>
+                  <div class="report-metrics odds-metrics">
+                    <article>
+                      <span>Soma implicita</span>
+                      <strong>{{ opportunity.implied_probability|floatformat:2 }}%</strong>
+                    </article>
+                    <article>
+                      <span>Margem estimada</span>
+                      <strong class="positive">{{ opportunity.profit_margin|floatformat:2 }}%</strong>
+                    </article>
+                    <article>
+                      <span>Investimento</span>
+                      <strong>R$ {{ opportunity.total_stake|floatformat:2 }}</strong>
+                    </article>
+                    <article>
+                      <span>Retorno alvo</span>
+                      <strong>R$ {{ opportunity.expected_return|floatformat:2 }}</strong>
+                    </article>
+                  </div>
+                  <div class="odds-outcome-list">
+                    {% for outcome in opportunity.outcomes %}
+                      <div>
+                        <span>{{ outcome.name }}</span>
+                        <strong>{{ outcome.price|floatformat:2 }}</strong>
+                        <small>{{ outcome.bookmaker }} | apostar R$ {{ outcome.suggested_stake|floatformat:2 }}</small>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </article>
+              {% empty %}
+                {% if odds_searched %}
+                  <div class="empty-state">Nenhuma surebet encontrada para esses filtros.</div>
+                {% else %}
+                  <div class="empty-state">Busque odds para ver oportunidades aqui.</div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Comparacao</p>
+                <h2>Odds por jogo e casa</h2>
+              </div>
+            </div>
+
+            <div class="odds-comparison-list">
+              {% for comparison in odds_comparisons %}
+                <article class="odds-comparison-card">
+                  <div class="goal-title">
+                    <strong>{{ comparison.event }}</strong>
+                    <span>{{ comparison.commence_time }}</span>
+                  </div>
+
+                  <div class="table-wrap compact-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Resultado</th>
+                          {% for bookmaker in comparison.bookmakers %}
+                            <th>{{ bookmaker }}</th>
+                          {% endfor %}
+                          <th>Melhor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for outcome in comparison.outcomes %}
+                          <tr>
+                            <td><strong>{{ outcome.name }}</strong></td>
+                            {% for bookmaker in comparison.bookmakers %}
+                              <td class="{% if bookmaker == outcome.best_bookmaker %}best-odd{% endif %}">
+                                {% for name, price in outcome.prices.items %}
+                                  {% if name == bookmaker %}
+                                    {{ price|floatformat:2 }}
+                                  {% endif %}
+                                {% endfor %}
+                              </td>
+                            {% endfor %}
+                            <td>
+                              <strong class="positive">{{ outcome.best_price|floatformat:2 }}</strong>
+                              <small>{{ outcome.best_bookmaker }}</small>
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              {% empty %}
+                {% if odds_searched %}
+                  <div class="empty-state">Nenhuma comparacao disponivel para esses filtros.</div>
+                {% else %}
+                  <div class="empty-state">Busque odds para comparar as casas por jogo.</div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
         <section id="bets" class="workspace-grid lower" data-screen="bets">
           <article class="panel table-panel">
             <div class="panel-header">
@@ -1164,21 +1335,21 @@
 
         <section class="bankroll-band" data-screen="analytics">
           <div>
-            <p class="eyebrow">CX inteligente</p>
-            <h2>O sistema te avisa antes da emocao virar decisao.</h2>
+            <p class="eyebrow">Controle</p>
+            <h2>Suas bancas e resultados em um so lugar.</h2>
           </div>
           <div class="risk-grid">
             <article>
-              <span>Stop loss diario</span>
-              <strong>Configurado por banca</strong>
+              <span>Bancas</span>
+              <strong>Saldos atualizados</strong>
             </article>
             <article>
-              <span>Stop win</span>
-              <strong>Trava diaria ativa</strong>
+              <span>Apostas</span>
+              <strong>Historico centralizado</strong>
             </article>
             <article>
-              <span>Stake sugerida</span>
-              <strong>Unidade personalizada</strong>
+              <span>Freebets</span>
+              <strong>Bonus acompanhados</strong>
             </article>
           </div>
         </section>
@@ -1189,7 +1360,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    {{ bankroll_risk_data|json_script:"bankroll-options" }}
     <script src="{% static 'dashboard/app.js' %}"></script>
   </body>
 </html>

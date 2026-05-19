@@ -5,30 +5,58 @@ from django.contrib.auth.models import User
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import Entity
 from .models import MonthlyGoal
 
 
-class BankrollForm(forms.ModelForm):
+class EntityForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
     class Meta:
-        model = Bankroll
-        fields = [
-            'name',
-            'bookmaker',
-            'initial_balance',
-            'unit_percentage',
-            'max_stake_percentage',
-            'daily_stop_loss_percentage',
-            'weekly_stop_loss_percentage',
-            'monthly_stop_loss_percentage',
-            'daily_stop_win_percentage',
-        ]
+        model = Entity
+        fields = ['name', 'notes']
         widgets = {
             'name': forms.TextInput(
                 attrs={
-                    'placeholder': 'Ex: Banca principal',
+                    'placeholder': 'Ex: Muller, Cliente A, Projeto X',
                     'autocomplete': 'off',
                 }
             ),
+            'notes': forms.TextInput(
+                attrs={
+                    'placeholder': 'Ex: Operacao propria, parceiro, cliente...',
+                    'autocomplete': 'off',
+                }
+            ),
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        if self.user and Entity.objects.filter(owner=self.user, name__iexact=name).exists():
+            raise forms.ValidationError('Voce ja cadastrou uma entidade com esse nome.')
+        return name
+
+
+class BankrollForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['entity'].queryset = Entity.objects.filter(owner=user)
+        self.fields['entity'].empty_label = 'Selecione uma entidade'
+        self.fields['entity'].required = True
+
+    class Meta:
+        model = Bankroll
+        fields = [
+            'entity',
+            'bookmaker',
+            'initial_balance',
+        ]
+        widgets = {
+            'entity': forms.Select(),
             'bookmaker': forms.TextInput(
                 attrs={
                     'placeholder': 'Ex: Betfair, Bet365, Pinnacle',
@@ -36,20 +64,6 @@ class BankrollForm(forms.ModelForm):
                 }
             ),
             'initial_balance': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
-            'unit_percentage': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01'}),
-            'max_stake_percentage': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01'}),
-            'daily_stop_loss_percentage': forms.NumberInput(
-                attrs={'step': '0.01', 'min': '0.01'}
-            ),
-            'weekly_stop_loss_percentage': forms.NumberInput(
-                attrs={'step': '0.01', 'min': '0.01'}
-            ),
-            'monthly_stop_loss_percentage': forms.NumberInput(
-                attrs={'step': '0.01', 'min': '0.01'}
-            ),
-            'daily_stop_win_percentage': forms.NumberInput(
-                attrs={'step': '0.01', 'min': '0.01'}
-            ),
         }
 
     def clean_initial_balance(self):
@@ -58,19 +72,15 @@ class BankrollForm(forms.ModelForm):
             raise forms.ValidationError('O saldo inicial nao pode ser negativo.')
         return initial_balance
 
-    def clean(self):
-        cleaned_data = super().clean()
-        unit_percentage = cleaned_data.get('unit_percentage')
-        max_stake_percentage = cleaned_data.get('max_stake_percentage')
-
-        if unit_percentage and max_stake_percentage and unit_percentage > max_stake_percentage:
-            self.add_error(
-                'unit_percentage',
-                'A unidade padrao nao pode ser maior que a stake maxima.',
-            )
-
-        return cleaned_data
-
+    def save(self, commit=True):
+        bankroll = super().save(commit=False)
+        entity_name = bankroll.entity.name if bankroll.entity else 'Sem entidade'
+        bookmaker = bankroll.bookmaker or 'Sem casa'
+        bankroll.name = f'{entity_name} - {bookmaker}'
+        if commit:
+            bankroll.save()
+            self.save_m2m()
+        return bankroll
 
 class SignUpForm(UserCreationForm):
     email = forms.EmailField(required=False)
@@ -186,18 +196,6 @@ class BetForm(forms.ModelForm):
             self.add_error(
                 'stake',
                 'O valor da aposta nao pode ser maior que o saldo disponivel da banca.',
-            )
-
-        if bankroll and stake and stake > bankroll.max_stake_amount:
-            self.add_error(
-                'stake',
-                f'A stake maxima configurada para esta banca e R$ {bankroll.max_stake_amount}.',
-            )
-
-        if bankroll and stake and not self.instance.pk and bankroll.risk_lock_active:
-            self.add_error(
-                'bankroll',
-                'Esta banca esta com stop loss/stop win ativo. Revise a gestao antes de apostar.',
             )
 
         return cleaned_data
@@ -365,6 +363,69 @@ class ImportTextForm(forms.Form):
             raise forms.ValidationError('Cole um texto ou envie um arquivo CSV.')
 
         return cleaned_data
+
+
+class OddsSearchForm(forms.Form):
+    SPORT_CHOICES = [
+        ('soccer_epl', 'Futebol - Premier League'),
+        ('soccer_brazil_campeonato', 'Futebol - Brasileirao'),
+        ('soccer_uefa_champs_league', 'Futebol - Champions League'),
+        ('soccer_spain_la_liga', 'Futebol - La Liga'),
+        ('soccer_italy_serie_a', 'Futebol - Serie A'),
+        ('soccer_germany_bundesliga', 'Futebol - Bundesliga'),
+        ('soccer_france_ligue_one', 'Futebol - Ligue 1'),
+        ('basketball_nba', 'Basquete - NBA'),
+        ('americanfootball_nfl', 'Futebol americano - NFL'),
+    ]
+    REGION_CHOICES = [
+        ('eu', 'Europa'),
+        ('uk', 'Reino Unido'),
+        ('us', 'Estados Unidos'),
+        ('au', 'Australia'),
+        ('eu,uk', 'Europa + Reino Unido'),
+        ('eu,uk,us', 'Europa + Reino Unido + EUA'),
+    ]
+
+    sport = forms.ChoiceField(
+        label='liga/esporte',
+        choices=SPORT_CHOICES,
+        initial='soccer_epl',
+    )
+    regions = forms.ChoiceField(
+        label='regioes',
+        choices=REGION_CHOICES,
+        initial='eu',
+    )
+    bookmakers = forms.CharField(
+        label='casas',
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                'placeholder': 'Opcional: pinnacle,betfair,1xbet',
+                'autocomplete': 'off',
+            }
+        ),
+    )
+    brazil_regulated_only = forms.BooleanField(
+        label='apenas casas regulamentadas no Brasil',
+        required=False,
+        initial=True,
+    )
+    stake = forms.DecimalField(
+        label='investimento',
+        initial=100,
+        min_value=1,
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'step': '0.01', 'min': '1'}),
+    )
+    limit = forms.IntegerField(
+        label='limite',
+        initial=10,
+        min_value=1,
+        max_value=50,
+        widget=forms.NumberInput(attrs={'min': '1', 'max': '50'}),
+    )
 
 
 class MonthlyGoalForm(forms.ModelForm):

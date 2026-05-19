@@ -3,20 +3,26 @@ from django.contrib import admin
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
 from .models import SureBetEntry
+
+
+@admin.register(Entity)
+class EntityAdmin(admin.ModelAdmin):
+    list_display = ('owner', 'name', 'notes', 'created_at')
+    search_fields = ('owner__username', 'name', 'notes')
 
 
 @admin.register(Bankroll)
 class BankrollAdmin(admin.ModelAdmin):
     list_display = (
         'owner',
+        'entity',
         'name',
         'bookmaker',
         'initial_balance',
-        'unit_percentage',
-        'max_stake_percentage',
         'current_balance',
         'available_balance',
         'created_at',
@@ -27,21 +33,9 @@ class BankrollAdmin(admin.ModelAdmin):
             {
                 'fields': (
                     'name',
+                    'entity',
                     'bookmaker',
                     'initial_balance',
-                )
-            },
-        ),
-        (
-            'Gestao de stake',
-            {
-                'fields': (
-                    'unit_percentage',
-                    'max_stake_percentage',
-                    'daily_stop_loss_percentage',
-                    'weekly_stop_loss_percentage',
-                    'monthly_stop_loss_percentage',
-                    'daily_stop_win_percentage',
                 )
             },
         ),

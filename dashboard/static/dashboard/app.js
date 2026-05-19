@@ -150,24 +150,18 @@ function activateScreen() {
 function updateBetPreview() {
   const odds = Number.parseFloat(document.querySelector("#id_odds")?.value || 0);
   const stake = Number.parseFloat(document.querySelector("#id_stake")?.value || 0);
-  const bankrollId = Number.parseInt(document.querySelector("#id_bankroll")?.value || 0, 10);
   const commissionPercentage = Number.parseFloat(
     document.querySelector("#id_exchange_commission")?.value || 0,
   );
-  const bankrollData = document.querySelector("#bankroll-options");
-  const bankrolls = bankrollData ? JSON.parse(bankrollData.textContent) : [];
-  const selectedBankroll = bankrolls.find((bankroll) => bankroll.id === bankrollId);
 
   const grossProfit = odds > 1 && stake > 0 ? stake * (odds - 1) : 0;
   const commission = grossProfit * (commissionPercentage / 100);
   const netProfit = grossProfit - commission;
   const totalReturn = stake + netProfit;
-  const units = selectedBankroll?.unit ? stake / selectedBankroll.unit : 0;
 
   document.querySelector("#previewProfit").textContent = formatCurrency(netProfit);
   document.querySelector("#previewCommission").textContent = formatCurrency(commission);
   document.querySelector("#previewReturn").textContent = formatCurrency(totalReturn);
-  document.querySelector("#previewUnits").textContent = `${units.toFixed(2)}u`;
 }
 
 function setBetMode(mode) {
@@ -398,6 +392,14 @@ document.querySelector(".surebet-form")?.addEventListener("click", (event) => {
     const amountInput = group.querySelector('input[name^="surebet_freebet_amount_"]');
     if (amountInput) amountInput.value = "";
   }
+});
+
+document.querySelector("#bankrollEntityFilter")?.addEventListener("change", (event) => {
+  const selectedEntity = event.target.value;
+  document.querySelectorAll(".bankroll-card[data-entity-id]").forEach((card) => {
+    const shouldShow = !selectedEntity || card.dataset.entityId === selectedEntity;
+    card.classList.toggle("is-filtered-out", !shouldShow);
+  });
 });
 
 if (document.querySelector('[data-bet-mode-panel="surebet"] .form-errors')) {

@@ -13,7 +13,7 @@
         <div class="panel-header">
           <div>
             <p class="eyebrow">Banca</p>
-            <h1>{{ bankroll.name }}</h1>
+            <h1>{{ bankroll.entity.name|default:bankroll.name }}</h1>
             <p class="muted-copy">{{ bankroll.bookmaker|default:"Sem casa definida" }}</p>
           </div>
           <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bankroll">Voltar</a>
@@ -33,28 +33,12 @@
             <strong>R$ {{ bankroll.open_exposure|floatformat:2 }}</strong>
           </article>
           <article class="metric-card">
-            <span>Unidade {{ bankroll.unit_percentage|floatformat:2 }}%</span>
-            <strong>R$ {{ bankroll.suggested_unit|floatformat:2 }}</strong>
-          </article>
-          <article class="metric-card">
-            <span>Stake maxima</span>
-            <strong>R$ {{ bankroll.max_stake_amount|floatformat:2 }}</strong>
+            <span>Resultado hoje</span>
+            <strong>R$ {{ bankroll.today_result|floatformat:2 }}</strong>
           </article>
         </div>
 
         <div class="risk-alert-list detail-alerts">
-          <article>
-            <span>Resultado hoje</span>
-            <strong>R$ {{ bankroll.today_result|floatformat:2 }}</strong>
-          </article>
-          <article>
-            <span>Stop loss diario</span>
-            <strong>R$ {{ bankroll.daily_stop_loss_amount|floatformat:2 }}</strong>
-          </article>
-          <article>
-            <span>Stop win diario</span>
-            <strong>R$ {{ bankroll.daily_stop_win_amount|floatformat:2 }}</strong>
-          </article>
           <article>
             <span>Semana / mes</span>
             <strong>R$ {{ bankroll.week_result|floatformat:2 }} / R$ {{ bankroll.month_result|floatformat:2 }}</strong>

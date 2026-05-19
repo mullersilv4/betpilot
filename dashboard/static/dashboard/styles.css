@@ -427,6 +427,18 @@ textarea {
   color: var(--text);
 }
 
+.entity-filter {
+  display: grid;
+  gap: 5px;
+  min-width: 190px;
+}
+
+.entity-filter span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .bet-form {
   display: grid;
   gap: 14px;
@@ -472,6 +484,25 @@ textarea {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.checkbox-field {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 10px !important;
+}
+
+.checkbox-field input {
+  width: 18px !important;
+  min-height: 18px !important;
+  accent-color: var(--green);
 }
 
 .sr-only {
@@ -618,7 +649,7 @@ textarea {
 }
 
 .compact-bet-form .calculation-preview {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 9px;
 }
@@ -808,13 +839,15 @@ canvas {
 
 .automation-list,
 .breakdown-list,
-.bankroll-list {
+.bankroll-list,
+.entity-list {
   display: grid;
   gap: 10px;
   margin-top: 14px;
 }
 
 .automation-list div,
+.entity-list div,
 .breakdown-row,
 .analytics-row {
   display: flex;
@@ -824,6 +857,20 @@ canvas {
   padding: 12px;
   border-radius: 8px;
   background: var(--surface-2);
+}
+
+.entity-list strong,
+.entity-list span {
+  display: block;
+}
+
+.entity-list span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.entity-list form {
+  margin: 0;
 }
 
 .analytics-list {
@@ -836,6 +883,81 @@ canvas {
   display: grid;
   gap: 12px;
   margin-top: 14px;
+}
+
+.odds-opportunity-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding-right: 4px;
+}
+
+.odds-comparison-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.odds-opportunity-card,
+.odds-comparison-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.odds-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.odds-outcome-list {
+  display: grid;
+  gap: 8px;
+}
+
+.odds-outcome-list div {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 80px minmax(120px, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.odds-outcome-list span,
+.odds-outcome-list strong,
+.odds-outcome-list small {
+  display: block;
+}
+
+.odds-outcome-list span,
+.odds-outcome-list small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.compact-table table {
+  min-width: 920px;
+}
+
+.compact-table th,
+.compact-table td {
+  padding: 9px 8px;
+}
+
+.best-odd {
+  color: var(--green);
+  font-weight: 700;
+  background: rgb(79 209 139 / 9%);
+}
+
+.compact-table small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
 }
 
 .goal-card {
@@ -1076,6 +1198,10 @@ td strong {
   background: var(--surface-2);
 }
 
+.bankroll-card.is-filtered-out {
+  display: none !important;
+}
+
 .bankroll-card strong,
 .bankroll-card span {
   display: block;
@@ -1097,7 +1223,7 @@ td strong {
 
 .bankroll-card dl {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
 }
@@ -1559,7 +1685,8 @@ th {
   .surebet-preview,
   .surebet-result-head,
   .surebet-result-row,
-  .settle-surebet-option {
+  .settle-surebet-option,
+  .odds-outcome-list div {
     grid-template-columns: 1fr;
   }
 }

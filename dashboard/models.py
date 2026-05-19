@@ -194,12 +194,41 @@ class BankrollTransaction(models.Model):
         return self.amount
 
 
+class Entity(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='usuario',
+        related_name='entities',
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField('nome', max_length=100)
+    notes = models.CharField('observacao', max_length=160, blank=True)
+    created_at = models.DateTimeField('criada em', default=timezone.now)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ('owner', 'name')
+        verbose_name = 'entidade'
+        verbose_name_plural = 'entidades'
+
+    def __str__(self):
+        return self.name
+
+
 class Bankroll(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='usuario',
         related_name='bankrolls',
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    entity = models.ForeignKey(
+        Entity,
+        verbose_name='entidade',
+        related_name='bankrolls',
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
     )

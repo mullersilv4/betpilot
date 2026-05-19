@@ -17,6 +17,7 @@ from .forms import TransferForm
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import Entity
 from .models import MonthlyGoal
 from .views import parse_import_lines
 
@@ -135,75 +136,20 @@ class BetFormTests(TestCase):
 
 class BankrollFormTests(TestCase):
     def test_bankroll_form_creates_bankroll(self):
+        user = User.objects.create_user(username='muller')
+        entity = Entity.objects.create(owner=user, name='Muller')
         form = BankrollForm(
             data={
-                'name': 'Exchange',
+                'entity': entity.id,
                 'bookmaker': 'Betfair',
                 'initial_balance': '500.00',
-                'unit_percentage': '1.00',
-                'max_stake_percentage': '10.00',
-                'daily_stop_loss_percentage': '5.00',
-                'weekly_stop_loss_percentage': '10.00',
-                'monthly_stop_loss_percentage': '20.00',
-                'daily_stop_win_percentage': '8.00',
-            }
+            },
+            user=user,
         )
 
         self.assertTrue(form.is_valid())
-
-
-class RiskManagementTests(TestCase):
-    def test_stake_cannot_exceed_max_stake_amount(self):
-        bankroll = Bankroll.objects.create(
-            name='Banca principal',
-            initial_balance=Decimal('1000.00'),
-            max_stake_percentage=Decimal('5.00'),
-        )
-
-        form = BetForm(
-            data={
-                'bankroll': bankroll.id,
-                'sport': 'Futebol',
-                'game': 'Teste x Exemplo',
-                'market': 'Vencedor',
-                'entry_type': Bet.EntryType.PRE_MATCH,
-                'odds': '2.00',
-                'stake': '80.00',
-                'exchange_commission': '0',
-                'status': Bet.Status.OPEN,
-            }
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn('stake', form.errors)
-
-    def test_suggested_unit_uses_configured_percentage(self):
-        bankroll = Bankroll.objects.create(
-            name='Banca principal',
-            initial_balance=Decimal('1000.00'),
-            unit_percentage=Decimal('2.00'),
-        )
-
-        self.assertEqual(bankroll.suggested_unit, Decimal('20.00'))
-        self.assertEqual(bankroll.max_stake_amount, Decimal('100.00'))
-
-    def test_unit_percentage_cannot_exceed_max_stake_percentage(self):
-        form = BankrollForm(
-            data={
-                'name': 'Exchange',
-                'bookmaker': 'Betfair',
-                'initial_balance': '500.00',
-                'unit_percentage': '5.00',
-                'max_stake_percentage': '2.00',
-                'daily_stop_loss_percentage': '5.00',
-                'weekly_stop_loss_percentage': '10.00',
-                'monthly_stop_loss_percentage': '20.00',
-                'daily_stop_win_percentage': '8.00',
-            }
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn('unit_percentage', form.errors)
+        bankroll = form.save(commit=False)
+        self.assertEqual(bankroll.name, 'Muller - Betfair')
 
 
 class AnalyticsTests(TestCase):
@@ -468,7 +414,7 @@ class AuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response.url)
 
-    def test_signup_logs_user_in_and_creates_default_bankroll(self):
+    def test_signup_logs_user_in_without_creating_default_bankroll(self):
         response = self.client.post(
             '/cadastro/',
             {
@@ -481,7 +427,8 @@ class AuthenticationTests(TestCase):
 
         user = User.objects.get(username='newuser')
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(Bankroll.objects.filter(owner=user, name='Banca principal').exists())
+        self.assertFalse(Bankroll.objects.filter(owner=user).exists())
+        self.assertFalse(Entity.objects.filter(owner=user).exists())
 
     def test_user_only_sees_own_bankrolls(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')

@@ -10,7 +10,7 @@ from dashboard.odds_api import summarize_odds
 
 
 class Command(BaseCommand):
-    help = 'Testa a conexao com The Odds API e lista jogos/odds.'
+    help = 'Testa a conexão com The Odds API e lista jogos/odds.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -21,7 +21,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--regions',
             default='eu',
-            help='Regioes das casas. Ex: us, uk, eu, au ou combinacoes com virgula.',
+            help='Regiões das casas. Ex: us, uk, eu, au ou combinações com virgula.',
         )
         parser.add_argument(
             '--markets',
@@ -37,7 +37,7 @@ class Command(BaseCommand):
             '--limit',
             type=int,
             default=5,
-            help='Quantidade maxima de jogos para imprimir.',
+            help='Quantidade máxima de jogos para imprimir.',
         )
         parser.add_argument(
             '--list-sports',
@@ -79,7 +79,7 @@ class Command(BaseCommand):
             self.stdout.write('')
             self.stdout.write(self.style.SUCCESS(item['event']))
             self.stdout.write(f'  Esporte: {item["sport"]}')
-            self.stdout.write(f'  Inicio: {item["commence_time"]}')
+            self.stdout.write(f'  Início: {item["commence_time"]}')
             for bookmaker in item['bookmakers']:
                 self.stdout.write(f'  Casa: {bookmaker["title"]}')
                 for market in bookmaker['markets']:

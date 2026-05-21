@@ -1901,6 +1901,21 @@ th {
     font-size: 0.58rem;
   }
 
+  .filter-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .filter-form .history-filter-bankroll,
+  .filter-form .history-filter-search {
+    grid-column: 1 / -1;
+  }
+
+  .filter-form button,
+  .filter-form a {
+    width: 100%;
+  }
+
   .form-row.mobile-pair {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

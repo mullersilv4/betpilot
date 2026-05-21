@@ -379,7 +379,7 @@ function setupSingleEventAutocomplete(container) {
       if (!results.length) {
         setEventAutocompleteState(
           container,
-          '<div class="event-empty">Nenhum jogo encontrado. Voce pode continuar digitando manualmente.</div>',
+          '<div class="event-empty">Nenhum jogo encontrado. Você pode continuar digitando manualmente.</div>',
         );
         return;
       }
@@ -407,7 +407,7 @@ function setupSingleEventAutocomplete(container) {
     } catch (_error) {
       setEventAutocompleteState(
         container,
-        '<div class="event-empty">Nao foi possivel buscar jogos agora. Voce pode digitar manualmente.</div>',
+        '<div class="event-empty">Não foi possível buscar jogos agora. Você pode digitar manualmente.</div>',
       );
     }
   });
@@ -647,7 +647,7 @@ function createSurebetEntry(index) {
         <input type="number" name="surebet_odd_${index}" class="surebet-odd" step="0.01" min="1.01" placeholder="Ex: 2.10" />
       </label>
       <label>
-        <span class="sr-only">Comissao % ${index}</span>
+        <span class="sr-only">Comissão % ${index}</span>
         <input type="number" name="surebet_commission_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 0" />
       </label>
       <label>
@@ -670,8 +670,8 @@ function createSurebetEntry(index) {
         <output class="surebet-entry-return" data-surebet-result="${index}">0,00</output>
       </div>
       <label class="surebet-entry-note">
-        <span class="sr-only">Observacao ${index}</span>
-        <input type="text" name="surebet_notes_${index}" maxlength="180" placeholder="Observacao" autocomplete="off" />
+        <span class="sr-only">Observação ${index}</span>
+        <input type="text" name="surebet_notes_${index}" maxlength="180" placeholder="Observação" autocomplete="off" />
       </label>
     </div>
   `;

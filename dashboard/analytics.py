@@ -88,7 +88,7 @@ def max_drawdown(values):
 def current_streak(bets):
     ordered = sorted(settled_bets(bets), key=lambda item: item.created_at, reverse=True)
     if not ordered:
-        return {'label': 'Sem sequencia', 'count': 0, 'kind': 'neutral'}
+        return {'label': 'Sem sequência', 'count': 0, 'kind': 'neutral'}
 
     first_status = ordered[0].status
     count = 0
@@ -198,7 +198,7 @@ def build_analytics(bets, initial_balance, reference_date=None):
         'periods': [
             {'label': 'Hoje', **today},
             {'label': '7 dias', **week},
-            {'label': 'Mes atual', **month},
+            {'label': 'Mês atual', **month},
         ],
         'market_rows': market_rows,
         'bankroll_rows': bankroll_rows,

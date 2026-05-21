@@ -25,11 +25,11 @@
             <strong>R$ {{ bankroll.current_balance|floatformat:2 }}</strong>
           </article>
           <article class="metric-card">
-            <span>Disponivel</span>
+            <span>Disponível</span>
             <strong>R$ {{ bankroll.available_balance|floatformat:2 }}</strong>
           </article>
           <article class="metric-card">
-            <span>Exposicao</span>
+            <span>Exposição</span>
             <strong>R$ {{ bankroll.open_exposure|floatformat:2 }}</strong>
           </article>
           <article class="metric-card">
@@ -40,7 +40,7 @@
 
         <div class="risk-alert-list detail-alerts">
           <article>
-            <span>Semana / mes</span>
+            <span>Semana / mês</span>
             <strong>R$ {{ bankroll.week_result|floatformat:2 }} / R$ {{ bankroll.month_result|floatformat:2 }}</strong>
           </article>
         </div>
@@ -50,7 +50,7 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Relatorios</p>
-                <h2>Lucro diario do mes</h2>
+                <h2>Lucro diário do mês</h2>
               </div>
             </div>
             <canvas id="periodChart" width="720" height="260"></canvas>
@@ -120,7 +120,7 @@
           <article>
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Historico</p>
+                <p class="eyebrow">Histórico</p>
                 <h2>Apostas desta banca</h2>
               </div>
             </div>
@@ -130,7 +130,7 @@
                   <tr>
                     <th>Evento</th>
                     <th>Esporte</th>
-                    <th>Competicao</th>
+                    <th>Competição</th>
                     <th>Mercado</th>
                     <th>Tipo</th>
                     <th>Odd</th>
@@ -166,7 +166,7 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Financeiro</p>
-                <h2>Movimentacoes</h2>
+                <h2>Movimentações</h2>
               </div>
             </div>
             <div class="automation-list">
@@ -176,7 +176,7 @@
                   <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
                 </div>
               {% empty %}
-                <div class="empty-state">Sem movimentacoes.</div>
+                <div class="empty-state">Sem movimentações.</div>
               {% endfor %}
             </div>
           </article>

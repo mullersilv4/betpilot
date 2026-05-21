@@ -506,7 +506,7 @@ def event_autocomplete(request):
     competition_text = request.GET.get('competition') or ''
 
     if not api_key:
-        return JsonResponse({'results': [], 'error': 'API key nao configurada.'}, status=503)
+        return JsonResponse({'results': [], 'error': 'API key não configurada.'}, status=503)
 
     sport_keys = guess_event_sports(sport_text, competition_text)
     client = OddsApiClient(api_key)
@@ -567,7 +567,7 @@ def index(request):
             transaction_form = BankrollTransactionForm(request.POST, user=request.user)
             if transaction_form.is_valid():
                 transaction_form.save()
-                messages.success(request, 'Movimentacao registrada.')
+                messages.success(request, 'Movimentação registrada.')
                 return redirect('dashboard:index')
             context = build_dashboard_context(request, transaction_form=transaction_form)
             return render(request, 'dashboard/index.html', context)
@@ -583,15 +583,15 @@ def index(request):
                         bankroll=source,
                         kind=BankrollTransaction.Kind.TRANSFER_OUT,
                         amount=amount,
-                        note=f'Transferencia para {target.name}',
+                        note=f'Transferência para {target.name}',
                     )
                     BankrollTransaction.objects.create(
                         bankroll=target,
                         kind=BankrollTransaction.Kind.TRANSFER_IN,
                         amount=amount,
-                        note=f'Transferencia de {source.name}',
+                        note=f'Transferência de {source.name}',
                     )
-                messages.success(request, 'Transferencia registrada.')
+                messages.success(request, 'Transferência registrada.')
                 return redirect('dashboard:index')
             context = build_dashboard_context(request, transfer_form=transfer_form)
             return render(request, 'dashboard/index.html', context)
@@ -720,7 +720,7 @@ def index(request):
             notes = (request.POST.get('surebet_notes') or '').strip()
 
             if entity is None:
-                surebet_errors.append('Selecione uma entidade valida.')
+                surebet_errors.append('Selecione uma entidade válida.')
             if len(outcomes) < 2:
                 surebet_errors.append('Informe pelo menos dois resultados protegidos.')
 
@@ -732,7 +732,7 @@ def index(request):
                 if outcome['stake'] is None or outcome['stake'] <= 0:
                     surebet_errors.append(f'O valor de {outcome["label"]} precisa ser maior que zero.')
                 for field, label in [
-                    ('commission', 'comissao'),
+                    ('commission', 'comissão'),
                     ('cashback', 'cashback'),
                     ('boost', 'aumento'),
                 ]:
@@ -800,7 +800,7 @@ def index(request):
             effective_odd = (best_return / total_stake).quantize(Decimal('0.01'))
             market = 'Surebet: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
             protection_lines = [
-                'Surebet cadastrada com protecoes:',
+                'Surebet cadastrada com proteções:',
                 f'Responsabilidade total: {format_money(total_stake)}',
             ]
             for outcome in outcome_results:
@@ -808,13 +808,13 @@ def index(request):
                     (
                         f'{outcome["bookmaker"]} - {outcome["label"]}: odd {outcome["odd"]}, '
                         f'modo {outcome["mode"].upper()}, '
-                        f'comissao {outcome["commission"]}%, cashback {outcome["cashback"]}%, '
+                        f'comissão {outcome["commission"]}%, cashback {outcome["cashback"]}%, '
                         f'aumento {outcome["boost"]}%, '
                         f'aposta {format_money(outcome["stake"])}, '
                         f'responsabilidade {format_money(outcome["liability"])}, '
                         f'retorno {format_money(outcome["return"])}, '
-                        f'cashback no cenario {format_money(outcome["cashback_return"])}, '
-                        f'resultado liquido {format_money(outcome["net"])}'
+                        f'cashback no cenário {format_money(outcome["cashback_return"])}, '
+                        f'resultado líquido {format_money(outcome["net"])}'
                         + (
                             f', gera freebet de {format_money(outcome["freebet_amount"])}'
                             if outcome['freebet_enabled'] else ''
@@ -822,7 +822,7 @@ def index(request):
                     )
                 )
             if notes:
-                protection_lines.extend(['Observacoes:', notes])
+                protection_lines.extend(['Observações:', notes])
 
             bet = Bet.objects.create(
                 bankroll=None,
@@ -896,7 +896,7 @@ def edit_bankroll(request, pk):
         form = BankrollForm(request.POST, instance=bankroll, user=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Configuracoes da banca atualizadas.')
+            messages.success(request, 'Configurações da banca atualizadas.')
             return redirect('dashboard:index')
     else:
         form = BankrollForm(instance=bankroll, user=request.user)
@@ -923,10 +923,10 @@ def delete_bankroll(request, pk):
         if bet_count:
             messages.success(
                 request,
-                f'Banca "{name}" excluida com {bet_count} aposta(s) vinculada(s).',
+                f'Banca "{name}" excluída com {bet_count} aposta(s) vinculada(s).',
             )
         else:
-            messages.success(request, f'Banca "{name}" excluida com sucesso.')
+            messages.success(request, f'Banca "{name}" excluída com sucesso.')
     return redirect('dashboard:index')
 
 
@@ -945,7 +945,7 @@ def delete_entity(request, pk):
         messages.success(
             request,
             (
-                f'Entidade "{name}" excluida com {bankroll_count} banca(s) '
+                f'Entidade "{name}" excluída com {bankroll_count} banca(s) '
                 f'e {bet_count} aposta(s) vinculada(s).'
             ),
         )
@@ -956,7 +956,7 @@ def delete_entity(request, pk):
 def settle_bet(request, pk, status):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
     if bet.strategy == 'Surebet':
-        messages.error(request, 'Use a finalizacao da surebet para escolher a casa vencedora.')
+        messages.error(request, 'Use a finalização da surebet para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
     if request.method == 'POST' and status in {Bet.Status.WON, Bet.Status.LOST, Bet.Status.OPEN}:
         bet.status = status
@@ -1021,7 +1021,7 @@ def delete_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
     if request.method == 'POST':
         bet.delete()
-        messages.success(request, 'Aposta excluida.')
+        messages.success(request, 'Aposta excluída.')
     return redirect('dashboard:index')
 
 

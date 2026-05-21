@@ -20,7 +20,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--regions',
             default='eu',
-            help='Regioes das casas. Ex: us, uk, eu, au ou combinacoes com virgula.',
+            help='Regiões das casas. Ex: us, uk, eu, au ou combinações com virgula.',
         )
         parser.add_argument(
             '--bookmakers',
@@ -31,7 +31,7 @@ class Command(BaseCommand):
             '--limit',
             type=int,
             default=10,
-            help='Quantidade maxima de oportunidades para imprimir.',
+            help='Quantidade máxima de oportunidades para imprimir.',
         )
         parser.add_argument(
             '--stake',
@@ -81,7 +81,7 @@ class Command(BaseCommand):
             self.stdout.write('')
             self.stdout.write(self.style.SUCCESS(opportunity['event']))
             self.stdout.write(f'  Esporte: {opportunity["sport"]}')
-            self.stdout.write(f'  Inicio: {opportunity["commence_time"]}')
+            self.stdout.write(f'  Início: {opportunity["commence_time"]}')
             self.stdout.write(f'  Soma implicita: {opportunity["implied_probability"]:.2f}%')
             self.stdout.write(f'  Margem estimada: {opportunity["profit_margin"]:.2f}%')
             self.stdout.write(f'  Investimento total: R$ {total_stake:.2f}')

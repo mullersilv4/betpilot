@@ -33,14 +33,14 @@ class Bet(models.Model):
         blank=True,
     )
     sport = models.CharField('esporte', max_length=60, blank=True, default='Futebol')
-    competition = models.CharField('competicao', max_length=120, blank=True)
+    competition = models.CharField('competição', max_length=120, blank=True)
     game = models.CharField('jogo', max_length=160)
     external_event_id = models.CharField('id externo do evento', max_length=80, blank=True)
     external_sport_key = models.CharField('sport key externo', max_length=80, blank=True)
     home_team = models.CharField('mandante', max_length=120, blank=True)
     away_team = models.CharField('visitante', max_length=120, blank=True)
     market = models.CharField('mercado', max_length=120)
-    strategy = models.CharField('estrategia/tipster', max_length=120, blank=True)
+    strategy = models.CharField('estratégia/tipster', max_length=120, blank=True)
     event_date = models.DateTimeField('data do evento', null=True, blank=True)
     entry_type = models.CharField(
         'tipo de entrada',
@@ -51,7 +51,7 @@ class Bet(models.Model):
     odds = models.DecimalField('odd', max_digits=8, decimal_places=2)
     stake = models.DecimalField('valor apostado', max_digits=10, decimal_places=2)
     exchange_commission = models.DecimalField(
-        'comissao da exchange (%)',
+        'comissão da exchange (%)',
         max_digits=5,
         decimal_places=2,
         default=Decimal('0.00'),
@@ -64,9 +64,9 @@ class Bet(models.Model):
     )
     exact_score = models.CharField('resultado exato', max_length=40, blank=True)
     game_link = models.URLField('link do jogo', blank=True)
-    notes = models.TextField('observacoes', blank=True)
+    notes = models.TextField('observações', blank=True)
     actual_net_result = models.DecimalField(
-        'resultado liquido real',
+        'resultado líquido real',
         max_digits=12,
         decimal_places=2,
         null=True,
@@ -152,15 +152,15 @@ class SureBetEntry(models.Model):
     odds = models.DecimalField('odd', max_digits=8, decimal_places=2)
     effective_odds = models.DecimalField('odd efetiva', max_digits=8, decimal_places=2)
     stake = models.DecimalField('valor apostado', max_digits=10, decimal_places=2)
-    commission = models.DecimalField('comissao (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    commission = models.DecimalField('comissão (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
     cashback = models.DecimalField('cashback (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
     boost = models.DecimalField('aumento (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
     return_amount = models.DecimalField('retorno', max_digits=12, decimal_places=2)
-    cashback_return = models.DecimalField('cashback no cenario', max_digits=12, decimal_places=2, default=Decimal('0.00'))
-    net_result = models.DecimalField('resultado liquido', max_digits=12, decimal_places=2)
+    cashback_return = models.DecimalField('cashback no cenário', max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    net_result = models.DecimalField('resultado líquido', max_digits=12, decimal_places=2)
     freebet_enabled = models.BooleanField('gera freebet', default=False)
     freebet_amount = models.DecimalField('valor da freebet', max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    notes = models.CharField('observacao', max_length=180, blank=True)
+    notes = models.CharField('observação', max_length=180, blank=True)
     is_winner = models.BooleanField('entrada vencedora', default=False)
     created_at = models.DateTimeField('criada em', default=timezone.now)
 
@@ -178,8 +178,8 @@ class BankrollTransaction(models.Model):
         DEPOSIT = 'deposit', 'Deposito'
         WITHDRAW = 'withdraw', 'Saque'
         ADJUSTMENT = 'adjustment', 'Ajuste'
-        TRANSFER_IN = 'transfer_in', 'Transferencia entrada'
-        TRANSFER_OUT = 'transfer_out', 'Transferencia saida'
+        TRANSFER_IN = 'transfer_in', 'Transferência entrada'
+        TRANSFER_OUT = 'transfer_out', 'Transferência saida'
 
     bankroll = models.ForeignKey(
         'Bankroll',
@@ -189,13 +189,13 @@ class BankrollTransaction(models.Model):
     )
     kind = models.CharField('tipo', max_length=16, choices=Kind.choices)
     amount = models.DecimalField('valor', max_digits=12, decimal_places=2)
-    note = models.CharField('observacao', max_length=160, blank=True)
+    note = models.CharField('observação', max_length=160, blank=True)
     created_at = models.DateTimeField('criada em', default=timezone.now)
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'movimentacao'
-        verbose_name_plural = 'movimentacoes'
+        verbose_name = 'movimentação'
+        verbose_name_plural = 'movimentações'
 
     def __str__(self):
         return f'{self.get_kind_display()} - {self.bankroll}'
@@ -210,12 +210,12 @@ class BankrollTransaction(models.Model):
 class Entity(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='usuario',
+        verbose_name='usuário',
         related_name='entities',
         on_delete=models.CASCADE,
     )
     name = models.CharField('nome', max_length=100)
-    notes = models.CharField('observacao', max_length=160, blank=True)
+    notes = models.CharField('observação', max_length=160, blank=True)
     created_at = models.DateTimeField('criada em', default=timezone.now)
 
     class Meta:
@@ -231,7 +231,7 @@ class Entity(models.Model):
 class Bankroll(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='usuario',
+        verbose_name='usuário',
         related_name='bankrolls',
         on_delete=models.CASCADE,
         null=True,
@@ -254,19 +254,19 @@ class Bankroll(models.Model):
         default=Decimal('0.00'),
     )
     unit_percentage = models.DecimalField(
-        'unidade padrao (%)',
+        'unidade padrão (%)',
         max_digits=5,
         decimal_places=2,
         default=Decimal('1.00'),
     )
     max_stake_percentage = models.DecimalField(
-        'stake maxima (%)',
+        'stake máxima (%)',
         max_digits=5,
         decimal_places=2,
         default=Decimal('10.00'),
     )
     daily_stop_loss_percentage = models.DecimalField(
-        'stop loss diario (%)',
+        'stop loss diário (%)',
         max_digits=5,
         decimal_places=2,
         default=Decimal('5.00'),
@@ -284,7 +284,7 @@ class Bankroll(models.Model):
         default=Decimal('20.00'),
     )
     daily_stop_win_percentage = models.DecimalField(
-        'stop win diario (%)',
+        'stop win diário (%)',
         max_digits=5,
         decimal_places=2,
         default=Decimal('8.00'),
@@ -424,15 +424,15 @@ class Bankroll(models.Model):
     def risk_alerts(self):
         alerts = []
         if self.daily_stop_loss_reached:
-            alerts.append('Stop loss diario atingido')
+            alerts.append('Stop loss diário atingido')
         if self.weekly_stop_loss_reached:
             alerts.append('Stop loss semanal atingido')
         if self.monthly_stop_loss_reached:
             alerts.append('Stop loss mensal atingido')
         if self.daily_stop_win_reached:
-            alerts.append('Stop win diario atingido')
+            alerts.append('Stop win diário atingido')
         if self.open_exposure > self.max_stake_amount:
-            alerts.append('Exposicao aberta acima da stake maxima')
+            alerts.append('Exposição aberta acima da stake máxima')
         return alerts
 
 
@@ -443,7 +443,7 @@ class MonthlyGoal(models.Model):
         related_name='goals',
         on_delete=models.CASCADE,
     )
-    month = models.DateField('mes de referencia')
+    month = models.DateField('mês de referência')
     profit_target = models.DecimalField(
         'meta de lucro',
         max_digits=12,

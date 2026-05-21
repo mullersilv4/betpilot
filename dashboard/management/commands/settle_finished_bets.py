@@ -13,7 +13,7 @@ from dashboard.result_settlement import resolve_surebet_from_event
 
 
 class Command(BaseCommand):
-    help = 'Fecha apostas abertas quando o jogo ja terminou e o mercado simples foi resolvido.'
+    help = 'Fecha apostas abertas quando o jogo já terminou e o mercado simples foi resolvido.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -21,7 +21,7 @@ class Command(BaseCommand):
             type=int,
             default=3,
             choices=[1, 2, 3],
-            help='Quantidade de dias para buscar jogos finalizados. Maximo permitido pela API: 3.',
+            help='Quantidade de dias para buscar jogos finalizados. Máximo permitido pela API: 3.',
         )
         parser.add_argument(
             '--dry-run',

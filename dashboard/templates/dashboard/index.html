@@ -16,12 +16,12 @@
       </button>
       <div class="sidebar-backdrop" data-sidebar-close></div>
 
-      <aside id="appSidebar" class="sidebar" aria-label="Navegacao principal">
+      <aside id="appSidebar" class="sidebar" aria-label="Navegação principal">
         <div class="brand">
           <span class="brand-mark">BP</span>
           <div>
             <strong>BetPilot</strong>
-            <small>Gestao inteligente</small>
+            <small>Gestão inteligente</small>
           </div>
         </div>
 
@@ -29,10 +29,10 @@
           <a class="active" href="#dashboard">Dashboard</a>
           <a href="#new-bet">Nova aposta</a>
           <a href="#bankroll">Bancas</a>
-          <a href="#bets">Historico</a>
+          <a href="#bets">Histórico</a>
           <a class="nav-dev" href="#goals">Metas <span>Em desenvolvimento</span></a>
           <a class="nav-dev" href="#odds">Odds <span>Em desenvolvimento</span></a>
-          <a class="nav-dev" href="#automation">Automacoes <span>Em desenvolvimento</span></a>
+          <a class="nav-dev" href="#automation">Automações <span>Em desenvolvimento</span></a>
           <a class="nav-dev" href="#analytics">Analytics <span>Em desenvolvimento</span></a>
         </nav>
 
@@ -61,7 +61,7 @@
         <section id="dashboard" class="dashboard-filter-bar" data-screen="dashboard" aria-label="Filtros do dashboard">
           <form method="get" action="#dashboard">
             <label>
-              <span>Mes</span>
+              <span>Mês</span>
               <select name="dashboard_month">
                 {% for value, label in dashboard_filter.month_choices %}
                   <option value="{{ value }}" {% if value == dashboard_filter.month %}selected{% endif %}>{{ label }}</option>
@@ -81,16 +81,16 @@
           </form>
         </section>
 
-        <section class="metric-grid" data-screen="dashboard" aria-label="Metricas principais">
+        <section class="metric-grid" data-screen="dashboard" aria-label="Métricas principais">
           <article class="metric-card">
             <span>Saldo total</span>
             <strong>R$ {{ metrics.total_current_balance|floatformat:2 }}</strong>
-            <small class="neutral">disponivel R$ {{ metrics.total_available_balance|floatformat:2 }}</small>
+            <small class="neutral">disponível R$ {{ metrics.total_available_balance|floatformat:2 }}</small>
           </article>
           <article class="metric-card">
             <span>Apostas abertas</span>
             <strong>{{ metrics.open_bet_count }}</strong>
-            <small class="neutral">exposicao R$ {{ metrics.open_exposure|floatformat:2 }}</small>
+            <small class="neutral">exposição R$ {{ metrics.open_exposure|floatformat:2 }}</small>
           </article>
           <article class="metric-card">
             <span>Total apostado</span>
@@ -98,7 +98,7 @@
             <small class="neutral">{{ metrics.bet_count }} apostas feitas</small>
           </article>
           <article class="metric-card">
-            <span>Lucro liquido</span>
+            <span>Lucro líquido</span>
             <strong>R$ {{ metrics.net_profit|floatformat:2 }}</strong>
             <small class="{% if metrics.net_profit >= 0 %}positive{% else %}negative{% endif %}">resultado fechado</small>
           </article>
@@ -114,12 +114,12 @@
           </article>
         </section>
 
-        <section class="dashboard-visual-grid" data-screen="dashboard" aria-label="Graficos do dashboard">
+        <section class="dashboard-visual-grid" data-screen="dashboard" aria-label="Gráficos do dashboard">
           <article id="calendar" class="panel calendar-panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Calendario</p>
-                <h2>Resultado diario de {{ analytics.month_calendar.label }}</h2>
+                <p class="eyebrow">Calendário</p>
+                <h2>Resultado diário de {{ analytics.month_calendar.label }}</h2>
               </div>
               <div class="calendar-summary">
                 <span>{{ analytics.month_calendar.count }} aposta(s) fechada(s)</span>
@@ -129,7 +129,7 @@
               </div>
             </div>
 
-            <div class="calendar-grid" aria-label="Calendario de resultado diario">
+            <div class="calendar-grid" aria-label="Calendário de resultado diário">
               {% for weekday in analytics.month_calendar.weekdays %}
                 <div class="calendar-weekday">{{ weekday }}</div>
               {% endfor %}
@@ -154,7 +154,7 @@
             <article class="panel chart-panel compact-chart">
               <div class="panel-header">
                 <div>
-                  <p class="eyebrow">Evolucao</p>
+                  <p class="eyebrow">Evolução</p>
                   <h2>Banca e resultado acumulado</h2>
                 </div>
                 <select aria-label="Periodo do grafico">
@@ -170,7 +170,7 @@
               <div class="panel-header">
                 <div>
                   <p class="eyebrow">Relatorios</p>
-                  <h2>Lucro diario do mes</h2>
+                  <h2>Lucro diário do mês</h2>
                 </div>
               </div>
               <canvas id="periodChart" width="720" height="260"></canvas>
@@ -202,7 +202,7 @@
                   {{ entity_form.name.errors }}
                 </label>
                 <label>
-                  <span>Observacao</span>
+                  <span>Observação</span>
                   {{ entity_form.notes }}
                   {{ entity_form.notes.errors }}
                 </label>
@@ -216,9 +216,9 @@
                 <div>
                   <div>
                     <strong>{{ entity.name }}</strong>
-                    <span>{{ entity.notes|default:"Sem observacao" }}</span>
+                    <span>{{ entity.notes|default:"Sem observação" }}</span>
                   </div>
-                  <form method="post" action="{% url 'dashboard:delete_entity' entity.pk %}" onsubmit="return confirm('Excluir esta entidade? Bancas e apostas vinculadas tambem serao excluidas.');">
+                  <form method="post" action="{% url 'dashboard:delete_entity' entity.pk %}" onsubmit="return confirm('Excluir esta entidade? Bancas e apostas vinculadas também serão excluídas.');">
                     {% csrf_token %}
                     <button class="mini-button danger" type="submit">Excluir</button>
                   </form>
@@ -301,17 +301,17 @@
                       <dd>R$ {{ bankroll.current_balance|floatformat:2 }}</dd>
                     </div>
                     <div>
-                      <dt>Disponivel</dt>
+                      <dt>Disponível</dt>
                       <dd>R$ {{ bankroll.available_balance|floatformat:2 }}</dd>
                     </div>
                     <div>
-                      <dt>Exposicao</dt>
+                      <dt>Exposição</dt>
                       <dd>R$ {{ bankroll.open_exposure|floatformat:2 }}</dd>
                     </div>
                   </dl>
                   <div class="bankroll-actions">
                     <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bankroll' bankroll.pk %}">Editar</a>
-                    <form method="post" action="{% url 'dashboard:delete_bankroll' bankroll.pk %}" onsubmit="return confirm('Excluir esta banca? Esta acao nao pode ser desfeita.');">
+                    <form method="post" action="{% url 'dashboard:delete_bankroll' bankroll.pk %}" onsubmit="return confirm('Excluir esta banca? Esta ação não pode ser desfeita.');">
                       {% csrf_token %}
                       <button class="mini-button danger" type="submit">Excluir</button>
                     </form>
@@ -326,8 +326,8 @@
 
         <section id="transactions" class="workspace-grid compact-grid" data-screen="bankroll">
           <div class="section-subheading">
-            <p class="eyebrow">Movimentacoes</p>
-            <h2>Financeiro e transferencias</h2>
+            <p class="eyebrow">Movimentações</p>
+            <h2>Financeiro e transferências</h2>
           </div>
 
           <article class="panel">
@@ -362,19 +362,19 @@
               </label>
 
               <label>
-                <span>Observacao</span>
+                <span>Observação</span>
                 {{ transaction_form.note }}
                 {{ transaction_form.note.errors }}
               </label>
 
-              <button class="primary-button" type="submit">Registrar movimentacao</button>
+              <button class="primary-button" type="submit">Registrar movimentação</button>
             </form>
           </article>
 
           <article class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Transferencia</p>
+                <p class="eyebrow">Transferência</p>
                 <h2>Mover saldo entre bancas</h2>
               </div>
             </div>
@@ -416,7 +416,7 @@
                   <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
                 </div>
               {% empty %}
-                <div class="empty-state">Nenhuma movimentacao registrada.</div>
+                <div class="empty-state">Nenhuma movimentação registrada.</div>
               {% endfor %}
             </div>
           </article>
@@ -447,7 +447,7 @@
                   {{ goal_form.bankroll.errors }}
                 </label>
                 <label>
-                  <span>Mes</span>
+                  <span>Mês</span>
                   {{ goal_form.month }}
                   {{ goal_form.month.errors }}
                 </label>
@@ -562,7 +562,7 @@
                 </label>
 
                 <label>
-                  <span>Competicao</span>
+                  <span>Competição</span>
                   {{ form.competition }}
                   {{ form.competition.errors }}
                 </label>
@@ -592,7 +592,7 @@
                 </label>
 
                 <label>
-                  <span>Estrategia / tipster</span>
+                  <span>Estratégia / tipster</span>
                   {{ form.strategy }}
                   {{ form.strategy.errors }}
                 </label>
@@ -627,14 +627,14 @@
               </div>
 
               <label>
-                <span>Observacoes</span>
+                <span>Observações</span>
                 {{ form.notes }}
                 {{ form.notes.errors }}
               </label>
 
               <div class="form-row">
                 <label>
-                  <span>Comissao exchange (%)</span>
+                  <span>Comissão exchange (%)</span>
                   {{ form.exchange_commission }}
                   {{ form.exchange_commission.errors }}
                 </label>
@@ -652,7 +652,7 @@
                   <strong id="previewProfit">R$ 0,00</strong>
                 </div>
                 <div>
-                  <span>Comissao</span>
+                  <span>Comissão</span>
                   <strong id="previewCommission">R$ 0,00</strong>
                 </div>
                 <div>
@@ -697,8 +697,8 @@
                 </label>
 
                 <label>
-                  <span>Competicao</span>
-                  <input type="text" name="surebet_competition" value="{{ surebet_data.surebet_competition }}" placeholder="Ex: Brasileirao, NBA, ATP" autocomplete="off" />
+                  <span>Competição</span>
+                  <input type="text" name="surebet_competition" value="{{ surebet_data.surebet_competition }}" placeholder="Ex: Brasileirão, NBA, ATP" autocomplete="off" />
                 </label>
               </div>
 
@@ -733,7 +733,7 @@
                   <span>Modo</span>
                   <span>Valor</span>
                   <span>Odd</span>
-                  <span>Comissao %</span>
+                  <span>Comissão %</span>
                   <span>Cashback %</span>
                   <span>Aumento %</span>
                   <span>Freebet / Resultado</span>
@@ -760,7 +760,7 @@
                         <input type="number" name="surebet_odd_{{ row.index }}" value="{{ row.odd }}" class="surebet-odd" step="0.01" min="1.01" placeholder="Ex: 2.10" />
                       </label>
                       <label>
-                        <span class="sr-only">Comissao % {{ row.index }}</span>
+                        <span class="sr-only">Comissão % {{ row.index }}</span>
                         <input type="number" name="surebet_commission_{{ row.index }}" value="{{ row.commission }}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 0" />
                       </label>
                       <label>
@@ -783,8 +783,8 @@
                         <output class="surebet-entry-return" data-surebet-result="{{ row.index }}">0,00</output>
                       </div>
                       <label class="surebet-entry-note">
-                        <span class="sr-only">Observacao {{ row.index }}</span>
-                        <input type="text" name="surebet_notes_{{ row.index }}" value="{{ row.notes }}" maxlength="180" placeholder="Observacao" autocomplete="off" />
+                        <span class="sr-only">Observação {{ row.index }}</span>
+                        <input type="text" name="surebet_notes_{{ row.index }}" value="{{ row.notes }}" maxlength="180" placeholder="Observação" autocomplete="off" />
                       </label>
                     </div>
                   </div>
@@ -807,11 +807,11 @@
                   <strong id="surebetMargin">0.00%</strong>
                 </div>
                 <div>
-                  <span>Melhor cenario</span>
+                  <span>Melhor cenário</span>
                   <strong id="surebetBest">R$ 0,00</strong>
                 </div>
                 <div>
-                  <span>Pior cenario</span>
+                  <span>Pior cenário</span>
                   <strong id="surebetWorst">R$ 0,00</strong>
                 </div>
               </div>
@@ -838,7 +838,7 @@
               </div>
 
               <label>
-                <span>Observacoes</span>
+                <span>Observações</span>
                 <textarea name="surebet_notes" rows="3" placeholder="Casas usadas, ordem das entradas, limites ou qualquer detalhe importante...">{{ surebet_data.surebet_notes }}</textarea>
               </label>
 
@@ -852,7 +852,7 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Risco</p>
-                <h2>Drawdown e sequencia</h2>
+                <h2>Drawdown e sequência</h2>
               </div>
               <span class="dev-badge">Em desenvolvimento</span>
             </div>
@@ -862,7 +862,7 @@
                 <strong class="negative">R$ {{ analytics.drawdown|floatformat:2 }}</strong>
               </article>
               <article>
-                <span>Sequencia atual</span>
+                <span>Sequência atual</span>
                 <strong class="{{ analytics.streak.kind }}">{{ analytics.streak.count }} {{ analytics.streak.label }}</strong>
               </article>
               <article>
@@ -1010,7 +1010,7 @@
           <article class="panel automation-panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Importacao</p>
+                <p class="eyebrow">Importação</p>
                 <h2>Colar texto ou CSV</h2>
               </div>
             </div>
@@ -1087,7 +1087,7 @@
                   {{ odds_form.stake.errors }}
                 </label>
                 <label>
-                  <span>Quantidade maxima</span>
+                  <span>Quantidade máxima</span>
                   {{ odds_form.limit }}
                   {{ odds_form.limit.errors }}
                 </label>
@@ -1153,7 +1153,7 @@
           <article class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Comparacao</p>
+                <p class="eyebrow">Comparação</p>
                 <h2>Odds por jogo e casa</h2>
               </div>
             </div>
@@ -1202,7 +1202,7 @@
                 </article>
               {% empty %}
                 {% if odds_searched %}
-                  <div class="empty-state">Nenhuma comparacao disponivel para esses filtros.</div>
+                  <div class="empty-state">Nenhuma comparação disponível para esses filtros.</div>
                 {% else %}
                   <div class="empty-state">Busque odds para comparar as casas por jogo.</div>
                 {% endif %}
@@ -1215,49 +1215,49 @@
           <article class="panel table-panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Historico</p>
+                <p class="eyebrow">Histórico</p>
                 <h2>Apostas recentes</h2>
               </div>
             </div>
 
             <form class="filter-form" method="get">
-              <label>
+              <label class="history-filter-bankroll">
                 <span>Banca</span>
                 {{ filter_form.bankroll }}
               </label>
-              <label>
+              <label class="history-filter-status">
                 <span>Status</span>
                 {{ filter_form.status }}
               </label>
-              <label>
+              <label class="history-filter-type">
                 <span>Tipo</span>
                 {{ filter_form.entry_type }}
               </label>
-              <label>
+              <label class="history-filter-sport">
                 <span>Esporte</span>
                 {{ filter_form.sport }}
               </label>
-              <label>
-                <span>Competicao</span>
+              <label class="history-filter-competition">
+                <span>Competição</span>
                 {{ filter_form.competition }}
               </label>
-              <label>
-                <span>Estrategia</span>
+              <label class="history-filter-strategy">
+                <span>Estratégia</span>
                 {{ filter_form.strategy }}
               </label>
-              <label>
+              <label class="history-filter-market">
                 <span>Mercado</span>
                 {{ filter_form.market }}
               </label>
-              <label>
+              <label class="history-filter-search">
                 <span>Busca</span>
                 {{ filter_form.query }}
               </label>
-              <label>
+              <label class="history-filter-min-odds">
                 <span>Odd min.</span>
                 {{ filter_form.min_odds }}
               </label>
-              <label>
+              <label class="history-filter-max-odds">
                 <span>Odd max.</span>
                 {{ filter_form.max_odds }}
               </label>
@@ -1271,18 +1271,18 @@
                   <tr>
                     <th>Evento</th>
                     <th>Esporte</th>
-                    <th>Competicao</th>
+                    <th>Competição</th>
                     <th>Origem</th>
                     <th>Mercado</th>
                     <th>Tipo</th>
-                    <th>Estrategia</th>
+                    <th>Estratégia</th>
                     <th>Odd</th>
                     <th>Stake</th>
-                    <th>Comissao</th>
+                    <th>Comissão</th>
                     <th>Status</th>
-                    <th>Retorno possivel</th>
+                    <th>Retorno possível</th>
                     <th>Lucro</th>
-                    <th>Acoes</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1349,7 +1349,7 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Diagnostico</p>
-                <h2>Onde voce performa melhor</h2>
+                <h2>Onde você performa melhor</h2>
               </div>
             </div>
             <div class="breakdown-list">
@@ -1372,7 +1372,7 @@
                   </div>
                 </div>
               {% empty %}
-                <div class="empty-state">Os diagnosticos aparecem depois das primeiras apostas.</div>
+                <div class="empty-state">Os diagnósticos aparecem depois das primeiras apostas.</div>
               {% endfor %}
             </div>
           </article>
@@ -1390,7 +1390,7 @@
             </article>
             <article>
               <span>Apostas</span>
-              <strong>Historico centralizado</strong>
+              <strong>Histórico centralizado</strong>
             </article>
             <article>
               <span>Freebets</span>

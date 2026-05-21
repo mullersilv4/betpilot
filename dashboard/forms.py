@@ -26,7 +26,7 @@ class EntityForm(forms.ModelForm):
             ),
             'notes': forms.TextInput(
                 attrs={
-                    'placeholder': 'Ex: Operacao propria, parceiro, cliente...',
+                    'placeholder': 'Ex: Operação própria, parceiro, cliente...',
                     'autocomplete': 'off',
                 }
             ),
@@ -35,7 +35,7 @@ class EntityForm(forms.ModelForm):
     def clean_name(self):
         name = self.cleaned_data['name']
         if self.user and Entity.objects.filter(owner=self.user, name__iexact=name).exists():
-            raise forms.ValidationError('Voce ja cadastrou uma entidade com esse nome.')
+            raise forms.ValidationError('Você já cadastrou uma entidade com esse nome.')
         return name
 
 
@@ -69,7 +69,7 @@ class BankrollForm(forms.ModelForm):
     def clean_initial_balance(self):
         initial_balance = self.cleaned_data['initial_balance']
         if initial_balance < 0:
-            raise forms.ValidationError('O saldo inicial nao pode ser negativo.')
+            raise forms.ValidationError('O saldo inicial não pode ser negativo.')
         return initial_balance
 
     def save(self, commit=True):
@@ -133,7 +133,7 @@ class BetForm(forms.ModelForm):
             ),
             'competition': forms.TextInput(
                 attrs={
-                    'placeholder': 'Ex: Brasileirao, NBA, ATP',
+                    'placeholder': 'Ex: Brasileirão, NBA, ATP',
                     'autocomplete': 'off',
                 }
             ),
@@ -204,7 +204,7 @@ class BetForm(forms.ModelForm):
         if bankroll and stake and stake > available_balance:
             self.add_error(
                 'stake',
-                'O valor da aposta nao pode ser maior que o saldo disponivel da banca.',
+                'O valor da aposta não pode ser maior que o saldo disponível da banca.',
             )
 
         return cleaned_data
@@ -263,7 +263,7 @@ class BankrollTransactionForm(forms.ModelForm):
         ):
             self.add_error(
                 'amount',
-                'O valor nao pode ser maior que o saldo disponivel da banca.',
+                'O valor não pode ser maior que o saldo disponível da banca.',
             )
 
         return cleaned_data
@@ -308,7 +308,7 @@ class TransferForm(forms.Form):
         if source and amount and amount > source.available_balance:
             self.add_error(
                 'amount',
-                'A transferencia nao pode ser maior que o saldo disponivel.',
+                'A transferência não pode ser maior que o saldo disponível.',
             )
 
         return cleaned_data
@@ -332,8 +332,8 @@ class BetFilterForm(forms.Form):
         required=False,
     )
     sport = forms.CharField(label='esporte', required=False)
-    competition = forms.CharField(label='competicao', required=False)
-    strategy = forms.CharField(label='estrategia', required=False)
+    competition = forms.CharField(label='competição', required=False)
+    strategy = forms.CharField(label='estratégia', required=False)
     market = forms.CharField(label='mercado', required=False)
     query = forms.CharField(label='busca', required=False)
     min_odds = forms.DecimalField(label='odd min.', required=False, min_value=1.01)
@@ -354,9 +354,9 @@ class ImportTextForm(forms.Form):
             attrs={
                 'rows': 5,
                 'placeholder': (
-                    'Uma aposta por linha: banca;jogo;mercado;odd;valor;comissao;status\n'
-                    'Formato novo: banca;esporte;competicao;jogo;mercado;estrategia;tipo;data;odd;valor;comissao;status\n'
-                    'Ex: Banca principal;Futebol;Brasileirao;Palmeiras x Flamengo;Over 2.5;Modelo gols;pre_match;2026-05-13 21:30;1.90;100;5;open'
+                    'Uma aposta por linha: banca;jogo;mercado;odd;valor;comissão;status\n'
+                    'Formato novo: banca;esporte;competição;jogo;mercado;estratégia;tipo;data;odd;valor;comissão;status\n'
+                    'Ex: Banca principal;Futebol;Brasileirão;Palmeiras x Flamengo;Over 2.5;Modelo gols;pre_match;2026-05-13 21:30;1.90;100;5;open'
                 ),
             }
         ),
@@ -377,7 +377,7 @@ class ImportTextForm(forms.Form):
 class OddsSearchForm(forms.Form):
     SPORT_CHOICES = [
         ('soccer_epl', 'Futebol - Premier League'),
-        ('soccer_brazil_campeonato', 'Futebol - Brasileirao'),
+        ('soccer_brazil_campeonato', 'Futebol - Brasileirão'),
         ('soccer_uefa_champs_league', 'Futebol - Champions League'),
         ('soccer_spain_la_liga', 'Futebol - La Liga'),
         ('soccer_italy_serie_a', 'Futebol - Serie A'),
@@ -401,7 +401,7 @@ class OddsSearchForm(forms.Form):
         initial='soccer_epl',
     )
     regions = forms.ChoiceField(
-        label='regioes',
+        label='regiões',
         choices=REGION_CHOICES,
         initial='eu',
     )

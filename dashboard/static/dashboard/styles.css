@@ -782,7 +782,7 @@ textarea {
     minmax(74px, 0.56fr)
     minmax(74px, 0.56fr)
     minmax(74px, 0.56fr)
-    minmax(32px, 150px);
+    minmax(32px, 190px);
   gap: 8px;
   align-items: end;
 }
@@ -867,6 +867,24 @@ textarea {
   min-height: 30px;
   padding: 0 7px;
   font-size: 0.76rem;
+}
+
+.surebet-entry-return {
+  min-width: 58px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.surebet-entry-note {
+  grid-column: 1 / -1;
+}
+
+.surebet-entry-note input {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.82rem;
 }
 
 .surebet-add-button {
@@ -2056,7 +2074,7 @@ th {
   }
 
   .freebet-control {
-    grid-column: span 3;
+    grid-column: 1 / -1;
   }
 
   .surebet-mode-toggle,
@@ -2100,6 +2118,12 @@ th {
   .freebet-fields {
     width: 96px;
     min-width: 96px;
+  }
+
+  .surebet-entry-return {
+    margin-left: auto;
+    min-width: 62px;
+    font-size: 0.8rem;
   }
 
   .odds-metrics {

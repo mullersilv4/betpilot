@@ -736,7 +736,7 @@
                   <span>Comissao %</span>
                   <span>Cashback %</span>
                   <span>Aumento %</span>
-                  <span>Freebet</span>
+                  <span>Freebet / Resultado</span>
                 </div>
                 {% for row in surebet_rows %}
                   <div class="surebet-entry-group{% if row.freebet_enabled == '1' or row.freebet_amount %} has-freebet{% endif %}" data-surebet-group="{{ row.index }}">
@@ -780,7 +780,12 @@
                             <input type="number" name="surebet_freebet_amount_{{ row.index }}" value="{{ row.freebet_amount }}" step="0.01" min="0.01" placeholder="Ex: 25.00" />
                           </label>
                         </div>
+                        <output class="surebet-entry-return" data-surebet-result="{{ row.index }}">0,00</output>
                       </div>
+                      <label class="surebet-entry-note">
+                        <span class="sr-only">Observacao {{ row.index }}</span>
+                        <input type="text" name="surebet_notes_{{ row.index }}" value="{{ row.notes }}" maxlength="180" placeholder="Observacao" autocomplete="off" />
+                      </label>
                     </div>
                   </div>
                 {% endfor %}

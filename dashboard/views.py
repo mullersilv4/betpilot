@@ -331,6 +331,7 @@ def build_surebet_rows(post_data=None):
                 'boost': (post_data.get(f'surebet_boost_{index}') if post_data else '') or '',
                 'freebet_enabled': (post_data.get(f'surebet_freebet_enabled_{index}') if post_data else '') or '',
                 'freebet_amount': (post_data.get(f'surebet_freebet_amount_{index}') if post_data else '') or '',
+                'notes': (post_data.get(f'surebet_notes_{index}') if post_data else '') or '',
                 'optional': index > 2,
                 'readonly': index > 1,
             }
@@ -354,6 +355,7 @@ def build_surebet_payload(post_data):
         boost = decimal_from_post(post_data, f'surebet_boost_{index}')
         freebet_enabled = post_data.get(f'surebet_freebet_enabled_{index}') == '1'
         freebet_amount = decimal_from_post(post_data, f'surebet_freebet_amount_{index}')
+        entry_notes = (post_data.get(f'surebet_notes_{index}') or '').strip()
         if (
             not bookmaker
             and not label
@@ -364,6 +366,7 @@ def build_surebet_payload(post_data):
             and (not boost or boost == 0)
             and not freebet_enabled
             and (not freebet_amount or freebet_amount == 0)
+            and not entry_notes
         ):
             continue
         commission = commission or Decimal('0.00')
@@ -400,6 +403,7 @@ def build_surebet_payload(post_data):
                 'boost': boost,
                 'freebet_enabled': freebet_enabled,
                 'freebet_amount': freebet_amount,
+                'notes': entry_notes,
                 'effective_odd': effective_odd,
                 'payout_multiplier': payout_multiplier,
             }
@@ -854,6 +858,7 @@ def index(request):
                     net_result=outcome['net'],
                     freebet_enabled=outcome['freebet_enabled'],
                     freebet_amount=outcome['freebet_amount'],
+                    notes=outcome['notes'],
                 )
             messages.success(request, 'Surebet cadastrada com sucesso.')
             return redirect('dashboard:index')

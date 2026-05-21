@@ -5,6 +5,13 @@ function formatCurrency(value) {
   });
 }
 
+function formatPlainAmount(value) {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 function drawChart() {
   const canvas = document.querySelector("#bankrollChart");
   if (!canvas) return;
@@ -505,6 +512,7 @@ function updateSurebetPreview() {
     const stake = readNumber(stakeInput);
     const liability = mode === "lay" && effectiveOdd > 1 ? stake * (effectiveOdd - 1) : 0;
     return {
+      index,
       bookmaker: bookmakerInput?.value?.trim() || "-",
       label: `Entrada ${index}`,
       mode,
@@ -552,6 +560,19 @@ function updateSurebetPreview() {
   const best = scenarios.length ? Math.max(...scenarios.map((row) => row.net)) : 0;
   const worst = scenarios.length ? Math.min(...scenarios.map((row) => row.net)) : 0;
   const margin = impliedTotal > 0 ? (1 / impliedTotal - 1) * 100 : 0;
+
+  document.querySelectorAll("[data-surebet-result]").forEach((output) => {
+    output.textContent = formatPlainAmount(0);
+    output.classList.remove("positive", "negative");
+  });
+  scenarios.forEach((row) => {
+    const output = document.querySelector(`[data-surebet-result="${row.index}"]`);
+    if (output) {
+      output.textContent = formatPlainAmount(row.net);
+      output.classList.toggle("positive", row.net >= 0);
+      output.classList.toggle("negative", row.net < 0);
+    }
+  });
 
   document.querySelector("#surebetTotal").textContent = formatCurrency(totalStake);
   document.querySelector("#surebetTargetReturn").textContent = formatCurrency(targetReturn);
@@ -646,7 +667,12 @@ function createSurebetEntry(index) {
             <input type="number" name="surebet_freebet_amount_${index}" step="0.01" min="0.01" placeholder="Ex: 25.00" />
           </label>
         </div>
+        <output class="surebet-entry-return" data-surebet-result="${index}">0,00</output>
       </div>
+      <label class="surebet-entry-note">
+        <span class="sr-only">Observacao ${index}</span>
+        <input type="text" name="surebet_notes_${index}" maxlength="180" placeholder="Observacao" autocomplete="off" />
+      </label>
     </div>
   `;
   return group;

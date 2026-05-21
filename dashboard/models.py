@@ -160,6 +160,7 @@ class SureBetEntry(models.Model):
     net_result = models.DecimalField('resultado liquido', max_digits=12, decimal_places=2)
     freebet_enabled = models.BooleanField('gera freebet', default=False)
     freebet_amount = models.DecimalField('valor da freebet', max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    notes = models.CharField('observacao', max_length=180, blank=True)
     is_winner = models.BooleanField('entrada vencedora', default=False)
     created_at = models.DateTimeField('criada em', default=timezone.now)
 

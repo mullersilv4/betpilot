@@ -96,6 +96,7 @@ class BetForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if user is not None:
             self.fields['bankroll'].queryset = Bankroll.objects.filter(owner=user)
+        self.fields['game'].required = False
         if self.instance and self.instance.event_date:
             self.initial['event_date'] = self.instance.event_date.strftime('%Y-%m-%dT%H:%M')
 

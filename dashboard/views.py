@@ -323,6 +323,7 @@ def build_surebet_rows(post_data=None):
                 'index': index,
                 'bookmaker': (post_data.get(f'surebet_bookmaker_{index}') if post_data else '') or '',
                 'outcome': (post_data.get(f'surebet_outcome_{index}') if post_data else '') or '',
+                'mode': (post_data.get(f'surebet_mode_{index}') if post_data else '') or 'back',
                 'odd': (post_data.get(f'surebet_odd_{index}') if post_data else '') or '',
                 'stake': (post_data.get(f'surebet_stake_{index}') if post_data else '') or '',
                 'commission': (post_data.get(f'surebet_commission_{index}') if post_data else '') or '',
@@ -342,6 +343,9 @@ def build_surebet_payload(post_data):
     target_return = None
     for index in surebet_indices_from_post(post_data):
         bookmaker = (post_data.get(f'surebet_bookmaker_{index}') or '').strip()
+        mode = (post_data.get(f'surebet_mode_{index}') or 'back').strip().lower()
+        if mode not in {'back', 'lay'}:
+            mode = 'back'
         label = (post_data.get(f'surebet_outcome_{index}') or '').strip()
         odd = decimal_from_post(post_data, f'surebet_odd_{index}')
         stake = decimal_from_post(post_data, f'surebet_stake_{index}')
@@ -369,20 +373,28 @@ def build_surebet_payload(post_data):
         effective_odd = odd * (Decimal('1.00') + boost / Decimal('100')) if odd else None
         payout_multiplier = None
         if effective_odd and effective_odd > 1:
-            payout_multiplier = Decimal('1.00') + (
-                (effective_odd - Decimal('1.00'))
-                * (Decimal('1.00') - commission / Decimal('100'))
-            )
+            if mode == 'lay':
+                payout_multiplier = effective_odd
+            else:
+                payout_multiplier = Decimal('1.00') + (
+                    (effective_odd - Decimal('1.00'))
+                    * (Decimal('1.00') - commission / Decimal('100'))
+                )
         if index == 1 and odd and odd > 1 and stake and stake > 0:
             target_return = (stake * payout_multiplier).quantize(Decimal('0.01'))
         elif target_return and payout_multiplier and payout_multiplier > 0:
             stake = (target_return / payout_multiplier).quantize(Decimal('0.01'))
+        liability = Decimal('0.00')
+        if mode == 'lay' and effective_odd and stake:
+            liability = (stake * (effective_odd - Decimal('1.00'))).quantize(Decimal('0.01'))
         outcomes.append(
             {
                 'bookmaker': bookmaker,
-                'label': label or f'Resultado {index}',
+                'label': label or f'Entrada {index}',
+                'mode': mode,
                 'odd': odd,
                 'stake': stake,
+                'liability': liability,
                 'commission': commission,
                 'cashback': cashback,
                 'boost': boost,
@@ -697,7 +709,6 @@ def index(request):
             game = (request.POST.get('surebet_game') or '').strip()
             sport = (request.POST.get('surebet_sport') or 'Futebol').strip()
             competition = (request.POST.get('surebet_competition') or '').strip()
-            game_link = (request.POST.get('surebet_game_link') or '').strip()
             external_event_id = (request.POST.get('surebet_external_event_id') or '').strip()
             external_sport_key = (request.POST.get('surebet_external_sport_key') or '').strip()
             home_team = (request.POST.get('surebet_home_team') or '').strip()
@@ -706,8 +717,6 @@ def index(request):
 
             if entity is None:
                 surebet_errors.append('Selecione uma entidade valida.')
-            if not game:
-                surebet_errors.append('Informe o jogo da surebet.')
             if len(outcomes) < 2:
                 surebet_errors.append('Informe pelo menos dois resultados protegidos.')
 
@@ -733,7 +742,13 @@ def index(request):
                     )
 
             if not surebet_errors:
-                total_stake = sum((outcome['stake'] for outcome in outcomes), start=Decimal('0.00'))
+                total_stake = sum(
+                    (
+                        outcome['liability'] if outcome['mode'] == 'lay' else outcome['stake']
+                        for outcome in outcomes
+                    ),
+                    start=Decimal('0.00'),
+                )
                 outcome_results = [
                     {
                         **outcome,
@@ -748,14 +763,25 @@ def index(request):
                         (
                             other['stake'] * (other['cashback'] / Decimal('100'))
                             for other in outcome_results
-                            if other is not outcome
+                            if other is not outcome and other['mode'] == 'back'
                         ),
                         start=Decimal('0.00'),
                     )
+                    scenario_net = Decimal('0.00')
+                    for entry in outcome_results:
+                        if entry is outcome:
+                            if entry['mode'] == 'lay':
+                                scenario_net -= entry['liability']
+                            else:
+                                scenario_net += entry['return'] - entry['stake']
+                        elif entry['mode'] == 'lay':
+                            scenario_net += entry['stake'] * (
+                                Decimal('1.00') - entry['commission'] / Decimal('100')
+                            )
+                        else:
+                            scenario_net -= entry['stake']
                     outcome['cashback_return'] = losing_cashback.quantize(Decimal('0.01'))
-                    outcome['net'] = (
-                        outcome['return'] + outcome['cashback_return'] - total_stake
-                    ).quantize(Decimal('0.01'))
+                    outcome['net'] = (scenario_net + outcome['cashback_return']).quantize(Decimal('0.01'))
                     outcome['effective_odd_display'] = outcome['effective_odd'].quantize(Decimal('0.01'))
 
             if surebet_errors:
@@ -771,15 +797,17 @@ def index(request):
             market = 'Surebet: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
             protection_lines = [
                 'Surebet cadastrada com protecoes:',
-                f'Investimento total: {format_money(total_stake)}',
+                f'Responsabilidade total: {format_money(total_stake)}',
             ]
             for outcome in outcome_results:
                 protection_lines.append(
                     (
                         f'{outcome["bookmaker"]} - {outcome["label"]}: odd {outcome["odd"]}, '
+                        f'modo {outcome["mode"].upper()}, '
                         f'comissao {outcome["commission"]}%, cashback {outcome["cashback"]}%, '
                         f'aumento {outcome["boost"]}%, '
                         f'aposta {format_money(outcome["stake"])}, '
+                        f'responsabilidade {format_money(outcome["liability"])}, '
                         f'retorno {format_money(outcome["return"])}, '
                         f'cashback no cenario {format_money(outcome["cashback_return"])}, '
                         f'resultado liquido {format_money(outcome["net"])}'
@@ -808,7 +836,6 @@ def index(request):
                 stake=total_stake,
                 exchange_commission=Decimal('0.00'),
                 status=Bet.Status.OPEN,
-                game_link=game_link,
                 notes='\n'.join(protection_lines),
             )
             for outcome in outcome_results:

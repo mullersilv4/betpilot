@@ -584,17 +584,25 @@
                 ></div>
               </label>
 
-              <label>
-                <span>Tipo de mercado</span>
-                {{ form.market }}
-                {{ form.market.errors }}
-              </label>
-
               <div class="form-row">
+                <label>
+                  <span>Tipo de mercado</span>
+                  {{ form.market }}
+                  {{ form.market.errors }}
+                </label>
+
                 <label>
                   <span>Estrategia / tipster</span>
                   {{ form.strategy }}
                   {{ form.strategy.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Data do evento</span>
+                  {{ form.event_date }}
+                  {{ form.event_date.errors }}
                 </label>
 
                 <label>
@@ -604,45 +612,25 @@
                 </label>
               </div>
 
-              <label>
-                <span>Data do evento</span>
-                {{ form.event_date }}
-                {{ form.event_date.errors }}
-              </label>
-
               <div class="form-row">
-                <label>
-                  <span>Odd</span>
-                  {{ form.odds }}
-                  {{ form.odds.errors }}
-                </label>
-
                 <label>
                   <span>Valor da aposta</span>
                   {{ form.stake }}
                   {{ form.stake.errors }}
                 </label>
+
+                <label>
+                  <span>Odd</span>
+                  {{ form.odds }}
+                  {{ form.odds.errors }}
+                </label>
               </div>
 
               <label>
-                <span>Link do jogo</span>
-                {{ form.game_link }}
-                {{ form.game_link.errors }}
+                <span>Observacoes</span>
+                {{ form.notes }}
+                {{ form.notes.errors }}
               </label>
-
-              <div class="form-row">
-                <label>
-                  <span>Resultado exato</span>
-                  {{ form.exact_score }}
-                  {{ form.exact_score.errors }}
-                </label>
-
-                <label>
-                  <span>Observacoes</span>
-                  {{ form.notes }}
-                  {{ form.notes.errors }}
-                </label>
-              </div>
 
               <div class="form-row">
                 <label>
@@ -700,17 +688,21 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label>
-                  <span>Esporte</span>
-                  <input type="text" name="surebet_sport" value="{{ surebet_data.surebet_sport|default:'Futebol' }}" placeholder="Ex: Futebol" autocomplete="off" />
-                </label>
               </div>
 
               <div class="form-row">
                 <label>
+                  <span>Esporte</span>
+                  <input type="text" name="surebet_sport" value="{{ surebet_data.surebet_sport|default:'Futebol' }}" placeholder="Ex: Futebol" autocomplete="off" />
+                </label>
+
+                <label>
                   <span>Competicao</span>
                   <input type="text" name="surebet_competition" value="{{ surebet_data.surebet_competition }}" placeholder="Ex: Brasileirao, NBA, ATP" autocomplete="off" />
                 </label>
+              </div>
+
+              <div class="form-row">
                 <label>
                   <span>Jogo</span>
                   <input
@@ -719,7 +711,6 @@
                     value="{{ surebet_data.surebet_game }}"
                     placeholder="Ex: Palmeiras x Flamengo"
                     autocomplete="off"
-                    required
                     data-event-game-input
                   />
                   <input type="hidden" name="surebet_external_event_id" value="{{ surebet_data.surebet_external_event_id }}" data-event-id-input />
@@ -735,18 +726,13 @@
                 </label>
               </div>
 
-              <label>
-                <span>Link do jogo</span>
-                <input type="url" name="surebet_game_link" value="{{ surebet_data.surebet_game_link }}" placeholder="https://..." autocomplete="off" />
-              </label>
-
               <input type="hidden" name="surebet_entry_count" id="surebetEntryCount" value="{{ surebet_rows|length }}" />
               <div class="surebet-grid" id="surebetEntries" aria-label="Resultados protegidos">
                 <div class="surebet-entry-header" aria-hidden="true">
                   <span>Casa de aposta</span>
-                  <span>Tipo</span>
-                  <span>Odd</span>
+                  <span>Modo</span>
                   <span>Valor</span>
+                  <span>Odd</span>
                   <span>Comissao %</span>
                   <span>Cashback %</span>
                   <span>Aumento %</span>
@@ -759,17 +745,19 @@
                         <span class="sr-only">Casa de aposta {{ row.index }}{% if row.optional %} opcional{% endif %}</span>
                         <input type="text" name="surebet_bookmaker_{{ row.index }}" value="{{ row.bookmaker }}" placeholder="Ex: Bet365" autocomplete="off" />
                       </label>
+                      <div class="surebet-mode-control">
+                        <input type="hidden" name="surebet_mode_{{ row.index }}" value="{{ row.mode|default:'back' }}" />
+                        <button class="surebet-mode-toggle{% if row.mode == 'lay' %} is-lay{% endif %}" type="button" aria-label="Alternar entrada back ou lay">
+                          {% if row.mode == 'lay' %}Lay{% else %}Back{% endif %}
+                        </button>
+                      </div>
                       <label>
-                        <span class="sr-only">Tipo {{ row.index }}{% if row.optional %} opcional{% endif %}</span>
-                        <input type="text" name="surebet_outcome_{{ row.index }}" value="{{ row.outcome }}" placeholder="Casa / Over / Sim" autocomplete="off" />
+                        <span class="sr-only">{% if row.readonly %}Valor calculado{% else %}Valor{% endif %} {{ row.index }}</span>
+                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly %}readonly{% endif %} />
                       </label>
                       <label>
                         <span class="sr-only">Odd {{ row.index }}</span>
                         <input type="number" name="surebet_odd_{{ row.index }}" value="{{ row.odd }}" class="surebet-odd" step="0.01" min="1.01" placeholder="Ex: 2.10" />
-                      </label>
-                      <label>
-                        <span class="sr-only">{% if row.readonly %}Valor calculado{% else %}Valor{% endif %} {{ row.index }}</span>
-                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly %}readonly{% endif %} />
                       </label>
                       <label>
                         <span class="sr-only">Comissao % {{ row.index }}</span>
@@ -786,13 +774,13 @@
                       <div class="freebet-control">
                         <input type="hidden" name="surebet_freebet_enabled_{{ row.index }}" value="{% if row.freebet_enabled == '1' or row.freebet_amount %}1{% else %}0{% endif %}" />
                         <button class="freebet-toggle" type="button" title="Essa aposta gera freebet" aria-label="Essa aposta gera freebet">🎁</button>
+                        <div class="freebet-fields">
+                          <label>
+                            <span>Valor da freebet</span>
+                            <input type="number" name="surebet_freebet_amount_{{ row.index }}" value="{{ row.freebet_amount }}" step="0.01" min="0.01" placeholder="Ex: 25.00" />
+                          </label>
+                        </div>
                       </div>
-                    </div>
-                    <div class="freebet-fields">
-                      <label>
-                        <span>Valor da freebet</span>
-                        <input type="number" name="surebet_freebet_amount_{{ row.index }}" value="{{ row.freebet_amount }}" step="0.01" min="0.01" placeholder="Ex: 25.00" />
-                      </label>
                     </div>
                   </div>
                 {% endfor %}
@@ -802,7 +790,7 @@
 
               <div class="calculation-preview surebet-preview" aria-live="polite">
                 <div>
-                  <span>Total investido</span>
+                  <span>Responsabilidade</span>
                   <strong id="surebetTotal">R$ 0,00</strong>
                 </div>
                 <div>
@@ -826,9 +814,9 @@
               <div class="surebet-result-table" id="surebetScenarioTable">
                 <div class="surebet-result-head">
                   <span>Casa</span>
-                  <span>Resultado</span>
+                  <span>Modo</span>
                   <span>Odd</span>
-                  <span>Entrada</span>
+                  <span>Respons.</span>
                   <span>Retorno</span>
                   <span>Cashback</span>
                   <span>Ganha / perde</span>

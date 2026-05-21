@@ -54,17 +54,24 @@
             {{ form.game.errors }}
           </label>
 
-          <label>
-            <span>Tipo de mercado</span>
-            {{ form.market }}
-            {{ form.market.errors }}
-          </label>
-
           <div class="form-row">
+            <label>
+              <span>Tipo de mercado</span>
+              {{ form.market }}
+              {{ form.market.errors }}
+            </label>
             <label>
               <span>Estrategia / tipster</span>
               {{ form.strategy }}
               {{ form.strategy.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Data do evento</span>
+              {{ form.event_date }}
+              {{ form.event_date.errors }}
             </label>
             <label>
               <span>Tipo</span>
@@ -73,22 +80,16 @@
             </label>
           </div>
 
-          <label>
-            <span>Data do evento</span>
-            {{ form.event_date }}
-            {{ form.event_date.errors }}
-          </label>
-
           <div class="form-row">
-            <label>
-              <span>Odd</span>
-              {{ form.odds }}
-              {{ form.odds.errors }}
-            </label>
             <label>
               <span>Valor da aposta</span>
               {{ form.stake }}
               {{ form.stake.errors }}
+            </label>
+            <label>
+              <span>Odd</span>
+              {{ form.odds }}
+              {{ form.odds.errors }}
             </label>
           </div>
 
@@ -102,19 +103,6 @@
               <span>Resultado</span>
               {{ form.status }}
               {{ form.status.errors }}
-            </label>
-          </div>
-
-          <div class="form-row">
-            <label>
-              <span>Resultado exato</span>
-              {{ form.exact_score }}
-              {{ form.exact_score.errors }}
-            </label>
-            <label>
-              <span>Link do jogo</span>
-              {{ form.game_link }}
-              {{ form.game_link.errors }}
             </label>
           </div>
 

@@ -776,14 +776,14 @@ textarea {
   display: grid;
   grid-template-columns:
     minmax(130px, 1.05fr)
-    minmax(120px, 1fr)
-    minmax(76px, 0.55fr)
-    minmax(96px, 0.68fr)
-    minmax(82px, 0.6fr)
-    minmax(82px, 0.6fr)
-    minmax(82px, 0.6fr)
-    42px;
-  gap: 10px;
+    62px
+    minmax(88px, 0.75fr)
+    minmax(76px, 0.62fr)
+    minmax(74px, 0.56fr)
+    minmax(74px, 0.56fr)
+    minmax(74px, 0.56fr)
+    minmax(32px, 150px);
+  gap: 8px;
   align-items: end;
 }
 
@@ -802,16 +802,41 @@ textarea {
 
 .freebet-control {
   display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
   align-items: center;
+  gap: 6px;
+}
+
+.surebet-mode-control {
+  display: grid;
+  align-items: end;
+}
+
+.surebet-mode-toggle {
+  min-height: 32px;
+  border: 1px solid rgb(79 209 139 / 55%);
+  border-radius: 7px;
+  background: rgb(79 209 139 / 10%);
+  color: var(--green);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.surebet-mode-toggle.is-lay {
+  border-color: rgb(240 111 101 / 58%);
+  background: rgb(240 111 101 / 12%);
+  color: var(--red);
 }
 
 .freebet-toggle {
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--surface-2);
   color: var(--text);
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
@@ -822,11 +847,21 @@ textarea {
 
 .freebet-fields {
   display: none;
-  max-width: 220px;
+  min-width: 0;
 }
 
 .surebet-entry-group.has-freebet .freebet-fields {
   display: block;
+}
+
+.freebet-fields label {
+  gap: 3px;
+}
+
+.freebet-fields span {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
 }
 
 .surebet-add-button {
@@ -1987,11 +2022,37 @@ th {
   }
 
   .surebet-entry-row {
-    gap: 12px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .surebet-entry-row label {
-    gap: 7px;
+    gap: 5px;
+  }
+
+  .surebet-entry-row > label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .surebet-mode-control,
+  .surebet-entry-row > label:nth-of-type(2),
+  .surebet-entry-row > label:nth-of-type(3) {
+    grid-column: span 2;
+  }
+
+  .surebet-entry-row > label:nth-of-type(4),
+  .surebet-entry-row > label:nth-of-type(5),
+  .surebet-entry-row > label:nth-of-type(6) {
+    grid-column: span 2;
+  }
+
+  .freebet-control {
+    grid-column: span 6;
+  }
+
+  .surebet-mode-toggle,
+  .freebet-toggle {
+    min-height: 30px;
   }
 
   .surebet-entry-row label .sr-only {
@@ -2053,20 +2114,74 @@ th {
 }
 
 @media (max-width: 620px) {
-  .compact-bet-form,
-  .compact-bet-form .calculation-preview {
-    grid-template-columns: 1fr;
+  .bet-form-panel {
+    padding: 10px;
+  }
+
+  .compact-bet-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 10px;
   }
 
   .compact-bet-form > label,
-  .compact-bet-form .form-row,
+  .compact-bet-form .form-row {
+    grid-column: span 1;
+  }
+
+  .compact-bet-form > label:first-of-type,
+  .compact-bet-form > label:nth-of-type(2),
+  .compact-bet-form > label:nth-of-type(3),
+  .compact-bet-form > label:nth-of-type(5),
   .compact-bet-form .calculation-preview,
   .compact-bet-form .form-errors,
   .compact-bet-form button {
     grid-column: 1 / -1;
   }
 
+  .compact-bet-form > label:nth-of-type(4) {
+    grid-column: span 1;
+  }
+
+  .compact-bet-form label {
+    gap: 4px;
+  }
+
+  .compact-bet-form label span {
+    font-size: 0.66rem;
+  }
+
+  .compact-bet-form input,
+  .compact-bet-form select,
+  .compact-bet-form textarea {
+    min-height: 30px;
+    padding: 0 7px;
+    font-size: 0.78rem;
+  }
+
+  .compact-bet-form textarea {
+    min-height: 48px;
+    padding: 7px;
+  }
+
+  .compact-bet-form .calculation-preview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .compact-bet-form .calculation-preview span {
+    font-size: 0.58rem;
+  }
+
+  .compact-bet-form .calculation-preview strong {
+    font-size: 0.72rem;
+    overflow-wrap: anywhere;
+  }
+
   .compact-bet-form button {
     justify-self: stretch;
+    min-height: 32px;
+    min-width: 0;
   }
 }

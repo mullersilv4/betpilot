@@ -554,7 +554,7 @@
                 {{ form.bankroll.errors }}
               </label>
 
-              <div class="form-row">
+              <div class="form-row mobile-pair">
                 <label>
                   <span>Esporte</span>
                   {{ form.sport }}
@@ -690,7 +690,7 @@
                 </label>
               </div>
 
-              <div class="form-row">
+              <div class="form-row mobile-pair">
                 <label>
                   <span>Esporte</span>
                   <input type="text" name="surebet_sport" value="{{ surebet_data.surebet_sport|default:'Futebol' }}" placeholder="Ex: Futebol" autocomplete="off" />
@@ -752,7 +752,7 @@
                         </button>
                       </div>
                       <label>
-                        <span class="sr-only">{% if row.readonly %}Valor calculado{% else %}Valor{% endif %} {{ row.index }}</span>
+                        <span class="sr-only">Valor {{ row.index }}</span>
                         <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly %}readonly{% endif %} />
                       </label>
                       <label>

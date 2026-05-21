@@ -801,10 +801,10 @@ textarea {
 }
 
 .freebet-control {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .surebet-mode-control {
@@ -830,13 +830,13 @@ textarea {
 }
 
 .freebet-toggle {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--surface-2);
   color: var(--text);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   cursor: pointer;
 }
 
@@ -847,7 +847,8 @@ textarea {
 
 .freebet-fields {
   display: none;
-  min-width: 0;
+  width: 118px;
+  min-width: 118px;
 }
 
 .surebet-entry-group.has-freebet .freebet-fields {
@@ -859,9 +860,13 @@ textarea {
 }
 
 .freebet-fields span {
-  color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 700;
+  display: none;
+}
+
+.freebet-fields input {
+  min-height: 30px;
+  padding: 0 7px;
+  font-size: 0.76rem;
 }
 
 .surebet-add-button {
@@ -1878,6 +1883,10 @@ th {
     font-size: 0.58rem;
   }
 
+  .form-row.mobile-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .calendar-grid {
     gap: 6px;
   }
@@ -2047,7 +2056,7 @@ th {
   }
 
   .freebet-control {
-    grid-column: span 6;
+    grid-column: span 3;
   }
 
   .surebet-mode-toggle,
@@ -2070,22 +2079,27 @@ th {
   }
 
   .freebet-control {
-    align-items: start;
+    align-items: center;
   }
 
   .freebet-control::before {
     content: "Freebet";
+    flex: 0 0 52px;
     color: var(--muted);
     font-size: 0.8rem;
     font-weight: 600;
   }
 
   .freebet-toggle {
-    width: 100%;
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
   }
 
   .freebet-fields {
-    max-width: none;
+    width: 96px;
+    min-width: 96px;
   }
 
   .odds-metrics {

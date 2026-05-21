@@ -618,7 +618,7 @@ function createSurebetEntry(index) {
         <button class="surebet-mode-toggle" type="button" aria-label="Alternar entrada back ou lay">Back</button>
       </div>
       <label>
-        <span class="sr-only">Valor calculado ${index}</span>
+        <span class="sr-only">Valor ${index}</span>
         <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly />
       </label>
       <label>

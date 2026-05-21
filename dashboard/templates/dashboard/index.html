@@ -675,12 +675,12 @@
 
               <div class="form-row">
                 <label>
-                  <span>Banca de controle</span>
-                  <select name="surebet_bankroll" id="surebetBankroll" required>
+                  <span>Entidade</span>
+                  <select name="surebet_entity" id="surebetEntity" required>
                     <option value="">Selecione</option>
-                    {% for bankroll in bankrolls %}
-                      <option value="{{ bankroll.id }}" {% if surebet_data.surebet_bankroll == bankroll.id|stringformat:"s" %}selected{% endif %}>
-                        {{ bankroll.name }}
+                    {% for entity in entities %}
+                      <option value="{{ entity.id }}" {% if surebet_data.surebet_entity == entity.id|stringformat:"s" %}selected{% endif %}>
+                        {{ entity.name }}
                       </option>
                     {% endfor %}
                   </select>
@@ -1246,7 +1246,7 @@
                     <th>Evento</th>
                     <th>Esporte</th>
                     <th>Competicao</th>
-                    <th>Banca</th>
+                    <th>Origem</th>
                     <th>Mercado</th>
                     <th>Tipo</th>
                     <th>Estrategia</th>
@@ -1265,7 +1265,15 @@
                       <td><strong>{{ bet.game }}</strong></td>
                       <td>{{ bet.sport|default:"-" }}</td>
                       <td>{{ bet.competition|default:"-" }}</td>
-                      <td>{{ bet.bankroll.name|default:"-" }}</td>
+                      <td>
+                        {% if bet.bankroll %}
+                          {{ bet.bankroll.name }}
+                        {% elif bet.entity %}
+                          {{ bet.entity.name }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
                       <td>{{ bet.market }}</td>
                       <td>{{ bet.get_entry_type_display }}</td>
                       <td>{{ bet.strategy|default:"-" }}</td>

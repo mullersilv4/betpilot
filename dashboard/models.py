@@ -24,6 +24,14 @@ class Bet(models.Model):
         on_delete=models.PROTECT,
         null=True,
     )
+    entity = models.ForeignKey(
+        'Entity',
+        verbose_name='entidade',
+        related_name='bets',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
     sport = models.CharField('esporte', max_length=60, blank=True, default='Futebol')
     competition = models.CharField('competicao', max_length=120, blank=True)
     game = models.CharField('jogo', max_length=160)

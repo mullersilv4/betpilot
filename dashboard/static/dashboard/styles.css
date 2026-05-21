@@ -1617,12 +1617,12 @@ th {
     border-radius: 8px;
     background: var(--surface-2);
     cursor: pointer;
-    gap: 4px;
+    gap: 5px;
   }
 
   .mobile-menu-toggle span {
-    width: 4px;
-    height: 4px;
+    width: 20px;
+    height: 2px;
     border-radius: 999px;
     background: var(--text);
   }

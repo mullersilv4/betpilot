@@ -457,3 +457,41 @@ class AuthenticationTests(TestCase):
 
         self.assertContains(response, 'Minha banca')
         self.assertNotIn('Banca escondida', content)
+
+    def test_surebet_is_linked_to_entity_without_bankroll(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        entity = Entity.objects.create(owner=user, name='Operacao A')
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.post(
+            '/',
+            {
+                'form_type': 'surebet',
+                'surebet_entity': str(entity.id),
+                'surebet_sport': 'Futebol',
+                'surebet_competition': 'Serie A',
+                'surebet_game': 'Time A x Time B',
+                'surebet_entry_count': '2',
+                'surebet_bookmaker_1': 'Casa 1',
+                'surebet_outcome_1': 'Time A',
+                'surebet_odd_1': '2.10',
+                'surebet_stake_1': '100.00',
+                'surebet_commission_1': '0',
+                'surebet_cashback_1': '0',
+                'surebet_boost_1': '0',
+                'surebet_freebet_enabled_1': '0',
+                'surebet_bookmaker_2': 'Casa 2',
+                'surebet_outcome_2': 'Time B',
+                'surebet_odd_2': '2.20',
+                'surebet_stake_2': '95.45',
+                'surebet_commission_2': '0',
+                'surebet_cashback_2': '0',
+                'surebet_boost_2': '0',
+                'surebet_freebet_enabled_2': '0',
+            },
+        )
+
+        bet = Bet.objects.get(strategy='Surebet')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(bet.entity, entity)
+        self.assertIsNone(bet.bankroll)

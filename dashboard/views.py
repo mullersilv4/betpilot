@@ -168,7 +168,7 @@ def parse_import_lines(raw_text):
 def build_dashboard_context(request, **forms):
     entities = Entity.objects.filter(owner=request.user).prefetch_related('bankrolls')
     bankrolls = Bankroll.objects.filter(owner=request.user).select_related('entity').prefetch_related('bets', 'transactions')
-    all_bets = Bet.objects.filter(bankroll__owner=request.user).select_related('bankroll', 'bankroll__entity')
+    all_bets = user_bets(request.user).select_related('bankroll', 'bankroll__entity', 'entity')
     all_bet_list = list(all_bets)
     dashboard_filter = dashboard_period(request, all_bet_list)
     dashboard_bets = [
@@ -189,7 +189,7 @@ def build_dashboard_context(request, **forms):
     )
     open_bet_count = sum(1 for bet in dashboard_bets if bet.status == Bet.Status.OPEN)
     available_freebets = FreeBet.objects.filter(
-        source_bet__bankroll__owner=request.user,
+        Q(source_bet__bankroll__owner=request.user) | Q(source_bet__entity__owner=request.user),
         is_used=False,
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     total_initial_balance = sum(
@@ -420,6 +420,10 @@ def add_suggested_stakes(opportunities, total_stake):
     return enriched
 
 
+def user_bets(user):
+    return Bet.objects.filter(Q(bankroll__owner=user) | Q(entity__owner=user)).distinct()
+
+
 @login_required
 def index(request):
     if request.method == 'POST':
@@ -589,10 +593,10 @@ def index(request):
 
         if form_type == 'surebet':
             surebet_errors = []
-            bankroll_id = request.POST.get('surebet_bankroll')
-            bankroll = None
-            if bankroll_id:
-                bankroll = Bankroll.objects.filter(pk=bankroll_id, owner=request.user).first()
+            entity_id = request.POST.get('surebet_entity')
+            entity = None
+            if entity_id:
+                entity = Entity.objects.filter(pk=entity_id, owner=request.user).first()
             outcomes = build_surebet_payload(request.POST)
             game = (request.POST.get('surebet_game') or '').strip()
             sport = (request.POST.get('surebet_sport') or 'Futebol').strip()
@@ -600,8 +604,8 @@ def index(request):
             game_link = (request.POST.get('surebet_game_link') or '').strip()
             notes = (request.POST.get('surebet_notes') or '').strip()
 
-            if bankroll is None:
-                surebet_errors.append('Selecione uma banca valida.')
+            if entity is None:
+                surebet_errors.append('Selecione uma entidade valida.')
             if not game:
                 surebet_errors.append('Informe o jogo da surebet.')
             if len(outcomes) < 2:
@@ -654,10 +658,6 @@ def index(request):
                     ).quantize(Decimal('0.01'))
                     outcome['effective_odd_display'] = outcome['effective_odd'].quantize(Decimal('0.01'))
 
-                if total_stake > bankroll.available_balance:
-                    surebet_errors.append(
-                        'O investimento total da surebet nao pode ser maior que o saldo disponivel da banca.'
-                    )
             if surebet_errors:
                 context = build_dashboard_context(
                     request,
@@ -693,7 +693,8 @@ def index(request):
                 protection_lines.extend(['Observacoes:', notes])
 
             bet = Bet.objects.create(
-                bankroll=bankroll,
+                bankroll=None,
+                entity=entity,
                 sport=sport,
                 competition=competition,
                 game=game,
@@ -739,7 +740,7 @@ def index(request):
 
 @login_required
 def edit_bet(request, pk):
-    bet = get_object_or_404(Bet, pk=pk, bankroll__owner=request.user)
+    bet = get_object_or_404(user_bets(request.user), pk=pk)
     if request.method == 'POST':
         form = BetForm(request.POST, instance=bet, user=request.user)
         if form.is_valid():
@@ -800,9 +801,9 @@ def delete_entity(request, pk):
         name = entity.name
         bankrolls = Bankroll.objects.filter(owner=request.user, entity=entity)
         bankroll_count = bankrolls.count()
-        bet_count = Bet.objects.filter(bankroll__in=bankrolls).count()
+        bet_count = Bet.objects.filter(Q(bankroll__in=bankrolls) | Q(entity=entity)).distinct().count()
         with transaction.atomic():
-            Bet.objects.filter(bankroll__in=bankrolls).delete()
+            Bet.objects.filter(Q(bankroll__in=bankrolls) | Q(entity=entity)).distinct().delete()
             bankrolls.delete()
             entity.delete()
         messages.success(
@@ -817,7 +818,7 @@ def delete_entity(request, pk):
 
 @login_required
 def settle_bet(request, pk, status):
-    bet = get_object_or_404(Bet, pk=pk, bankroll__owner=request.user)
+    bet = get_object_or_404(user_bets(request.user), pk=pk)
     if bet.strategy == 'Surebet':
         messages.error(request, 'Use a finalizacao da surebet para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
@@ -835,9 +836,8 @@ def settle_bet(request, pk, status):
 @login_required
 def settle_surebet(request, pk):
     bet = get_object_or_404(
-        Bet.objects.prefetch_related('surebet_entries', 'generated_freebets'),
+        user_bets(request.user).prefetch_related('surebet_entries', 'generated_freebets'),
         pk=pk,
-        bankroll__owner=request.user,
         strategy='Surebet',
     )
     entries = bet.surebet_entries.all()
@@ -882,7 +882,7 @@ def settle_surebet(request, pk):
 
 @login_required
 def delete_bet(request, pk):
-    bet = get_object_or_404(Bet, pk=pk, bankroll__owner=request.user)
+    bet = get_object_or_404(user_bets(request.user), pk=pk)
     if request.method == 'POST':
         bet.delete()
         messages.success(request, 'Aposta excluida.')

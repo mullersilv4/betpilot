@@ -199,7 +199,10 @@ def build_analytics(bets, initial_balance, reference_date=None):
     month = result_for_period(bet_list, period_start(month=True, reference_date=None))
     curve = equity_curve(bet_list, initial_balance)
     market_rows = grouped_roi(bet_list, lambda bet: bet.market)
-    bankroll_rows = grouped_roi(bet_list, lambda bet: bet.bankroll.name if bet.bankroll else 'Sem banca')
+    bankroll_rows = grouped_roi(
+        bet_list,
+        lambda bet: bet.bankroll.name if bet.bankroll else bet.entity.name if bet.entity else 'Sem origem',
+    )
     sport_rows = grouped_roi(bet_list, lambda bet: bet.sport or 'Sem esporte')
     period_labels, period_chart = period_chart_for_month(bet_list, reference_date or timezone.localdate())
 

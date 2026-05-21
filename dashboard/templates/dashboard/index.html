@@ -708,7 +708,25 @@
                 </label>
                 <label>
                   <span>Jogo</span>
-                  <input type="text" name="surebet_game" value="{{ surebet_data.surebet_game }}" placeholder="Ex: Palmeiras x Flamengo" autocomplete="off" required />
+                  <input
+                    type="text"
+                    name="surebet_game"
+                    value="{{ surebet_data.surebet_game }}"
+                    placeholder="Ex: Palmeiras x Flamengo"
+                    autocomplete="off"
+                    required
+                    data-event-game-input
+                  />
+                  <input type="hidden" name="surebet_external_event_id" value="{{ surebet_data.surebet_external_event_id }}" data-event-id-input />
+                  <input type="hidden" name="surebet_external_sport_key" value="{{ surebet_data.surebet_external_sport_key }}" data-event-sport-key-input />
+                  <input type="hidden" name="surebet_home_team" value="{{ surebet_data.surebet_home_team }}" data-event-home-team-input />
+                  <input type="hidden" name="surebet_away_team" value="{{ surebet_data.surebet_away_team }}" data-event-away-team-input />
+                  <div
+                    class="event-autocomplete"
+                    data-event-autocomplete
+                    data-url="{% url 'dashboard:event_autocomplete' %}"
+                    hidden
+                  ></div>
                 </label>
               </div>
 

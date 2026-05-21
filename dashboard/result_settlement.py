@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from decimal import InvalidOperation
 
+from django.db import transaction
+
 from .models import Bet
+from .models import FreeBet
 
 
 @dataclass
@@ -71,7 +74,11 @@ def parse_total_market(market_text):
 
 
 def resolve_total_market(bet, event):
-    parsed = parse_total_market(bet.market)
+    return resolve_total_market_text(bet.market, bet, event)
+
+
+def resolve_total_market_text(market_text, bet, event):
+    parsed = parse_total_market(market_text)
     if parsed is None:
         return None
     scores = get_event_scores(bet, event)
@@ -89,12 +96,16 @@ def resolve_total_market(bet, event):
 
 
 def parse_winner_market(bet):
-    text = f' {normalize_text(bet.market)} '
+    return parse_winner_market_text(bet.market, bet)
+
+
+def parse_winner_market_text(market_text, bet):
+    text = f' {normalize_text(market_text)} '
     home = normalize_text(bet.home_team)
     away = normalize_text(bet.away_team)
     candidates = []
 
-    if ' empate ' in text or text.strip() in {'x', 'draw'}:
+    if ' empate ' in text or text.strip() in {'x', 'draw', 'empate'}:
         candidates.append('draw')
     if home and home in text:
         candidates.append('home')
@@ -112,7 +123,11 @@ def parse_winner_market(bet):
 
 
 def resolve_winner_market(bet, event):
-    selection = parse_winner_market(bet)
+    return resolve_winner_market_text(bet.market, bet, event)
+
+
+def resolve_winner_market_text(market_text, bet, event):
+    selection = parse_winner_market_text(market_text, bet)
     if selection is None:
         return None
     scores = get_event_scores(bet, event)
@@ -141,10 +156,71 @@ def resolve_bet_from_event(bet, event):
     return resolve_total_market(bet, event) or resolve_winner_market(bet, event)
 
 
+def resolve_surebet_entry_from_event(entry, bet, event):
+    if market_has_multiple_intents(entry.label):
+        return None
+    return resolve_total_market_text(entry.label, bet, event) or resolve_winner_market_text(
+        entry.label,
+        bet,
+        event,
+    )
+
+
+def resolve_surebet_from_event(bet, event):
+    if not event.get('completed'):
+        return None
+    if not bet.external_event_id or event.get('id') != bet.external_event_id:
+        return None
+    if bet.strategy != 'Surebet':
+        return None
+
+    entries = list(bet.surebet_entries.all())
+    if len(entries) < 2:
+        return None
+
+    decisions = []
+    for entry in entries:
+        decision = resolve_surebet_entry_from_event(entry, bet, event)
+        if decision is None:
+            return None
+        decisions.append((entry, decision))
+
+    winners = [entry for entry, decision in decisions if decision.status == Bet.Status.WON]
+    if len(winners) != 1:
+        return None
+    winner = winners[0]
+    return SettlementDecision(
+        status=Bet.Status.WON if winner.net_result >= 0 else Bet.Status.LOST,
+        reason=f'{winner.bookmaker} - {winner.label}',
+    ), winner
+
+
 def apply_settlement(bet, decision):
     bet.status = decision.status
     bet.actual_net_result = bet.potential_profit if decision.status == Bet.Status.WON else -bet.stake
     note = f'Fechada automaticamente. {decision.reason}.'
     bet.notes = f'{bet.notes}\n{note}'.strip() if bet.notes else note
     bet.save(update_fields=['status', 'actual_net_result', 'notes'])
+    return bet
+
+
+def apply_surebet_settlement(bet, decision, winner):
+    with transaction.atomic():
+        bet.surebet_entries.update(is_winner=False)
+        winner.is_winner = True
+        winner.save(update_fields=['is_winner'])
+        bet.actual_net_result = winner.net_result
+        bet.status = decision.status
+        bet.exact_score = f'{winner.bookmaker} - {winner.label}'[:40]
+        note = f'Fechada automaticamente. Vencedora: {decision.reason}.'
+        bet.notes = f'{bet.notes}\n{note}'.strip() if bet.notes else note
+        bet.save(update_fields=['actual_net_result', 'status', 'exact_score', 'notes'])
+
+        if winner.freebet_enabled and winner.freebet_amount > 0:
+            FreeBet.objects.get_or_create(
+                source_bet=bet,
+                bookmaker=winner.bookmaker,
+                amount=winner.freebet_amount,
+                defaults={},
+            )
     return bet

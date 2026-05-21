@@ -238,18 +238,18 @@ function setEventAutocompleteState(container, html) {
   container.hidden = false;
 }
 
-function setupEventAutocomplete() {
-  const gameInput = document.querySelector("#id_game");
-  const sportInput = document.querySelector("#id_sport");
-  const competitionInput = document.querySelector("#id_competition");
-  const eventDateInput = document.querySelector("#id_event_date");
-  const eventIdInput = document.querySelector("#id_external_event_id");
-  const sportKeyInput = document.querySelector("#id_external_sport_key");
-  const homeTeamInput = document.querySelector("#id_home_team");
-  const awayTeamInput = document.querySelector("#id_away_team");
-  const container = document.querySelector("#eventAutocomplete");
-  const url = container?.dataset.url;
-  if (!gameInput || !container || !url) return;
+function setupSingleEventAutocomplete(container) {
+  const form = container.closest("form") || document;
+  const gameInput = form.querySelector("[data-event-game-input]") || document.querySelector("#id_game");
+  const sportInput = form.querySelector("[name='surebet_sport']") || document.querySelector("#id_sport");
+  const competitionInput = form.querySelector("[name='surebet_competition']") || document.querySelector("#id_competition");
+  const eventDateInput = form.querySelector("[data-event-date-input]") || document.querySelector("#id_event_date");
+  const eventIdInput = form.querySelector("[data-event-id-input]") || document.querySelector("#id_external_event_id");
+  const sportKeyInput = form.querySelector("[data-event-sport-key-input]") || document.querySelector("#id_external_sport_key");
+  const homeTeamInput = form.querySelector("[data-event-home-team-input]") || document.querySelector("#id_home_team");
+  const awayTeamInput = form.querySelector("[data-event-away-team-input]") || document.querySelector("#id_away_team");
+  const url = container.dataset.url;
+  if (!gameInput || !url) return;
 
   const searchEvents = debounce(async () => {
     const query = gameInput.value.trim();
@@ -329,6 +329,14 @@ function setupEventAutocomplete() {
     if (!container.contains(event.target) && event.target !== gameInput) {
       container.hidden = true;
     }
+  });
+}
+
+function setupEventAutocomplete() {
+  const legacyContainer = document.querySelector("#eventAutocomplete");
+  if (legacyContainer) setupSingleEventAutocomplete(legacyContainer);
+  document.querySelectorAll("[data-event-autocomplete]").forEach((container) => {
+    setupSingleEventAutocomplete(container);
   });
 }
 

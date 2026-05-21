@@ -696,6 +696,10 @@ def index(request):
             sport = (request.POST.get('surebet_sport') or 'Futebol').strip()
             competition = (request.POST.get('surebet_competition') or '').strip()
             game_link = (request.POST.get('surebet_game_link') or '').strip()
+            external_event_id = (request.POST.get('surebet_external_event_id') or '').strip()
+            external_sport_key = (request.POST.get('surebet_external_sport_key') or '').strip()
+            home_team = (request.POST.get('surebet_home_team') or '').strip()
+            away_team = (request.POST.get('surebet_away_team') or '').strip()
             notes = (request.POST.get('surebet_notes') or '').strip()
 
             if entity is None:
@@ -792,6 +796,10 @@ def index(request):
                 sport=sport,
                 competition=competition,
                 game=game,
+                external_event_id=external_event_id,
+                external_sport_key=external_sport_key,
+                home_team=home_team,
+                away_team=away_team,
                 market=market[:120],
                 strategy='Surebet',
                 odds=effective_odd,

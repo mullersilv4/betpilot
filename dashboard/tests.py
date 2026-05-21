@@ -23,8 +23,11 @@ from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
 from .models import MonthlyGoal
+from .models import SureBetEntry
 from .result_settlement import apply_settlement
+from .result_settlement import apply_surebet_settlement
 from .result_settlement import resolve_bet_from_event
+from .result_settlement import resolve_surebet_from_event
 from .views import parse_import_lines
 
 
@@ -448,6 +451,53 @@ class AutomaticSettlementTests(TestCase):
             stake=Decimal('100.00'),
         )
 
+    def make_external_surebet(self):
+        bet = Bet.objects.create(
+            bankroll=self.bankroll,
+            sport='Futebol',
+            competition='Brasileirao',
+            game='Palmeiras x Flamengo',
+            external_event_id='event-1',
+            external_sport_key='soccer_brazil_campeonato',
+            home_team='Palmeiras',
+            away_team='Flamengo',
+            market='Surebet: Palmeiras / Empate / Flamengo',
+            strategy='Surebet',
+            odds=Decimal('1.10'),
+            stake=Decimal('300.00'),
+        )
+        SureBetEntry.objects.create(
+            bet=bet,
+            bookmaker='Bet365',
+            label='Palmeiras',
+            odds=Decimal('2.00'),
+            effective_odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+            return_amount=Decimal('200.00'),
+            net_result=Decimal('10.00'),
+        )
+        SureBetEntry.objects.create(
+            bet=bet,
+            bookmaker='Betfair',
+            label='Empate',
+            odds=Decimal('3.00'),
+            effective_odds=Decimal('3.00'),
+            stake=Decimal('70.00'),
+            return_amount=Decimal('210.00'),
+            net_result=Decimal('5.00'),
+        )
+        SureBetEntry.objects.create(
+            bet=bet,
+            bookmaker='Pinnacle',
+            label='Flamengo',
+            odds=Decimal('2.40'),
+            effective_odds=Decimal('2.40'),
+            stake=Decimal('90.00'),
+            return_amount=Decimal('216.00'),
+            net_result=Decimal('12.00'),
+        )
+        return bet
+
     def test_resolves_home_winner_market(self):
         bet = self.make_external_bet('Palmeiras vence')
 
@@ -485,6 +535,62 @@ class AutomaticSettlementTests(TestCase):
 
         self.assertEqual(bet.status, Bet.Status.LOST)
         self.assertEqual(bet.actual_net_result, Decimal('-100.00'))
+
+    def test_resolves_surebet_winner_from_match_odds(self):
+        bet = self.make_external_surebet()
+
+        decision, winner = resolve_surebet_from_event(bet, self.finished_event())
+
+        self.assertEqual(decision.status, Bet.Status.WON)
+        self.assertEqual(winner.label, 'Palmeiras')
+
+    def test_apply_surebet_settlement_marks_winning_entry(self):
+        bet = self.make_external_surebet()
+        decision, winner = resolve_surebet_from_event(bet, self.finished_event())
+
+        apply_surebet_settlement(bet, decision, winner)
+        bet.refresh_from_db()
+
+        self.assertEqual(bet.status, Bet.Status.WON)
+        self.assertEqual(bet.actual_net_result, Decimal('10.00'))
+        self.assertTrue(bet.surebet_entries.get(label='Palmeiras').is_winner)
+
+    def test_keeps_surebet_open_when_entry_market_is_not_supported(self):
+        bet = self.make_external_surebet()
+        bet.surebet_entries.filter(label='Empate').update(label='Ambas marcam')
+
+        result = resolve_surebet_from_event(bet, self.finished_event())
+
+        self.assertIsNone(result)
+
+    def test_resolves_surebet_winner_from_goal_total(self):
+        bet = self.make_external_surebet()
+        bet.surebet_entries.all().delete()
+        SureBetEntry.objects.create(
+            bet=bet,
+            bookmaker='Bet365',
+            label='Over 2.5 gols',
+            odds=Decimal('2.00'),
+            effective_odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+            return_amount=Decimal('200.00'),
+            net_result=Decimal('15.00'),
+        )
+        SureBetEntry.objects.create(
+            bet=bet,
+            bookmaker='Pinnacle',
+            label='Under 2.5 gols',
+            odds=Decimal('2.00'),
+            effective_odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+            return_amount=Decimal('200.00'),
+            net_result=Decimal('-5.00'),
+        )
+
+        decision, winner = resolve_surebet_from_event(bet, self.finished_event())
+
+        self.assertEqual(decision.status, Bet.Status.WON)
+        self.assertEqual(winner.label, 'Over 2.5 gols')
 
 
 class AuthenticationTests(TestCase):

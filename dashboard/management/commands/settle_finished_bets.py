@@ -7,7 +7,9 @@ from dashboard.models import Bet
 from dashboard.odds_api import OddsApiClient
 from dashboard.odds_api import OddsApiError
 from dashboard.result_settlement import apply_settlement
+from dashboard.result_settlement import apply_surebet_settlement
 from dashboard.result_settlement import resolve_bet_from_event
+from dashboard.result_settlement import resolve_surebet_from_event
 
 
 class Command(BaseCommand):
@@ -36,7 +38,7 @@ class Command(BaseCommand):
             status=Bet.Status.OPEN,
             external_event_id__gt='',
             external_sport_key__gt='',
-        ).exclude(strategy='Surebet')
+        ).prefetch_related('surebet_entries')
         if not pending_bets.exists():
             self.stdout.write(self.style.WARNING('Nenhuma aposta aberta com evento externo.'))
             return
@@ -63,6 +65,24 @@ class Command(BaseCommand):
             events_by_id = {event.get('id'): event for event in events}
             for bet in sport_bets:
                 event = events_by_id.get(bet.external_event_id)
+                surebet_result = resolve_surebet_from_event(bet, event or {})
+                if surebet_result is not None:
+                    decision, winner = surebet_result
+                    if options['dry_run']:
+                        self.stdout.write(
+                            f'[dry-run] {bet.game} | {bet.market} -> {winner.bookmaker} - {winner.label}'
+                        )
+                    else:
+                        apply_surebet_settlement(bet, decision, winner)
+                        self.stdout.write(
+                            f'{bet.game} | {bet.market} -> {winner.bookmaker} - {winner.label}'
+                        )
+                    settled_count += 1
+                    continue
+                if bet.strategy == 'Surebet':
+                    skipped_count += 1
+                    continue
+
                 decision = resolve_bet_from_event(bet, event or {})
                 if decision is None:
                     skipped_count += 1

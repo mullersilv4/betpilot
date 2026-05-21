@@ -74,6 +74,9 @@ class OddsApiClient:
     def sports(self):
         return self._get('/sports/')
 
+    def events(self, sport_key):
+        return self._get(f'/sports/{sport_key}/events')
+
     def odds(self, sport_key, regions='eu', markets='h2h', bookmakers=''):
         params = {
             'regions': regions,

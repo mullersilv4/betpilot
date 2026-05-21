@@ -567,6 +567,12 @@
                 <span>Jogo</span>
                 {{ form.game }}
                 {{ form.game.errors }}
+                <div
+                  class="event-autocomplete"
+                  id="eventAutocomplete"
+                  data-url="{% url 'dashboard:event_autocomplete' %}"
+                  hidden
+                ></div>
               </label>
 
               <label>

@@ -8,6 +8,7 @@ urlpatterns = [
     path('login/', views.DashboardLoginView.as_view(), name='login'),
     path('cadastro/', views.signup, name='signup'),
     path('logout/', views.logout_view, name='logout'),
+    path('api/jogos/', views.event_autocomplete, name='event_autocomplete'),
     path('', views.index, name='index'),
     path('entidades/<int:pk>/excluir/', views.delete_entity, name='delete_entity'),
     path('apostas/<int:pk>/editar/', views.edit_bet, name='edit_bet'),

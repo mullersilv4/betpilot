@@ -525,6 +525,56 @@ textarea {
   line-height: 1.35;
 }
 
+.event-autocomplete {
+  display: grid;
+  gap: 6px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111615;
+}
+
+.event-autocomplete[hidden] {
+  display: none;
+}
+
+.event-option {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.event-option:hover,
+.event-option:focus {
+  outline: 0;
+  background: rgb(79 209 139 / 12%);
+}
+
+.event-option strong,
+.event-option span {
+  display: block;
+}
+
+.event-option span,
+.event-empty {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.event-empty {
+  padding: 8px 10px;
+}
+
 .checkbox-field {
   display: flex !important;
   grid-template-columns: none !important;

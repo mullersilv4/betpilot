@@ -9,8 +9,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
+from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Q
@@ -61,6 +63,7 @@ MONTH_CHOICES = [
 ]
 
 ODDS_CACHE_TIMEOUT = 60 * 15
+EVENT_SEARCH_CACHE_TIMEOUT = 60 * 20
 
 
 def apply_bet_filters(bets, form):
@@ -420,8 +423,98 @@ def add_suggested_stakes(opportunities, total_stake):
     return enriched
 
 
+def guess_event_sports(sport_text, competition_text):
+    text = f'{sport_text or ""} {competition_text or ""}'.lower()
+    choices = dict(OddsSearchForm.SPORT_CHOICES)
+    exact_matches = [
+        key
+        for key, label in choices.items()
+        if any(part and part in text for part in label.lower().replace('-', ' ').split())
+    ]
+
+    if 'brasil' in text or 'brasileir' in text:
+        return ['soccer_brazil_campeonato']
+    if 'champions' in text:
+        return ['soccer_uefa_champs_league']
+    if 'premier' in text or 'epl' in text:
+        return ['soccer_epl']
+    if 'liga' in text or 'la liga' in text:
+        return ['soccer_spain_la_liga']
+    if 'serie a' in text or 'italia' in text:
+        return ['soccer_italy_serie_a']
+    if 'bundesliga' in text or 'alem' in text:
+        return ['soccer_germany_bundesliga']
+    if 'ligue' in text or 'franca' in text:
+        return ['soccer_france_ligue_one']
+    if 'nba' in text or 'basquete' in text or 'basket' in text:
+        return ['basketball_nba']
+    if 'nfl' in text or 'americano' in text:
+        return ['americanfootball_nfl']
+    if exact_matches:
+        return exact_matches[:3]
+    if 'futebol' in text or 'soccer' in text:
+        return ['soccer_brazil_campeonato', 'soccer_epl', 'soccer_uefa_champs_league']
+    return ['soccer_brazil_campeonato']
+
+
+def normalize_event(event):
+    home_team = event.get('home_team') or ''
+    away_team = event.get('away_team') or ''
+    commence_time = event.get('commence_time') or ''
+    starts_at = parse_datetime(commence_time) if commence_time else None
+    local_starts_at = timezone.localtime(starts_at) if starts_at else None
+    return {
+        'id': event.get('id'),
+        'game': f'{home_team} x {away_team}'.strip(' x'),
+        'home_team': home_team,
+        'away_team': away_team,
+        'competition': event.get('sport_title') or '',
+        'sport': 'Futebol' if (event.get('sport_key') or '').startswith('soccer') else event.get('sport_title') or '',
+        'event_date': local_starts_at.strftime('%Y-%m-%dT%H:%M') if local_starts_at else '',
+        'display_date': local_starts_at.strftime('%d/%m/%Y %H:%M') if local_starts_at else '',
+    }
+
+
 def user_bets(user):
     return Bet.objects.filter(Q(bankroll__owner=user) | Q(entity__owner=user)).distinct()
+
+
+@login_required
+def event_autocomplete(request):
+    api_key = os.environ.get('THE_ODDS_API_KEY')
+    query = (request.GET.get('q') or '').strip().lower()
+    sport_text = request.GET.get('sport') or ''
+    competition_text = request.GET.get('competition') or ''
+
+    if not api_key:
+        return JsonResponse({'results': [], 'error': 'API key nao configurada.'}, status=503)
+
+    sport_keys = guess_event_sports(sport_text, competition_text)
+    client = OddsApiClient(api_key)
+    events = []
+
+    for sport_key in sport_keys:
+        cache_key = f'events:{sport_key}'
+        sport_events = cache.get(cache_key)
+        if sport_events is None:
+            try:
+                sport_events = client.events(sport_key)
+            except OddsApiError:
+                sport_events = []
+            cache.set(cache_key, sport_events, EVENT_SEARCH_CACHE_TIMEOUT)
+        events.extend({**event, 'sport_key': sport_key} for event in sport_events)
+
+    normalized = [normalize_event(event) for event in events]
+    if query:
+        normalized = [
+            event
+            for event in normalized
+            if query in event['game'].lower() or query in event['competition'].lower()
+        ]
+
+    normalized = [event for event in normalized if event['game']]
+    normalized.sort(key=lambda item: item['event_date'] or '9999')
+    return JsonResponse({'results': normalized[:12]})
 
 
 @login_required

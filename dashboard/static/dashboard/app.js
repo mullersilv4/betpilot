@@ -224,6 +224,102 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function debounce(callback, delay = 350) {
+  let timeoutId;
+  return (...args) => {
+    window.clearTimeout(timeoutId);
+    timeoutId = window.setTimeout(() => callback(...args), delay);
+  };
+}
+
+function setEventAutocompleteState(container, html) {
+  if (!container) return;
+  container.innerHTML = html;
+  container.hidden = false;
+}
+
+function setupEventAutocomplete() {
+  const gameInput = document.querySelector("#id_game");
+  const sportInput = document.querySelector("#id_sport");
+  const competitionInput = document.querySelector("#id_competition");
+  const eventDateInput = document.querySelector("#id_event_date");
+  const container = document.querySelector("#eventAutocomplete");
+  const url = container?.dataset.url;
+  if (!gameInput || !container || !url) return;
+
+  const searchEvents = debounce(async () => {
+    const query = gameInput.value.trim();
+    const sport = sportInput?.value || "";
+    const competition = competitionInput?.value || "";
+    if (query.length < 2 && competition.length < 2) {
+      container.hidden = true;
+      return;
+    }
+
+    setEventAutocompleteState(container, '<div class="event-empty">Buscando jogos...</div>');
+    const params = new URLSearchParams({ q: query, sport, competition });
+
+    try {
+      const response = await fetch(`${url}?${params.toString()}`);
+      const payload = await response.json();
+      const results = payload.results || [];
+      if (!results.length) {
+        setEventAutocompleteState(
+          container,
+          '<div class="event-empty">Nenhum jogo encontrado. Voce pode continuar digitando manualmente.</div>',
+        );
+        return;
+      }
+
+      setEventAutocompleteState(
+        container,
+        results.map((event) => `
+          <button
+            class="event-option"
+            type="button"
+            data-game="${escapeHtml(event.game)}"
+            data-sport="${escapeHtml(event.sport)}"
+            data-competition="${escapeHtml(event.competition)}"
+            data-event-date="${escapeHtml(event.event_date)}"
+          >
+            <strong>${escapeHtml(event.game)}</strong>
+            <span>${escapeHtml(event.competition)}${event.display_date ? ` | ${escapeHtml(event.display_date)}` : ""}</span>
+          </button>
+        `).join(""),
+      );
+    } catch (_error) {
+      setEventAutocompleteState(
+        container,
+        '<div class="event-empty">Nao foi possivel buscar jogos agora. Voce pode digitar manualmente.</div>',
+      );
+    }
+  });
+
+  gameInput.addEventListener("input", searchEvents);
+  competitionInput?.addEventListener("input", searchEvents);
+  sportInput?.addEventListener("input", searchEvents);
+
+  container.addEventListener("click", (event) => {
+    const option = event.target.closest(".event-option");
+    if (!option) return;
+    gameInput.value = option.dataset.game || "";
+    if (sportInput && option.dataset.sport) sportInput.value = option.dataset.sport;
+    if (competitionInput && option.dataset.competition) {
+      competitionInput.value = option.dataset.competition;
+    }
+    if (eventDateInput && option.dataset.eventDate) {
+      eventDateInput.value = option.dataset.eventDate;
+    }
+    container.hidden = true;
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!container.contains(event.target) && event.target !== gameInput) {
+      container.hidden = true;
+    }
+  });
+}
+
 function getSurebetIndices() {
   return [...document.querySelectorAll("[data-surebet-row]")]
     .map((row) => Number.parseInt(row.dataset.surebetRow, 10))
@@ -453,6 +549,7 @@ updateBetPreview();
 updateSurebetPreview();
 setupMobileSidebar();
 enhanceResponsiveTables();
+setupEventAutocomplete();
 activateScreen();
 drawChart();
 drawBarChart();

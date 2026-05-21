@@ -1,9 +1,11 @@
 from decimal import Decimal
+from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 
 from django.test import TestCase
 from django.utils import timezone
+from django.urls import reverse
 
 from .analytics import build_analytics
 from .analytics import build_month_calendar
@@ -495,3 +497,29 @@ class AuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(bet.entity, entity)
         self.assertIsNone(bet.bankroll)
+
+    @patch.dict('os.environ', {'THE_ODDS_API_KEY': 'test-key'})
+    @patch('dashboard.views.OddsApiClient.events')
+    def test_event_autocomplete_returns_external_games(self, mocked_events):
+        mocked_events.return_value = [
+            {
+                'id': 'event-1',
+                'home_team': 'Palmeiras',
+                'away_team': 'Flamengo',
+                'sport_title': 'Brasileirao',
+                'commence_time': '2026-05-22T22:30:00Z',
+            }
+        ]
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(
+            reverse('dashboard:event_autocomplete'),
+            {'q': 'Palmeiras', 'sport': 'Futebol', 'competition': 'Brasileirao'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['results'][0]['game'], 'Palmeiras x Flamengo')
+        self.assertEqual(payload['results'][0]['competition'], 'Brasileirao')
+        self.assertTrue(payload['results'][0]['event_date'])

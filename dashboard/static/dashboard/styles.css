@@ -1601,6 +1601,12 @@ th {
   margin-bottom: 20px;
 }
 
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .muted-copy {
   margin: 6px 0 0;
   color: var(--muted);

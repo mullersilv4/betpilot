@@ -1,8 +1,10 @@
 from decimal import Decimal
 from unittest.mock import patch
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 
+from django.test import override_settings
 from django.test import TestCase
 from django.utils import timezone
 from django.urls import reverse
@@ -431,6 +433,24 @@ class AuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Bankroll.objects.filter(owner=user).exists())
         self.assertFalse(Entity.objects.filter(owner=user).exists())
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_password_reset_sends_email(self):
+        User.objects.create_user(
+            username='newuser',
+            email='new@example.com',
+            password='StrongPass123!',
+        )
+
+        response = self.client.post(
+            reverse('dashboard:password_reset'),
+            {'email': 'new@example.com'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard:password_reset_done'))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('/recuperar-senha/', mail.outbox[0].body)
 
     def test_dashboard_does_not_assign_legacy_bankroll_to_new_user(self):
         legacy_bankroll = Bankroll.objects.create(

@@ -9,7 +9,14 @@
   </head>
   <body>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Navegacao principal">
+      <button class="mobile-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="sidebar-backdrop" data-sidebar-close></div>
+
+      <aside id="appSidebar" class="sidebar" aria-label="Navegacao principal">
         <div class="brand">
           <span class="brand-mark">BP</span>
           <div>
@@ -22,11 +29,11 @@
           <a class="active" href="#dashboard">Dashboard</a>
           <a href="#new-bet">Nova aposta</a>
           <a href="#bankroll">Bancas</a>
-          <a href="#goals">Metas</a>
           <a href="#bets">Historico</a>
-          <a href="#odds">Odds</a>
-          <a href="#automation">Automacoes</a>
-          <a href="#analytics">Analytics</a>
+          <a class="nav-dev" href="#goals">Metas <span>Em desenvolvimento</span></a>
+          <a class="nav-dev" href="#odds">Odds <span>Em desenvolvimento</span></a>
+          <a class="nav-dev" href="#automation">Automacoes <span>Em desenvolvimento</span></a>
+          <a class="nav-dev" href="#analytics">Analytics <span>Em desenvolvimento</span></a>
         </nav>
 
         <div class="side-panel">
@@ -417,6 +424,7 @@
                 <p class="eyebrow">Metas</p>
                 <h2>Criar meta mensal</h2>
               </div>
+              <span class="dev-badge">Em desenvolvimento</span>
             </div>
 
             <form class="bet-form" method="post" novalidate>
@@ -820,6 +828,7 @@
                 <p class="eyebrow">Risco</p>
                 <h2>Drawdown e sequencia</h2>
               </div>
+              <span class="dev-badge">Em desenvolvimento</span>
             </div>
             <div class="report-metrics">
               <article>
@@ -963,6 +972,7 @@
                 <p class="eyebrow">Entrada inteligente</p>
                 <h2>Colar texto livre</h2>
               </div>
+              <span class="dev-badge">Em desenvolvimento</span>
             </div>
             <div class="upload-zone">
               <strong>Use pares como banca, jogo, mercado, odd e valor</strong>
@@ -1007,6 +1017,7 @@
                 <p class="eyebrow">API</p>
                 <h2>Buscar oportunidades</h2>
               </div>
+              <span class="dev-badge">Em desenvolvimento</span>
             </div>
 
             <form class="bet-form" method="post" novalidate>

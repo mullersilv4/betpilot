@@ -63,11 +63,6 @@ MONTH_CHOICES = [
 ODDS_CACHE_TIMEOUT = 60 * 15
 
 
-def ensure_default_bankroll(user):
-    Bankroll.objects.filter(owner__isnull=True).update(owner=user)
-    return Bankroll.objects.filter(owner=user).first()
-
-
 def apply_bet_filters(bets, form):
     if not form.is_valid():
         return bets
@@ -171,8 +166,6 @@ def parse_import_lines(raw_text):
 
 
 def build_dashboard_context(request, **forms):
-    ensure_default_bankroll(request.user)
-
     entities = Entity.objects.filter(owner=request.user).prefetch_related('bankrolls')
     bankrolls = Bankroll.objects.filter(owner=request.user).select_related('entity').prefetch_related('bets', 'transactions')
     all_bets = Bet.objects.filter(bankroll__owner=request.user).select_related('bankroll', 'bankroll__entity')
@@ -429,8 +422,6 @@ def add_suggested_stakes(opportunities, total_stake):
 
 @login_required
 def index(request):
-    ensure_default_bankroll(request.user)
-
     if request.method == 'POST':
         form_type = request.POST.get('form_type')
 

@@ -147,6 +147,44 @@ function activateScreen() {
   });
 }
 
+function closeSidebar() {
+  document.body.classList.remove("sidebar-open");
+  document.querySelector(".mobile-menu-toggle")?.setAttribute("aria-expanded", "false");
+}
+
+function setupMobileSidebar() {
+  const toggle = document.querySelector(".mobile-menu-toggle");
+  const sidebar = document.querySelector(".sidebar");
+  if (!toggle || !sidebar) return;
+
+  toggle.addEventListener("click", () => {
+    const isOpen = document.body.classList.toggle("sidebar-open");
+    toggle.setAttribute("aria-expanded", String(isOpen));
+  });
+
+  document.querySelector("[data-sidebar-close]")?.addEventListener("click", closeSidebar);
+  sidebar.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", closeSidebar);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSidebar();
+  });
+}
+
+function enhanceResponsiveTables() {
+  document.querySelectorAll("table").forEach((table) => {
+    const headers = [...table.querySelectorAll("thead th")].map((header) =>
+      header.textContent.trim(),
+    );
+    table.querySelectorAll("tbody tr").forEach((row) => {
+      row.querySelectorAll("td").forEach((cell, index) => {
+        if (headers[index]) cell.dataset.label = headers[index];
+      });
+    });
+  });
+}
+
 function updateBetPreview() {
   const odds = Number.parseFloat(document.querySelector("#id_odds")?.value || 0);
   const stake = Number.parseFloat(document.querySelector("#id_stake")?.value || 0);
@@ -413,6 +451,8 @@ if (document.querySelector('[data-bet-mode-panel="surebet"] .form-errors')) {
 
 updateBetPreview();
 updateSurebetPreview();
+setupMobileSidebar();
+enhanceResponsiveTables();
 activateScreen();
 drawChart();
 drawBarChart();

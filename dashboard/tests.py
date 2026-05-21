@@ -430,6 +430,21 @@ class AuthenticationTests(TestCase):
         self.assertFalse(Bankroll.objects.filter(owner=user).exists())
         self.assertFalse(Entity.objects.filter(owner=user).exists())
 
+    def test_dashboard_does_not_assign_legacy_bankroll_to_new_user(self):
+        legacy_bankroll = Bankroll.objects.create(
+            name='Banca principal',
+            initial_balance=Decimal('500.00'),
+        )
+        user = User.objects.create_user(username='newuser', password='StrongPass123!')
+
+        self.client.login(username='newuser', password='StrongPass123!')
+        response = self.client.get('/')
+        legacy_bankroll.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(legacy_bankroll.owner)
+        self.assertFalse(Bankroll.objects.filter(owner=user).exists())
+
     def test_user_only_sees_own_bankrolls(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')
         other = User.objects.create_user(username='other', password='StrongPass123!')

@@ -29,6 +29,10 @@ body {
     sans-serif;
 }
 
+body.sidebar-open {
+  overflow: hidden;
+}
+
 button,
 select,
 input,
@@ -40,6 +44,11 @@ textarea {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+}
+
+.mobile-menu-toggle,
+.sidebar-backdrop {
+  display: none;
 }
 
 .sidebar {
@@ -93,6 +102,10 @@ textarea {
 }
 
 .nav-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   color: var(--muted);
   text-decoration: none;
   padding: 12px 14px;
@@ -103,6 +116,26 @@ textarea {
 .nav-list a:hover {
   background: var(--surface-2);
   color: var(--text);
+}
+
+.nav-dev span,
+.dev-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgb(244 185 80 / 40%);
+  border-radius: 999px;
+  background: rgb(244 185 80 / 12%);
+  color: var(--amber);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.nav-dev {
+  align-items: flex-start;
 }
 
 .side-panel {
@@ -1571,21 +1604,73 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .mobile-menu-toggle {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    cursor: pointer;
+    gap: 4px;
+  }
+
+  .mobile-menu-toggle span {
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--text);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: block;
+    background: rgb(0 0 0 / 56%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+  }
+
+  body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .sidebar {
-    position: static;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    overflow-x: auto;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 70;
+    width: min(84vw, 320px);
+    height: 100dvh;
+    align-items: stretch;
+    overflow-y: auto;
+    transform: translateX(-104%);
+    transition: transform 180ms ease;
+    box-shadow: 24px 0 60px rgb(0 0 0 / 34%);
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    padding-top: 72px;
   }
 
   .nav-list {
-    display: flex;
-    min-width: max-content;
+    display: grid;
+    min-width: 0;
   }
 
   .side-panel {
-    display: none;
+    display: flex;
   }
 
   .insight-strip,
@@ -1616,8 +1701,13 @@ th {
 }
 
 @media (max-width: 720px) {
+  body {
+    font-size: 13px;
+  }
+
   .main-content {
-    padding: 18px;
+    padding: 68px 10px 14px;
+    gap: 10px;
   }
 
   .topbar,
@@ -1629,6 +1719,37 @@ th {
 
   .calendar-summary {
     text-align: left;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .panel h2,
+  .bankroll-band h2,
+  .section-subheading h2 {
+    font-size: 0.98rem;
+  }
+
+  .dashboard-filter-bar {
+    padding: 10px;
+  }
+
+  .dashboard-filter-bar form,
+  .dashboard-filter-bar label,
+  .dashboard-filter-bar select,
+  .dashboard-filter-bar button,
+  .dashboard-filter-bar a {
+    width: 100%;
+  }
+
+  .metric-card {
+    height: auto;
+    min-height: 70px;
+  }
+
+  .metric-card strong {
+    font-size: 1.08rem;
   }
 
   .topbar-actions,
@@ -1658,8 +1779,8 @@ th {
 
   .calendar-day,
   .calendar-day.outside {
-    min-height: 82px;
-    padding: 8px;
+    min-height: 56px;
+    padding: 6px;
   }
 
   .calendar-day strong {
@@ -1667,11 +1788,103 @@ th {
   }
 
   .calendar-day small {
-    font-size: 0.68rem;
+    display: none;
   }
 
   .sidebar {
     padding: 18px;
+  }
+
+  .entity-list div,
+  .automation-list div,
+  .analytics-row,
+  .breakdown-row,
+  .goal-title,
+  .bankroll-actions,
+  .table-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .entity-list form,
+  .entity-list button,
+  .bankroll-actions a,
+  .bankroll-actions button,
+  .table-actions a,
+  .table-actions button,
+  .table-actions form,
+  .primary-button,
+  .secondary-button,
+  .ghost-button {
+    width: 100%;
+  }
+
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td {
+    display: block;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  tr {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: minmax(96px, 0.72fr) minmax(0, 1fr);
+    gap: 10px;
+    min-height: 34px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgb(47 59 56 / 70%);
+  }
+
+  td:last-child {
+    border-bottom: 0;
+  }
+
+  td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  td.empty-state {
+    display: block;
+  }
+
+  td.empty-state::before {
+    content: "";
+  }
+
+  .compact-table table,
+  .compact-table tr,
+  .compact-table td {
+    min-width: 0;
   }
 
   .bet-mode-tabs {
@@ -1688,6 +1901,24 @@ th {
   .settle-surebet-option,
   .odds-outcome-list div {
     grid-template-columns: 1fr;
+  }
+
+  .surebet-entry-header,
+  .surebet-result-head {
+    display: none;
+  }
+
+  .odds-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .standalone-page {
+    padding: 10px;
+  }
+
+  .standalone-card,
+  .wide-card {
+    width: 100%;
   }
 }
 

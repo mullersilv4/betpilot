@@ -184,6 +184,7 @@ def build_dashboard_context(request, **forms):
 
     settled_bets = [bet for bet in dashboard_bets if bet.status != Bet.Status.OPEN]
     total_stake = sum((bet.stake for bet in dashboard_bets), start=Decimal('0.00'))
+    total_registered_stake = sum((bet.stake for bet in all_bet_list), start=Decimal('0.00'))
     net_profit = sum((bet.net_result for bet in dashboard_bets), start=Decimal('0.00'))
     won_bets = sum(1 for bet in dashboard_bets if bet.status == Bet.Status.WON)
     open_exposure = sum(
@@ -273,6 +274,7 @@ def build_dashboard_context(request, **forms):
         'dashboard_filter': dashboard_filter,
         'metrics': {
             'total_stake': total_stake,
+            'total_registered_stake': total_registered_stake,
             'net_profit': net_profit,
             'roi': roi,
             'win_rate': win_rate,

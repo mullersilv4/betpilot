@@ -86,37 +86,139 @@ function drawBarChart() {
   const context = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
-  const padding = 34;
+  const padding = {
+    top: 28,
+    right: 18,
+    bottom: 32,
+    left: 50,
+  };
   const valuesData = document.querySelector("#period-values");
   const labelsData = document.querySelector("#period-labels");
-  const values = valuesData ? JSON.parse(valuesData.textContent) : [0, 0, 0];
-  const labels = labelsData ? JSON.parse(labelsData.textContent) : ["Hoje", "7 dias", "Mes"];
+  const values = valuesData ? JSON.parse(valuesData.textContent) : [];
+  const labels = labelsData ? JSON.parse(labelsData.textContent) : [];
+  const chartValues = values.length ? values : [0];
+  const chartLabels = labels.length ? labels : ["1"];
   const maxValue = Math.max(...values.map((value) => Math.abs(value)), 1);
-  const availableWidth = width - padding * 2;
-  const barWidth = Math.min(120, availableWidth / values.length - 24);
-  const zeroY = height / 2;
+  const availableWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const slotWidth = availableWidth / chartValues.length;
+  const barWidth = Math.max(4, Math.min(14, slotWidth * 0.64));
+  const zeroY = padding.top + plotHeight / 2;
+  const hoveredIndex =
+    canvas.dataset.hoveredBar !== undefined ? Number(canvas.dataset.hoveredBar) : null;
 
   context.clearRect(0, 0, width, height);
   context.strokeStyle = "#2f3b38";
   context.lineWidth = 1;
+
+  [padding.top, zeroY, height - padding.bottom].forEach((y) => {
+    context.beginPath();
+    context.moveTo(padding.left, y);
+    context.lineTo(width - padding.right, y);
+    context.stroke();
+  });
+
   context.beginPath();
-  context.moveTo(padding, zeroY);
-  context.lineTo(width - padding, zeroY);
+  context.moveTo(padding.left, zeroY);
+  context.lineTo(width - padding.right, zeroY);
   context.stroke();
 
-  values.forEach((value, index) => {
-    const x = padding + index * (availableWidth / values.length) + 18;
-    const barHeight = (Math.abs(value) / maxValue) * (height / 2 - 46);
+  context.fillStyle = "#9caaa3";
+  context.font = "12px Inter, system-ui, sans-serif";
+  context.fillText(formatCurrency(maxValue), padding.left, 18);
+  context.fillText(formatCurrency(-maxValue), padding.left, height - 10);
+
+  const bars = chartValues.map((value, index) => {
+    const x = padding.left + index * slotWidth + (slotWidth - barWidth) / 2;
+    const barHeight = Math.max(2, (Math.abs(value) / maxValue) * (plotHeight / 2 - 12));
     const y = value >= 0 ? zeroY - barHeight : zeroY;
 
-    context.fillStyle = value >= 0 ? "#4fd18b" : "#f06f65";
+    const barColor = value > 0 ? "#4fd18b" : value < 0 ? "#f06f65" : "#56635f";
+    context.fillStyle = barColor;
+    if (index === hoveredIndex) {
+      context.shadowColor = value >= 0 ? "rgba(79, 209, 139, 0.32)" : "rgba(240, 111, 101, 0.32)";
+      context.shadowBlur = 12;
+    }
     context.fillRect(x, y, barWidth, barHeight);
+    context.shadowBlur = 0;
 
-    context.fillStyle = "#9caaa3";
-    context.font = "13px Inter, system-ui, sans-serif";
-    context.fillText(labels[index], x, height - 14);
-    context.fillText(formatCurrency(value), x, value >= 0 ? y - 8 : y + barHeight + 18);
+    if (index === 0 || Number(chartLabels[index]) % 5 === 0 || index === chartValues.length - 1) {
+      context.fillStyle = "#9caaa3";
+      context.font = "11px Inter, system-ui, sans-serif";
+      context.textAlign = "center";
+      context.fillText(chartLabels[index], x + barWidth / 2, height - 12);
+      context.textAlign = "left";
+    }
+
+    return {
+      x,
+      y,
+      width: barWidth,
+      height: barHeight,
+      label: chartLabels[index],
+      zeroY,
+      value,
+    };
   });
+
+  canvas._periodBars = bars;
+
+  if (hoveredIndex !== null && bars[hoveredIndex]) {
+    const bar = bars[hoveredIndex];
+    const text = `Dia ${bar.label}: ${formatCurrency(bar.value)}`;
+    context.font = "12px Inter, system-ui, sans-serif";
+    const textWidth = context.measureText(text).width;
+    const tooltipWidth = textWidth + 18;
+    const tooltipHeight = 28;
+    const preferredX = bar.x + bar.width / 2 - tooltipWidth / 2;
+    const tooltipX = Math.max(8, Math.min(width - tooltipWidth - 8, preferredX));
+    const preferredY = bar.value >= 0 ? bar.y - tooltipHeight - 8 : bar.y + bar.height + 8;
+    const tooltipY = Math.max(8, Math.min(height - tooltipHeight - 8, preferredY));
+
+    context.fillStyle = "#101414";
+    context.strokeStyle = "#2f3b38";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 7);
+    context.fill();
+    context.stroke();
+    context.fillStyle = bar.value >= 0 ? "#4fd18b" : "#f06f65";
+    context.fillText(text, tooltipX + 9, tooltipY + 18);
+  }
+
+  if (!canvas.dataset.barEventsReady) {
+    canvas.dataset.barEventsReady = "true";
+    canvas.addEventListener("mousemove", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const mouseX = (event.clientX - rect.left) * scaleX;
+      const mouseY = (event.clientY - rect.top) * scaleY;
+      const nextIndex = (canvas._periodBars || []).findIndex((bar) => {
+        const hitPadding = Math.max(4, bar.width * 0.8);
+        return (
+          mouseX >= bar.x - hitPadding &&
+          mouseX <= bar.x + bar.width + hitPadding &&
+          mouseY >= Math.min(bar.y, bar.zeroY) - 12 &&
+          mouseY <= Math.max(bar.y + bar.height, bar.zeroY) + 12
+        );
+      });
+
+      if (nextIndex >= 0) {
+        canvas.dataset.hoveredBar = String(nextIndex);
+        canvas.style.cursor = "pointer";
+      } else {
+        delete canvas.dataset.hoveredBar;
+        canvas.style.cursor = "default";
+      }
+      drawBarChart();
+    });
+    canvas.addEventListener("mouseleave", () => {
+      delete canvas.dataset.hoveredBar;
+      canvas.style.cursor = "default";
+      drawBarChart();
+    });
+  }
 }
 
 function activateScreen() {

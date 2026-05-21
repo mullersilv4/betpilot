@@ -93,6 +93,11 @@
             <small class="neutral">exposicao R$ {{ metrics.open_exposure|floatformat:2 }}</small>
           </article>
           <article class="metric-card">
+            <span>Total apostado</span>
+            <strong>R$ {{ metrics.total_registered_stake|floatformat:2 }}</strong>
+            <small class="neutral">{{ metrics.bet_count }} apostas feitas</small>
+          </article>
+          <article class="metric-card">
             <span>Lucro liquido</span>
             <strong>R$ {{ metrics.net_profit|floatformat:2 }}</strong>
             <small class="{% if metrics.net_profit >= 0 %}positive{% else %}negative{% endif %}">resultado fechado</small>
@@ -103,7 +108,7 @@
             <small class="{% if metrics.roi >= 0 %}positive{% else %}negative{% endif %}">{{ metrics.bet_count }} apostas registradas</small>
           </article>
           <article class="metric-card">
-            <span>Freebets disponiveis</span>
+            <span>Freebets</span>
             <strong>R$ {{ metrics.available_freebets|floatformat:2 }}</strong>
             <small class="neutral">bonus pendentes</small>
           </article>
@@ -165,7 +170,7 @@
               <div class="panel-header">
                 <div>
                   <p class="eyebrow">Relatorios</p>
-                  <h2>Lucro por periodo</h2>
+                  <h2>Lucro diario do mes</h2>
                 </div>
               </div>
               <canvas id="periodChart" width="720" height="260"></canvas>

@@ -323,8 +323,8 @@ textarea {
 }
 
 .metric-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
   align-items: start;
   grid-auto-rows: max-content;
 }
@@ -372,25 +372,28 @@ textarea {
 }
 
 .metric-card {
-  height: 76px;
+  height: 66px;
   min-height: 0;
   display: grid;
   align-content: center;
-  padding: 8px 10px;
+  padding: 7px 9px;
+  min-width: 0;
 }
 
 .metric-card strong {
   display: block;
   margin: 2px 0;
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 500;
   line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .metric-card small,
 .metric-card span {
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   line-height: 1.18;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-filter-bar[data-screen="dashboard"],
@@ -1800,12 +1803,13 @@ th {
   }
 
   .metric-card {
-    height: auto;
-    min-height: 70px;
+    height: 58px;
+    min-height: 0;
+    padding: 6px 7px;
   }
 
   .metric-card strong {
-    font-size: 1.08rem;
+    font-size: 0.82rem;
   }
 
   .topbar-actions,
@@ -1827,6 +1831,16 @@ th {
   .report-metrics,
   .risk-grid {
     grid-template-columns: 1fr;
+  }
+
+  .metric-grid[data-screen="dashboard"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .metric-grid[data-screen="dashboard"] .metric-card small,
+  .metric-grid[data-screen="dashboard"] .metric-card span {
+    font-size: 0.58rem;
   }
 
   .calendar-grid {

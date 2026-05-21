@@ -164,30 +164,18 @@ def build_month_calendar(bets, reference_date=None):
 def period_chart_for_month(bets, reference_date):
     current_date = reference_date or timezone.localdate()
     _, days_in_month = monthrange(current_date.year, current_date.month)
-    ranges = [
-        ('1-10', 1, min(10, days_in_month)),
-        ('11-20', 11, min(20, days_in_month)),
-        ('21-fim', 21, days_in_month),
-    ]
+    monthly_results = defaultdict(Decimal)
+    for bet in settled_bets(bets):
+        bet_date = timezone.localtime(bet.created_at).date()
+        if bet_date.year == current_date.year and bet_date.month == current_date.month:
+            monthly_results[bet_date.day] += bet.net_result
+
     values = []
     labels = []
 
-    for label, start_day, end_day in ranges:
-        if start_day > days_in_month:
-            profit = Decimal('0.00')
-        else:
-            profit = sum(
-                (
-                    bet.net_result
-                    for bet in settled_bets(bets)
-                    if timezone.localtime(bet.created_at).year == current_date.year
-                    and timezone.localtime(bet.created_at).month == current_date.month
-                    and start_day <= timezone.localtime(bet.created_at).day <= end_day
-                ),
-                start=Decimal('0.00'),
-            )
-        labels.append(label)
-        values.append(float(profit))
+    for day in range(1, days_in_month + 1):
+        labels.append(str(day))
+        values.append(float(monthly_results[day].quantize(Decimal('0.01'))))
 
     return labels, values
 

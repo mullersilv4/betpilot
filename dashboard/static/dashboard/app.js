@@ -473,23 +473,23 @@ function createSurebetEntry(index) {
       </label>
       <label>
         <span class="sr-only">Odd ${index}</span>
-        <input type="number" name="surebet_odd_${index}" class="surebet-odd" step="0.01" min="1.01" />
+        <input type="number" name="surebet_odd_${index}" class="surebet-odd" step="0.01" min="1.01" placeholder="Ex: 2.10" />
       </label>
       <label>
         <span class="sr-only">Valor calculado ${index}</span>
-        <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" readonly />
+        <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly />
       </label>
       <label>
         <span class="sr-only">Comissao % ${index}</span>
-        <input type="number" name="surebet_commission_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" />
+        <input type="number" name="surebet_commission_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 0" />
       </label>
       <label>
         <span class="sr-only">Cashback % ${index}</span>
-        <input type="number" name="surebet_cashback_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" />
+        <input type="number" name="surebet_cashback_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 5" />
       </label>
       <label>
         <span class="sr-only">Aumento % ${index}</span>
-        <input type="number" name="surebet_boost_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" />
+        <input type="number" name="surebet_boost_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 10" />
       </label>
       <div class="freebet-control">
         <input type="hidden" name="surebet_freebet_enabled_${index}" value="0" />

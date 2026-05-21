@@ -468,6 +468,7 @@ def normalize_event(event):
         'game': f'{home_team} x {away_team}'.strip(' x'),
         'home_team': home_team,
         'away_team': away_team,
+        'sport_key': event.get('sport_key') or '',
         'competition': event.get('sport_title') or '',
         'sport': 'Futebol' if (event.get('sport_key') or '').startswith('soccer') else event.get('sport_title') or '',
         'event_date': local_starts_at.strftime('%Y-%m-%dT%H:%M') if local_starts_at else '',

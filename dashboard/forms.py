@@ -106,6 +106,10 @@ class BetForm(forms.ModelForm):
             'sport',
             'competition',
             'game',
+            'external_event_id',
+            'external_sport_key',
+            'home_team',
+            'away_team',
             'market',
             'strategy',
             'event_date',
@@ -138,6 +142,10 @@ class BetForm(forms.ModelForm):
                     'autocomplete': 'off',
                 }
             ),
+            'external_event_id': forms.HiddenInput(),
+            'external_sport_key': forms.HiddenInput(),
+            'home_team': forms.HiddenInput(),
+            'away_team': forms.HiddenInput(),
             'market': forms.TextInput(
                 attrs={
                     'placeholder': 'Ex: Over 2.5 gols, ML, Handicap -1.5',

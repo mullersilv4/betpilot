@@ -243,6 +243,10 @@ function setupEventAutocomplete() {
   const sportInput = document.querySelector("#id_sport");
   const competitionInput = document.querySelector("#id_competition");
   const eventDateInput = document.querySelector("#id_event_date");
+  const eventIdInput = document.querySelector("#id_external_event_id");
+  const sportKeyInput = document.querySelector("#id_external_sport_key");
+  const homeTeamInput = document.querySelector("#id_home_team");
+  const awayTeamInput = document.querySelector("#id_away_team");
   const container = document.querySelector("#eventAutocomplete");
   const url = container?.dataset.url;
   if (!gameInput || !container || !url) return;
@@ -281,6 +285,10 @@ function setupEventAutocomplete() {
             data-sport="${escapeHtml(event.sport)}"
             data-competition="${escapeHtml(event.competition)}"
             data-event-date="${escapeHtml(event.event_date)}"
+            data-event-id="${escapeHtml(event.id || "")}"
+            data-sport-key="${escapeHtml(event.sport_key || "")}"
+            data-home-team="${escapeHtml(event.home_team || "")}"
+            data-away-team="${escapeHtml(event.away_team || "")}"
           >
             <strong>${escapeHtml(event.game)}</strong>
             <span>${escapeHtml(event.competition)}${event.display_date ? ` | ${escapeHtml(event.display_date)}` : ""}</span>
@@ -310,6 +318,10 @@ function setupEventAutocomplete() {
     if (eventDateInput && option.dataset.eventDate) {
       eventDateInput.value = option.dataset.eventDate;
     }
+    if (eventIdInput) eventIdInput.value = option.dataset.eventId || "";
+    if (sportKeyInput) sportKeyInput.value = option.dataset.sportKey || "";
+    if (homeTeamInput) homeTeamInput.value = option.dataset.homeTeam || "";
+    if (awayTeamInput) awayTeamInput.value = option.dataset.awayTeam || "";
     container.hidden = true;
   });
 

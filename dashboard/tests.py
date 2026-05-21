@@ -23,6 +23,8 @@ from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
 from .models import MonthlyGoal
+from .result_settlement import apply_settlement
+from .result_settlement import resolve_bet_from_event
 from .views import parse_import_lines
 
 
@@ -409,6 +411,80 @@ class MonthlyGoalTests(TestCase):
         self.assertEqual(goal.volume, 1)
         self.assertEqual(goal.profit_progress, 50.0)
         self.assertEqual(goal.volume_progress, 50.0)
+
+
+class AutomaticSettlementTests(TestCase):
+    def setUp(self):
+        self.bankroll = Bankroll.objects.create(
+            name='Banca principal',
+            bookmaker='Betfair',
+            initial_balance=Decimal('1000.00'),
+        )
+
+    def finished_event(self, home_score='2', away_score='1'):
+        return {
+            'id': 'event-1',
+            'completed': True,
+            'home_team': 'Palmeiras',
+            'away_team': 'Flamengo',
+            'scores': [
+                {'name': 'Palmeiras', 'score': home_score},
+                {'name': 'Flamengo', 'score': away_score},
+            ],
+        }
+
+    def make_external_bet(self, market):
+        return Bet.objects.create(
+            bankroll=self.bankroll,
+            sport='Futebol',
+            competition='Brasileirao',
+            game='Palmeiras x Flamengo',
+            external_event_id='event-1',
+            external_sport_key='soccer_brazil_campeonato',
+            home_team='Palmeiras',
+            away_team='Flamengo',
+            market=market,
+            odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+        )
+
+    def test_resolves_home_winner_market(self):
+        bet = self.make_external_bet('Palmeiras vence')
+
+        decision = resolve_bet_from_event(bet, self.finished_event())
+
+        self.assertEqual(decision.status, Bet.Status.WON)
+
+    def test_resolves_under_over_market(self):
+        bet = self.make_external_bet('Over 2.5 gols')
+
+        decision = resolve_bet_from_event(bet, self.finished_event())
+
+        self.assertEqual(decision.status, Bet.Status.WON)
+
+    def test_keeps_combined_market_open(self):
+        bet = self.make_external_bet('Palmeiras vence e over 2.5 gols')
+
+        decision = resolve_bet_from_event(bet, self.finished_event())
+
+        self.assertIsNone(decision)
+
+    def test_keeps_total_market_combined_with_other_market_open(self):
+        bet = self.make_external_bet('Over 2.5 gols e ambas marcam')
+
+        decision = resolve_bet_from_event(bet, self.finished_event())
+
+        self.assertIsNone(decision)
+
+    def test_apply_settlement_records_profit(self):
+        bet = self.make_external_bet('Flamengo vence')
+        decision = resolve_bet_from_event(bet, self.finished_event())
+
+        apply_settlement(bet, decision)
+        bet.refresh_from_db()
+
+        self.assertEqual(bet.status, Bet.Status.LOST)
+        self.assertEqual(bet.actual_net_result, Decimal('-100.00'))
 
 
 class AuthenticationTests(TestCase):

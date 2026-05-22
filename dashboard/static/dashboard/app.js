@@ -250,6 +250,15 @@ function activateScreen() {
     link.classList.toggle("active", linkScreen === safeScreen);
   });
 
+  const messageStack = document.querySelector(".message-stack");
+  if (messageStack) {
+    if (!messageStack.dataset.screen) {
+      messageStack.dataset.screen = safeScreen;
+    } else if (messageStack.dataset.screen !== safeScreen) {
+      messageStack.remove();
+    }
+  }
+
   requestAnimationFrame(() => {
     drawChart();
     drawBarChart();

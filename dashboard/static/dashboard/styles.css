@@ -1586,6 +1586,22 @@ th {
   margin: 0;
 }
 
+.cashout-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cashout-form input {
+  width: 136px;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 6%);
+  color: var(--text);
+  padding: 0 8px;
+}
+
 .mini-button {
   min-height: 30px;
   border: 0;
@@ -1598,6 +1614,11 @@ th {
 .mini-button.danger {
   background: rgb(240 111 101 / 15%);
   color: var(--red);
+}
+
+.mini-button.cashout {
+  background: rgb(122 162 247 / 14%);
+  color: var(--blue);
 }
 
 .bar-track {
@@ -1960,6 +1981,7 @@ th {
   .table-actions a,
   .table-actions button,
   .table-actions form,
+  .cashout-form input,
   .primary-button,
   .secondary-button,
   .ghost-button {

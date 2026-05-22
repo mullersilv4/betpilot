@@ -649,6 +649,36 @@ class AuthenticationTests(TestCase):
         self.assertIsNone(legacy_bankroll.owner)
         self.assertFalse(Bankroll.objects.filter(owner=user).exists())
 
+    def test_cashout_records_manual_net_result(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        bankroll = Bankroll.objects.create(
+            owner=user,
+            name='Minha banca',
+            initial_balance=Decimal('1000.00'),
+        )
+        bet = Bet.objects.create(
+            bankroll=bankroll,
+            game='Time A x Time B',
+            market='Resultado final',
+            odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+            status=Bet.Status.OPEN,
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.post(
+            reverse('dashboard:cashout_bet', args=[bet.pk]),
+            {'cashout_result': '-25,50'},
+        )
+
+        bet.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f'{reverse("dashboard:index")}#bets')
+        self.assertEqual(bet.status, Bet.Status.LOST)
+        self.assertEqual(bet.actual_net_result, Decimal('-25.50'))
+        self.assertEqual(bet.net_result, Decimal('-25.50'))
+        self.assertEqual(bet.exact_score, 'Cash out')
+
     def test_user_only_sees_own_bankrolls(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')
         other = User.objects.create_user(username='other', password='StrongPass123!')

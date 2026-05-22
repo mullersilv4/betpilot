@@ -10,6 +10,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -64,6 +65,10 @@ MONTH_CHOICES = [
 
 ODDS_CACHE_TIMEOUT = 60 * 15
 EVENT_SEARCH_CACHE_TIMEOUT = 60 * 20
+
+
+def redirect_to_history():
+    return redirect(f'{reverse("dashboard:index")}#bets')
 
 
 def apply_bet_filters(bets, form):
@@ -966,7 +971,30 @@ def settle_bet(request, pk, status):
         else:
             bet.save(update_fields=['status'])
         messages.success(request, 'Status da aposta atualizado.')
-    return redirect('dashboard:index')
+    return redirect_to_history()
+
+
+@login_required
+def cashout_bet(request, pk):
+    bet = get_object_or_404(user_bets(request.user), pk=pk)
+    if bet.strategy == 'Surebet':
+        messages.error(request, 'Use a finalização da surebet para escolher a casa vencedora.')
+        return redirect('dashboard:settle_surebet', pk=bet.pk)
+
+    if request.method == 'POST':
+        cashout_result = decimal_from_post(request.POST, 'cashout_result', default='')
+        if cashout_result is None:
+            messages.error(request, 'Informe um valor válido para o lucro ou prejuízo do cash out.')
+            return redirect_to_history()
+
+        cashout_result = cashout_result.quantize(Decimal('0.01'))
+        bet.status = Bet.Status.WON if cashout_result >= 0 else Bet.Status.LOST
+        bet.actual_net_result = cashout_result
+        bet.exact_score = 'Cash out'
+        bet.save(update_fields=['status', 'actual_net_result', 'exact_score'])
+        messages.success(request, 'Cash out registrado com sucesso.')
+
+    return redirect_to_history()
 
 
 @login_required
@@ -1007,7 +1035,7 @@ def settle_surebet(request, pk):
                 )
 
         messages.success(request, 'Surebet finalizada com o resultado da casa vencedora.')
-        return redirect('dashboard:index')
+        return redirect_to_history()
 
     return render(
         request,
@@ -1022,7 +1050,7 @@ def delete_bet(request, pk):
     if request.method == 'POST':
         bet.delete()
         messages.success(request, 'Aposta excluída.')
-    return redirect('dashboard:index')
+    return redirect_to_history()
 
 
 @login_required

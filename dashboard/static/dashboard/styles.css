@@ -1594,12 +1594,17 @@ th {
 
 .cashout-form input {
   width: 136px;
-  min-height: 30px;
-  border: 1px solid var(--border);
+  height: 30px;
+  border: 1px solid rgb(122 162 247 / 28%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 6%);
-  color: var(--text);
+  background: rgb(122 162 247 / 8%);
+  color: var(--blue);
+  font-weight: 600;
   padding: 0 8px;
+}
+
+.cashout-form input::placeholder {
+  color: rgb(122 162 247 / 72%);
 }
 
 .mini-button {
@@ -1985,6 +1990,12 @@ th {
   .primary-button,
   .secondary-button,
   .ghost-button {
+    width: 100%;
+  }
+
+  .cashout-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     width: 100%;
   }
 

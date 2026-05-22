@@ -1328,7 +1328,7 @@
                               </form>
                               <form class="cashout-form" method="post" action="{% url 'dashboard:cashout_bet' bet.pk %}">
                                 {% csrf_token %}
-                                <input type="number" name="cashout_result" step="0.01" placeholder="+ lucro / - prejuízo" aria-label="Lucro ou prejuízo do cash out" required />
+                                <input type="number" name="cashout_result" step="0.01" placeholder="Valor" aria-label="Lucro ou prejuízo do cash out" required />
                                 <button class="mini-button cashout" type="submit">Cash out</button>
                               </form>
                             {% endif %}

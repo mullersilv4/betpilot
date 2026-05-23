@@ -140,6 +140,139 @@ class FreeBet(models.Model):
         return f'{self.bookmaker} - R$ {self.amount}'
 
 
+class RegulatedBookmaker(models.Model):
+    class Status(models.TextChoices):
+        AUTHORIZED = 'authorized', 'Autorizada'
+        STATE = 'state', 'Estadual'
+        JUDICIAL_ALERT = 'judicial_alert', 'Alerta judicial'
+        INACTIVE = 'inactive', 'Inativa'
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='usuário',
+        related_name='regulated_bookmakers',
+        on_delete=models.CASCADE,
+    )
+    company_name = models.CharField('empresa', max_length=160)
+    brand = models.CharField('marca', max_length=100)
+    cnpj = models.CharField('CNPJ', max_length=24, blank=True)
+    domain = models.CharField('domínio oficial', max_length=120)
+    status = models.CharField(
+        'status',
+        max_length=20,
+        choices=Status.choices,
+        default=Status.AUTHORIZED,
+    )
+    source = models.CharField('origem', max_length=120, blank=True, default='SPA/MF')
+    judicial_alert = models.BooleanField('alerta judicial', default=False)
+    alert_note = models.CharField('observação do alerta', max_length=180, blank=True)
+    last_checked_at = models.DateTimeField('última verificação', null=True, blank=True)
+    created_at = models.DateTimeField('criada em', default=timezone.now)
+
+    class Meta:
+        ordering = ['brand', 'domain']
+        unique_together = ('owner', 'domain')
+        verbose_name = 'casa regulamentada'
+        verbose_name_plural = 'casas regulamentadas'
+
+    def __str__(self):
+        return f'{self.brand} - {self.domain}'
+
+
+class BookmakerAlias(models.Model):
+    bookmaker = models.ForeignKey(
+        RegulatedBookmaker,
+        verbose_name='casa regulamentada',
+        related_name='aliases',
+        on_delete=models.CASCADE,
+    )
+    provider = models.CharField('provedor', max_length=60, default='the_odds_api')
+    alias = models.CharField('nome no provedor', max_length=100)
+    provider_key = models.CharField('chave no provedor', max_length=100, blank=True)
+    created_at = models.DateTimeField('criado em', default=timezone.now)
+
+    class Meta:
+        ordering = ['provider', 'alias']
+        unique_together = ('bookmaker', 'provider', 'alias')
+        verbose_name = 'alias de casa'
+        verbose_name_plural = 'aliases de casas'
+
+    def __str__(self):
+        return f'{self.alias} -> {self.bookmaker.brand}'
+
+
+class PromotionPage(models.Model):
+    bookmaker = models.ForeignKey(
+        RegulatedBookmaker,
+        verbose_name='casa regulamentada',
+        related_name='promotion_pages',
+        on_delete=models.CASCADE,
+    )
+    url = models.URLField('URL pública')
+    is_active = models.BooleanField('ativa', default=True)
+    last_scan_at = models.DateTimeField('última varredura', null=True, blank=True)
+    last_scan_note = models.CharField('nota da última varredura', max_length=180, blank=True)
+    created_at = models.DateTimeField('criada em', default=timezone.now)
+
+    class Meta:
+        ordering = ['bookmaker__brand', 'url']
+        unique_together = ('bookmaker', 'url')
+        verbose_name = 'página de promoção'
+        verbose_name_plural = 'páginas de promoção'
+
+    def __str__(self):
+        return self.url
+
+
+class Promotion(models.Model):
+    class Kind(models.TextChoices):
+        FREEBET = 'freebet', 'Freebet'
+        CASHBACK = 'cashback', 'Cashback'
+        ODDS_BOOST = 'odds_boost', 'Odd turbinada'
+        BONUS = 'bonus', 'Bônus'
+
+    class Trigger(models.TextChoices):
+        LOST = 'lost', 'Se perder'
+        WON = 'won', 'Se ganhar'
+        ANY = 'any', 'Ambas'
+
+    bookmaker = models.ForeignKey(
+        RegulatedBookmaker,
+        verbose_name='casa regulamentada',
+        related_name='promotions',
+        on_delete=models.CASCADE,
+    )
+    page = models.ForeignKey(
+        PromotionPage,
+        verbose_name='página',
+        related_name='promotions',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    title = models.CharField('título', max_length=160)
+    kind = models.CharField('tipo', max_length=16, choices=Kind.choices, default=Kind.FREEBET)
+    trigger = models.CharField('quando gera', max_length=8, choices=Trigger.choices, default=Trigger.LOST)
+    freebet_amount = models.DecimalField('valor da freebet', max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    min_odd = models.DecimalField('odd mínima', max_digits=8, decimal_places=2, default=Decimal('1.01'))
+    sport = models.CharField('esporte', max_length=60, blank=True, default='Futebol')
+    competition = models.CharField('competição', max_length=120, blank=True)
+    suggested_game = models.CharField('jogo sugerido', max_length=160, blank=True)
+    public_text = models.TextField('texto público', blank=True)
+    source_url = models.URLField('URL da promoção', blank=True)
+    is_active = models.BooleanField('ativa', default=True)
+    detected_at = models.DateTimeField('detectada em', default=timezone.now)
+    updated_at = models.DateTimeField('atualizada em', auto_now=True)
+
+    class Meta:
+        ordering = ['-detected_at']
+        verbose_name = 'promoção'
+        verbose_name_plural = 'promoções'
+
+    def __str__(self):
+        return f'{self.bookmaker.brand} - {self.title}'
+
+
 class SureBetEntry(models.Model):
     class FreeBetTrigger(models.TextChoices):
         WON = 'won', 'Se ganhar'

@@ -32,15 +32,25 @@ from .forms import BetForm
 from .forms import EntityForm
 from .forms import ImportTextForm
 from .forms import MonthlyGoalForm
+from .forms import BookmakerAliasForm
 from .forms import OddsSearchForm
+from .forms import PromotionExtractionForm
+from .forms import PromotionForm
+from .forms import PromotionPageForm
+from .forms import RegulatedBookmakerForm
+from .forms import RegulatedImportForm
 from .forms import SignUpForm
 from .forms import TransferForm
+from .models import BookmakerAlias
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
+from .models import Promotion
+from .models import PromotionPage
+from .models import RegulatedBookmaker
 from .models import SureBetEntry
 from .odds_api import OddsApiClient
 from .odds_api import OddsApiError
@@ -250,6 +260,10 @@ def build_dashboard_context(request, **forms):
     latest_transactions = BankrollTransaction.objects.filter(
         bankroll__owner=request.user
     ).select_related('bankroll')[:8]
+    regulated_bookmakers = RegulatedBookmaker.objects.filter(owner=request.user).prefetch_related('aliases', 'promotion_pages')
+    promotions = Promotion.objects.filter(bookmaker__owner=request.user).select_related('bookmaker', 'page')[:20]
+    promotion_pages = PromotionPage.objects.filter(bookmaker__owner=request.user).select_related('bookmaker')[:20]
+    promotion_aliases = BookmakerAlias.objects.filter(bookmaker__owner=request.user).select_related('bookmaker')[:20]
     analytics = build_analytics(
         dashboard_bets,
         balance_before_period,
@@ -268,6 +282,17 @@ def build_dashboard_context(request, **forms):
         'odds_opportunities': forms.get('odds_opportunities') or [],
         'odds_comparisons': forms.get('odds_comparisons') or [],
         'odds_searched': forms.get('odds_searched') or False,
+        'regulated_form': forms.get('regulated_form') or RegulatedBookmakerForm(),
+        'regulated_import_form': forms.get('regulated_import_form') or RegulatedImportForm(),
+        'alias_form': forms.get('alias_form') or BookmakerAliasForm(user=request.user),
+        'promotion_page_form': forms.get('promotion_page_form') or PromotionPageForm(user=request.user),
+        'promotion_form': forms.get('promotion_form') or PromotionForm(user=request.user),
+        'promotion_extraction_form': forms.get('promotion_extraction_form') or PromotionExtractionForm(user=request.user),
+        'promotion_extraction_result': forms.get('promotion_extraction_result'),
+        'regulated_bookmakers': regulated_bookmakers,
+        'promotions': promotions,
+        'promotion_pages': promotion_pages,
+        'promotion_aliases': promotion_aliases,
         'goal_form': forms.get('goal_form') or MonthlyGoalForm(user=request.user),
         'surebet_errors': forms.get('surebet_errors') or [],
         'surebet_data': forms.get('surebet_data') or {},
@@ -598,6 +623,77 @@ def add_suggested_stakes(opportunities, total_stake):
     return enriched
 
 
+def import_regulated_bookmakers_from_text(user, raw_text):
+    imported = 0
+    updated = 0
+    errors = []
+    valid_statuses = {choice[0] for choice in RegulatedBookmaker.Status.choices}
+    for line_number, raw_line in enumerate(raw_text.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        parts = [part.strip() for part in line.split(';')]
+        if len(parts) < 4:
+            errors.append(f'Linha {line_number}: use empresa;cnpj;marca;dominio;status.')
+            continue
+        company_name, cnpj, brand, domain = parts[:4]
+        status = parts[4] if len(parts) > 4 and parts[4] else RegulatedBookmaker.Status.AUTHORIZED
+        if status not in valid_statuses:
+            status = RegulatedBookmaker.Status.AUTHORIZED
+        domain = domain.lower().replace('https://', '').replace('http://', '').strip('/')
+        if not domain:
+            errors.append(f'Linha {line_number}: domínio obrigatório.')
+            continue
+        _, created = RegulatedBookmaker.objects.update_or_create(
+            owner=user,
+            domain=domain,
+            defaults={
+                'company_name': company_name,
+                'cnpj': cnpj,
+                'brand': brand,
+                'status': status,
+                'source': 'SPA/MF',
+                'last_checked_at': timezone.now(),
+                'judicial_alert': status == RegulatedBookmaker.Status.JUDICIAL_ALERT,
+            },
+        )
+        if created:
+            imported += 1
+        else:
+            updated += 1
+    return imported, updated, errors
+
+
+def calculate_promotion_extraction(promotion, freebet_odd, protection_odd, protection_commission=Decimal('0.00')):
+    amount = promotion.freebet_amount
+    freebet_return = (amount * (freebet_odd - Decimal('1.00'))).quantize(Decimal('0.01'))
+    protection_multiplier = Decimal('1.00') + (
+        (protection_odd - Decimal('1.00'))
+        * (Decimal('1.00') - (protection_commission or Decimal('0.00')) / Decimal('100'))
+    )
+    protection_stake = (freebet_return / protection_multiplier).quantize(Decimal('0.01'))
+    if promotion.trigger == Promotion.Trigger.LOST:
+        if_freebet_loses = (protection_stake * protection_multiplier - protection_stake).quantize(Decimal('0.01'))
+        if_freebet_wins = (freebet_return - protection_stake).quantize(Decimal('0.01'))
+    elif promotion.trigger == Promotion.Trigger.WON:
+        if_freebet_wins = (freebet_return - protection_stake).quantize(Decimal('0.01'))
+        if_freebet_loses = (protection_stake * protection_multiplier - protection_stake).quantize(Decimal('0.01'))
+    else:
+        if_freebet_wins = (freebet_return - protection_stake).quantize(Decimal('0.01'))
+        if_freebet_loses = (protection_stake * protection_multiplier - protection_stake).quantize(Decimal('0.01'))
+    worst = min(if_freebet_wins, if_freebet_loses)
+    conversion = (worst / amount * Decimal('100')).quantize(Decimal('0.01')) if amount else Decimal('0.00')
+    return {
+        'promotion': promotion,
+        'freebet_return': freebet_return,
+        'protection_stake': protection_stake,
+        'if_freebet_wins': if_freebet_wins,
+        'if_freebet_loses': if_freebet_loses,
+        'worst': worst,
+        'conversion': conversion,
+    }
+
+
 def guess_event_sports(sport_text, competition_text):
     text = f'{sport_text or ""} {competition_text or ""}'.lower()
     choices = dict(OddsSearchForm.SPORT_CHOICES)
@@ -772,6 +868,83 @@ def index(request):
                     messages.error(request, error)
                 return redirect('dashboard:index')
             context = build_dashboard_context(request, import_form=import_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'regulated_bookmaker':
+            regulated_form = RegulatedBookmakerForm(request.POST)
+            if regulated_form.is_valid():
+                bookmaker = regulated_form.save(commit=False)
+                bookmaker.owner = request.user
+                bookmaker.last_checked_at = timezone.now()
+                bookmaker.save()
+                messages.success(request, 'Casa regulamentada cadastrada.')
+                return redirect(f'{reverse("dashboard:index")}#promotions')
+            context = build_dashboard_context(request, regulated_form=regulated_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'regulated_import':
+            regulated_import_form = RegulatedImportForm(request.POST)
+            if regulated_import_form.is_valid():
+                imported, updated, errors = import_regulated_bookmakers_from_text(
+                    request.user,
+                    regulated_import_form.cleaned_data.get('raw_text') or '',
+                )
+                if imported or updated:
+                    messages.success(request, f'{imported} casa(s) importada(s), {updated} atualizada(s).')
+                if not imported and not updated and not errors:
+                    messages.warning(request, 'Cole a lista no formato empresa;cnpj;marca;dominio;status.')
+                for error in errors:
+                    messages.error(request, error)
+                return redirect(f'{reverse("dashboard:index")}#promotions')
+            context = build_dashboard_context(request, regulated_import_form=regulated_import_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'bookmaker_alias':
+            alias_form = BookmakerAliasForm(request.POST, user=request.user)
+            if alias_form.is_valid():
+                alias_form.save()
+                messages.success(request, 'Alias cadastrado.')
+                return redirect(f'{reverse("dashboard:index")}#promotions')
+            context = build_dashboard_context(request, alias_form=alias_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'promotion_page':
+            promotion_page_form = PromotionPageForm(request.POST, user=request.user)
+            if promotion_page_form.is_valid():
+                page = promotion_page_form.save(commit=False)
+                page.last_scan_at = timezone.now()
+                page.last_scan_note = 'Página cadastrada para varredura pública.'
+                page.save()
+                messages.success(request, 'Página pública de promoção cadastrada.')
+                return redirect(f'{reverse("dashboard:index")}#promotions')
+            context = build_dashboard_context(request, promotion_page_form=promotion_page_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'promotion':
+            promotion_form = PromotionForm(request.POST, user=request.user)
+            if promotion_form.is_valid():
+                promotion_form.save()
+                messages.success(request, 'Promoção cadastrada.')
+                return redirect(f'{reverse("dashboard:index")}#promotions')
+            context = build_dashboard_context(request, promotion_form=promotion_form)
+            return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'promotion_extraction':
+            promotion_extraction_form = PromotionExtractionForm(request.POST, user=request.user)
+            if promotion_extraction_form.is_valid():
+                result = calculate_promotion_extraction(
+                    promotion_extraction_form.cleaned_data['promotion'],
+                    promotion_extraction_form.cleaned_data['freebet_odd'],
+                    promotion_extraction_form.cleaned_data['protection_odd'],
+                    promotion_extraction_form.cleaned_data.get('protection_commission') or Decimal('0.00'),
+                )
+                context = build_dashboard_context(
+                    request,
+                    promotion_extraction_form=promotion_extraction_form,
+                    promotion_extraction_result=result,
+                )
+                return render(request, 'dashboard/index.html', context)
+            context = build_dashboard_context(request, promotion_extraction_form=promotion_extraction_form)
             return render(request, 'dashboard/index.html', context)
 
         if form_type == 'odds_search':

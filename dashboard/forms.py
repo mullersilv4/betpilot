@@ -7,6 +7,10 @@ from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
 from .models import MonthlyGoal
+from .models import BookmakerAlias
+from .models import Promotion
+from .models import PromotionPage
+from .models import RegulatedBookmaker
 
 
 class EntityForm(forms.ModelForm):
@@ -435,6 +439,135 @@ class OddsSearchForm(forms.Form):
         max_value=50,
         widget=forms.NumberInput(attrs={'min': '1', 'max': '50'}),
     )
+
+
+class RegulatedBookmakerForm(forms.ModelForm):
+    class Meta:
+        model = RegulatedBookmaker
+        fields = [
+            'company_name',
+            'brand',
+            'cnpj',
+            'domain',
+            'status',
+            'judicial_alert',
+            'alert_note',
+        ]
+        widgets = {
+            'company_name': forms.TextInput(attrs={'placeholder': 'Empresa autorizada', 'autocomplete': 'off'}),
+            'brand': forms.TextInput(attrs={'placeholder': 'Ex: Betano, Superbet', 'autocomplete': 'off'}),
+            'cnpj': forms.TextInput(attrs={'placeholder': '00.000.000/0001-00', 'autocomplete': 'off'}),
+            'domain': forms.TextInput(attrs={'placeholder': 'exemplo.bet.br', 'autocomplete': 'off'}),
+            'alert_note': forms.TextInput(attrs={'placeholder': 'Motivo do alerta, se houver', 'autocomplete': 'off'}),
+        }
+
+    def clean_domain(self):
+        domain = self.cleaned_data['domain'].strip().lower()
+        return domain.replace('https://', '').replace('http://', '').strip('/')
+
+
+class RegulatedImportForm(forms.Form):
+    source_url = forms.URLField(
+        label='URL oficial',
+        required=False,
+        initial='https://www.gov.br/fazenda/pt-br/composicao/orgaos/secretaria-de-premios-e-apostas/lista-de-empresas',
+    )
+    raw_text = forms.CharField(
+        label='lista',
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                'rows': 5,
+                'placeholder': 'Uma casa por linha: empresa;cnpj;marca;dominio;status\nEx: KAIZEN GAMING BRASIL LTDA;46.786.961/0001-74;Betano;br.betano.com;authorized',
+            }
+        ),
+    )
+
+
+class BookmakerAliasForm(forms.ModelForm):
+    class Meta:
+        model = BookmakerAlias
+        fields = ['bookmaker', 'provider', 'alias', 'provider_key']
+        widgets = {
+            'provider': forms.TextInput(attrs={'placeholder': 'the_odds_api', 'autocomplete': 'off'}),
+            'alias': forms.TextInput(attrs={'placeholder': 'Nome como aparece na API', 'autocomplete': 'off'}),
+            'provider_key': forms.TextInput(attrs={'placeholder': 'Chave opcional', 'autocomplete': 'off'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['bookmaker'].queryset = RegulatedBookmaker.objects.filter(owner=user)
+
+
+class PromotionPageForm(forms.ModelForm):
+    class Meta:
+        model = PromotionPage
+        fields = ['bookmaker', 'url', 'is_active']
+        widgets = {
+            'url': forms.URLInput(attrs={'placeholder': 'https://casa.bet.br/promocoes', 'autocomplete': 'off'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['bookmaker'].queryset = RegulatedBookmaker.objects.filter(owner=user)
+
+
+class PromotionForm(forms.ModelForm):
+    class Meta:
+        model = Promotion
+        fields = [
+            'bookmaker',
+            'page',
+            'title',
+            'kind',
+            'trigger',
+            'freebet_amount',
+            'min_odd',
+            'sport',
+            'competition',
+            'suggested_game',
+            'source_url',
+            'public_text',
+            'is_active',
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={'placeholder': 'Ex: Perdeu, ganhou freebet', 'autocomplete': 'off'}),
+            'freebet_amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'min_odd': forms.NumberInput(attrs={'step': '0.01', 'min': '1.01'}),
+            'sport': forms.TextInput(attrs={'placeholder': 'Futebol', 'autocomplete': 'off'}),
+            'competition': forms.TextInput(attrs={'placeholder': 'Brasileirão, Champions...', 'autocomplete': 'off'}),
+            'suggested_game': forms.TextInput(attrs={'placeholder': 'Ex: Flamengo x Palmeiras', 'autocomplete': 'off'}),
+            'source_url': forms.URLInput(attrs={'placeholder': 'URL pública da promoção', 'autocomplete': 'off'}),
+            'public_text': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Cole o texto público da promoção para consultar depois.'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            bookmakers = RegulatedBookmaker.objects.filter(owner=user)
+            self.fields['bookmaker'].queryset = bookmakers
+            self.fields['page'].queryset = PromotionPage.objects.filter(bookmaker__owner=user)
+
+
+class PromotionExtractionForm(forms.Form):
+    promotion = forms.ModelChoiceField(label='promoção', queryset=Promotion.objects.none())
+    freebet_odd = forms.DecimalField(label='odd da freebet', min_value=1.01, max_digits=8, decimal_places=2, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '1.01'}))
+    protection_odd = forms.DecimalField(label='odd da proteção', min_value=1.01, max_digits=8, decimal_places=2, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '1.01'}))
+    protection_commission = forms.DecimalField(label='comissão proteção (%)', required=False, min_value=0, max_value=100, max_digits=5, decimal_places=2, initial=0, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'}))
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['promotion'].queryset = Promotion.objects.filter(
+                bookmaker__owner=user,
+                is_active=True,
+            ).select_related('bookmaker')
 
 
 class MonthlyGoalForm(forms.ModelForm):

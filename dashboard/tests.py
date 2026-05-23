@@ -22,6 +22,7 @@ from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
+from .models import FreeBet
 from .models import MonthlyGoal
 from .models import SureBetEntry
 from .result_settlement import apply_settlement
@@ -729,6 +730,121 @@ class AuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(bet.entity, entity)
         self.assertIsNone(bet.bankroll)
+
+    def test_freebet_extraction_marks_freebet_used(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        entity = Entity.objects.create(owner=user, name='Operacao A')
+        source_bet = Bet.objects.create(
+            bankroll=None,
+            entity=entity,
+            sport='Futebol',
+            competition='Serie A',
+            game='Origem x Teste',
+            market='Promocao',
+            strategy='Surebet',
+            odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+        )
+        freebet = FreeBet.objects.create(
+            source_bet=source_bet,
+            bookmaker='Casa Promo',
+            amount=Decimal('50.00'),
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.post(
+            '/',
+            {
+                'form_type': 'freebet_extract',
+                'freebet_source': str(freebet.id),
+                'freebet_sport': 'Futebol',
+                'freebet_competition': 'Serie A',
+                'freebet_game': 'Time A x Time B',
+                'freebet_entry_count': '2',
+                'freebet_outcome_1': 'Time A',
+                'freebet_odd_1': '3.00',
+                'freebet_commission_1': '0',
+                'freebet_cashback_1': '0',
+                'freebet_boost_1': '0',
+                'freebet_freebet_enabled_1': '0',
+                'freebet_bookmaker_2': 'Casa Protecao',
+                'freebet_outcome_2': 'Time B',
+                'freebet_odd_2': '2.00',
+                'freebet_commission_2': '0',
+                'freebet_cashback_2': '0',
+                'freebet_boost_2': '0',
+                'freebet_freebet_enabled_2': '0',
+            },
+        )
+
+        bet = Bet.objects.get(strategy__contains='freebet', game='Time A x Time B')
+        freebet.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(freebet.is_used)
+        self.assertEqual(bet.entity, entity)
+        self.assertEqual(bet.stake, Decimal('50.00'))
+        self.assertEqual(bet.surebet_entries.count(), 2)
+
+    def test_surebet_generates_freebet_when_configured_entry_loses(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        entity = Entity.objects.create(owner=user, name='Operacao A')
+        bet = Bet.objects.create(
+            bankroll=None,
+            entity=entity,
+            sport='Futebol',
+            competition='Serie A',
+            game='Time A x Time B',
+            market='Surebet: Time A / Time B',
+            strategy='Surebet',
+            odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+        )
+        losing_entry = SureBetEntry.objects.create(
+            bet=bet,
+            bookmaker='Casa Promo',
+            label='Time A',
+            odds=Decimal('2.00'),
+            effective_odds=Decimal('2.00'),
+            stake=Decimal('50.00'),
+            commission=Decimal('0.00'),
+            cashback=Decimal('0.00'),
+            boost=Decimal('0.00'),
+            return_amount=Decimal('100.00'),
+            cashback_return=Decimal('0.00'),
+            net_result=Decimal('-10.00'),
+            freebet_enabled=True,
+            freebet_amount=Decimal('25.00'),
+            freebet_trigger=SureBetEntry.FreeBetTrigger.LOST,
+        )
+        winning_entry = SureBetEntry.objects.create(
+            bet=bet,
+            bookmaker='Casa Vencedora',
+            label='Time B',
+            odds=Decimal('2.00'),
+            effective_odds=Decimal('2.00'),
+            stake=Decimal('50.00'),
+            commission=Decimal('0.00'),
+            cashback=Decimal('0.00'),
+            boost=Decimal('0.00'),
+            return_amount=Decimal('100.00'),
+            cashback_return=Decimal('0.00'),
+            net_result=Decimal('8.00'),
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.post(
+            reverse('dashboard:settle_surebet', args=[bet.pk]),
+            {'winner_entry': str(winning_entry.pk)},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            FreeBet.objects.filter(
+                source_bet=bet,
+                bookmaker=losing_entry.bookmaker,
+                amount=Decimal('25.00'),
+            ).exists()
+        )
 
     @patch.dict('os.environ', {'THE_ODDS_API_KEY': 'test-key'})
     @patch('dashboard.views.OddsApiClient.events')

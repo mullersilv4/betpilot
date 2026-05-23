@@ -675,12 +675,258 @@ function createSurebetEntry(index) {
             <span>Valor da freebet</span>
             <input type="number" name="surebet_freebet_amount_${index}" step="0.01" min="0.01" placeholder="Ex: 25.00" />
           </label>
+          <label>
+            <span>Quando gera</span>
+            <select name="surebet_freebet_trigger_${index}">
+              <option value="lost" selected>Se perder</option>
+              <option value="won">Se ganhar</option>
+              <option value="any">Ambas</option>
+            </select>
+          </label>
         </div>
         <output class="surebet-entry-return" data-surebet-result="${index}">0,00</output>
       </div>
       <label class="surebet-entry-note">
         <span class="sr-only">Observação ${index}</span>
         <input type="text" name="surebet_notes_${index}" maxlength="180" placeholder="Observação" autocomplete="off" />
+      </label>
+    </div>
+  `;
+  return group;
+}
+
+function getFreebetIndices() {
+  return [...document.querySelectorAll("[data-freebet-row]")]
+    .map((row) => Number.parseInt(row.dataset.freebetRow, 10))
+    .filter(Boolean)
+    .sort((a, b) => a - b);
+}
+
+function readFreebetMode(index) {
+  if (index === 1) return "back";
+  return document.querySelector(`[name="freebet_mode_${index}"]`)?.value === "lay" ? "lay" : "back";
+}
+
+function updateSelectedFreebetFields() {
+  const select = document.querySelector("[data-freebet-source]");
+  if (!select) return;
+  const selected = select.options[select.selectedIndex];
+  const amount = selected?.dataset.amount || "";
+  const bookmaker = selected?.dataset.bookmaker || "";
+  const stakeInput = document.querySelector('[name="freebet_stake_1"]');
+  const bookmakerInput = document.querySelector('[name="freebet_bookmaker_1"]');
+  if (stakeInput && amount) stakeInput.value = Number.parseFloat(amount).toFixed(2);
+  if (bookmakerInput && bookmaker && !bookmakerInput.value) bookmakerInput.value = bookmaker;
+}
+
+function freebetSourceMultiplier(effectiveOdd, commission) {
+  return effectiveOdd > 1 ? (effectiveOdd - 1) * (1 - commission / 100) : 0;
+}
+
+function freebetExposure(row) {
+  if (row.isFreebetSource) return 0;
+  return surebetExposure(row);
+}
+
+function updateFreebetExtractionPreview() {
+  updateSelectedFreebetFields();
+
+  const firstOdd = readNumber(document.querySelector('[name="freebet_odd_1"]'));
+  const firstStake = readNumber(document.querySelector('[name="freebet_stake_1"]'));
+  const firstCommission = readNumber(document.querySelector('[name="freebet_commission_1"]'));
+  const firstBoost = readNumber(document.querySelector('[name="freebet_boost_1"]'));
+  const firstEffectiveOdd = firstOdd * (1 + firstBoost / 100);
+  const firstMultiplier = freebetSourceMultiplier(firstEffectiveOdd, firstCommission);
+  const targetReturn = firstMultiplier > 0 && firstStake > 0 ? firstMultiplier * firstStake : 0;
+  const indices = getFreebetIndices();
+
+  indices.filter((index) => index > 1).forEach((index) => {
+    const oddInput = document.querySelector(`[name="freebet_odd_${index}"]`);
+    const stakeInput = document.querySelector(`[name="freebet_stake_${index}"]`);
+    const odd = readNumber(oddInput);
+    const commission = readNumber(document.querySelector(`[name="freebet_commission_${index}"]`));
+    const boost = readNumber(document.querySelector(`[name="freebet_boost_${index}"]`));
+    const mode = readFreebetMode(index);
+    const effectiveOdd = odd * (1 + boost / 100);
+    const multiplier = surebetTargetMultiplier(mode, effectiveOdd, commission);
+    if (stakeInput) {
+      stakeInput.value = targetReturn > 0 && multiplier > 0 ? (targetReturn / multiplier).toFixed(2) : "";
+    }
+  });
+
+  const rows = indices.map((index) => {
+    const bookmakerInput = document.querySelector(`[name="freebet_bookmaker_${index}"]`);
+    const oddInput = document.querySelector(`[name="freebet_odd_${index}"]`);
+    const stakeInput = document.querySelector(`[name="freebet_stake_${index}"]`);
+    const commission = readNumber(document.querySelector(`[name="freebet_commission_${index}"]`));
+    const cashback = readNumber(document.querySelector(`[name="freebet_cashback_${index}"]`));
+    const boost = readNumber(document.querySelector(`[name="freebet_boost_${index}"]`));
+    const odd = readNumber(oddInput);
+    const mode = readFreebetMode(index);
+    const effectiveOdd = odd * (1 + boost / 100);
+    const multiplier = index === 1
+      ? freebetSourceMultiplier(effectiveOdd, commission)
+      : surebetTargetMultiplier(mode, effectiveOdd, commission);
+    const stake = readNumber(stakeInput);
+    const liability = mode === "lay" && effectiveOdd > 1 ? stake * (effectiveOdd - 1) : 0;
+    return {
+      index,
+      bookmaker: bookmakerInput?.value?.trim() || "-",
+      label: index === 1 ? "Freebet" : `Proteção ${index}`,
+      mode,
+      odd,
+      commission,
+      cashback,
+      boost,
+      effectiveOdd,
+      multiplier,
+      stake,
+      liability,
+      isFreebetSource: index === 1,
+    };
+  }).filter((row) => row.multiplier > 0 && row.stake > 0);
+
+  const cashExposure = rows.reduce((sum, row) => sum + freebetExposure(row), 0);
+  const scenarios = rows.map((row) => ({
+    ...row,
+    returnAmount: row.isFreebetSource
+      ? row.stake * row.multiplier
+      : row.mode === "lay"
+        ? row.stake * (1 - row.commission / 100)
+        : row.stake * row.multiplier,
+  })).map((row, _index, allRows) => {
+    const cashbackReturn = allRows
+      .filter((candidate) => candidate !== row && !candidate.isFreebetSource && candidate.mode === "back")
+      .reduce((sum, candidate) => sum + candidate.stake * (candidate.cashback / 100), 0);
+    const scenarioNet = allRows.reduce((sum, candidate) => {
+      if (candidate === row) {
+        if (candidate.isFreebetSource) return sum + candidate.returnAmount;
+        return sum + (
+          candidate.mode === "lay"
+            ? -candidate.liability
+            : candidate.returnAmount - candidate.stake
+        );
+      }
+      if (candidate.isFreebetSource) return sum;
+      if (candidate.mode === "lay") {
+        return sum + candidate.stake * (1 - candidate.commission / 100);
+      }
+      return sum - candidate.stake;
+    }, 0);
+    return {
+      ...row,
+      cashbackReturn,
+      net: scenarioNet + cashbackReturn,
+    };
+  });
+  const best = scenarios.length ? Math.max(...scenarios.map((row) => row.net)) : 0;
+  const worst = scenarios.length ? Math.min(...scenarios.map((row) => row.net)) : 0;
+  const conversion = firstStake > 0 ? (worst / firstStake) * 100 : 0;
+
+  document.querySelectorAll("[data-freebet-result]").forEach((output) => {
+    output.textContent = formatPlainAmount(0);
+    output.classList.remove("positive", "negative");
+  });
+  scenarios.forEach((row) => {
+    const output = document.querySelector(`[data-freebet-result="${row.index}"]`);
+    if (output) {
+      output.textContent = formatPlainAmount(row.net);
+      output.classList.toggle("positive", row.net >= 0);
+      output.classList.toggle("negative", row.net < 0);
+    }
+  });
+
+  document.querySelector("#freebetTotal").textContent = formatCurrency(cashExposure);
+  document.querySelector("#freebetTargetReturn").textContent = formatCurrency(targetReturn);
+  document.querySelector("#freebetMargin").textContent = `${conversion.toFixed(2)}%`;
+  document.querySelector("#freebetMargin").className = conversion >= 0 ? "positive" : "negative";
+  document.querySelector("#freebetBest").textContent = formatCurrency(best);
+  document.querySelector("#freebetBest").className = best >= 0 ? "positive" : "negative";
+  document.querySelector("#freebetWorst").textContent = formatCurrency(worst);
+  document.querySelector("#freebetWorst").className = worst >= 0 ? "positive" : "negative";
+
+  const table = document.querySelector("#freebetScenarioTable");
+  if (!table) return;
+
+  const body = scenarios.length
+    ? scenarios.map((row) => `
+        <div class="surebet-result-row">
+          <span>${escapeHtml(row.bookmaker)}</span>
+          <span>${row.isFreebetSource ? "Freebet" : row.mode === "lay" ? "Lay" : "Back"}</span>
+          <span>${row.effectiveOdd.toFixed(2)}</span>
+          <span>${formatCurrency(freebetExposure(row))}</span>
+          <span>${formatCurrency(row.returnAmount)}</span>
+          <span>${formatCurrency(row.cashbackReturn)}</span>
+          <strong class="${row.net >= 0 ? "positive" : "negative"}">${formatCurrency(row.net)}</strong>
+        </div>
+      `).join("")
+    : `
+        <div class="surebet-result-row">
+          <span>-</span>
+          <span>-</span>
+          <span>-</span>
+          <span>${formatCurrency(0)}</span>
+          <span>${formatCurrency(0)}</span>
+          <span>${formatCurrency(0)}</span>
+          <strong>${formatCurrency(0)}</strong>
+        </div>
+      `;
+
+  table.innerHTML = `
+    <div class="surebet-result-head">
+      <span>Casa</span>
+      <span>Modo</span>
+      <span>Odd</span>
+      <span>Respons.</span>
+      <span>Retorno</span>
+      <span>Cashback</span>
+      <span>Ganha / perde</span>
+    </div>
+    ${body}
+  `;
+}
+
+function createFreebetEntry(index) {
+  const group = document.createElement("div");
+  group.className = "surebet-entry-group";
+  group.dataset.freebetGroup = String(index);
+  group.innerHTML = `
+    <div class="surebet-entry-row" data-freebet-row="${index}">
+      <label>
+        <span class="sr-only">Casa de aposta ${index} opcional</span>
+        <input type="text" name="freebet_bookmaker_${index}" placeholder="Ex: Betfair" autocomplete="off" />
+      </label>
+      <div class="surebet-mode-control">
+        <input type="hidden" name="freebet_mode_${index}" value="back" />
+        <button class="surebet-mode-toggle" type="button" aria-label="Alternar entrada back ou lay">Back</button>
+      </div>
+      <label>
+        <span class="sr-only">Valor ${index}</span>
+        <input type="number" name="freebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly />
+      </label>
+      <label>
+        <span class="sr-only">Odd ${index}</span>
+        <input type="number" name="freebet_odd_${index}" class="surebet-odd" step="0.01" min="1.01" placeholder="Ex: 2.10" />
+      </label>
+      <label>
+        <span class="sr-only">Comissão % ${index}</span>
+        <input type="number" name="freebet_commission_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 0" />
+      </label>
+      <label>
+        <span class="sr-only">Cashback % ${index}</span>
+        <input type="number" name="freebet_cashback_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 5" />
+      </label>
+      <label>
+        <span class="sr-only">Aumento % ${index}</span>
+        <input type="number" name="freebet_boost_${index}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="Ex: 10" />
+      </label>
+      <div class="freebet-control">
+        <input type="hidden" name="freebet_freebet_enabled_${index}" value="0" />
+        <output class="surebet-entry-return" data-freebet-result="${index}">0,00</output>
+      </div>
+      <label class="surebet-entry-note">
+        <span class="sr-only">Observação ${index}</span>
+        <input type="text" name="freebet_notes_${index}" maxlength="180" placeholder="Observação" autocomplete="off" />
       </label>
     </div>
   `;
@@ -696,6 +942,17 @@ document.querySelector("#addSurebetEntry")?.addEventListener("click", () => {
   entries.appendChild(createSurebetEntry(nextIndex));
   countInput.value = String(nextIndex);
   updateSurebetPreview();
+});
+
+document.querySelector("#addFreebetEntry")?.addEventListener("click", () => {
+  const entries = document.querySelector("#freebetEntries");
+  const countInput = document.querySelector("#freebetEntryCount");
+  if (!entries || !countInput) return;
+
+  const nextIndex = Math.max(...getFreebetIndices(), 0) + 1;
+  entries.appendChild(createFreebetEntry(nextIndex));
+  countInput.value = String(nextIndex);
+  updateFreebetExtractionPreview();
 });
 
 document.querySelectorAll("[data-bet-mode-button]").forEach((button) => {
@@ -734,6 +991,23 @@ document.querySelector(".surebet-form")?.addEventListener("click", (event) => {
   }
 });
 
+document.querySelector(".freebet-extraction-form")?.addEventListener("input", updateFreebetExtractionPreview);
+document.querySelector(".freebet-extraction-form")?.addEventListener("change", updateFreebetExtractionPreview);
+document.querySelector(".freebet-extraction-form")?.addEventListener("click", (event) => {
+  const modeToggle = event.target.closest(".surebet-mode-toggle");
+  if (modeToggle && !modeToggle.disabled) {
+    const control = modeToggle.closest(".surebet-mode-control");
+    const hiddenInput = control?.querySelector('input[name^="freebet_mode_"]');
+    if (!hiddenInput) return;
+    const isLay = hiddenInput.value !== "lay";
+    hiddenInput.value = isLay ? "lay" : "back";
+    modeToggle.textContent = isLay ? "Lay" : "Back";
+    modeToggle.classList.toggle("is-lay", isLay);
+    updateFreebetExtractionPreview();
+    return;
+  }
+});
+
 document.querySelector("#bankrollEntityFilter")?.addEventListener("change", (event) => {
   const selectedEntity = event.target.value;
   document.querySelectorAll(".bankroll-card[data-entity-id]").forEach((card) => {
@@ -746,6 +1020,10 @@ if (document.querySelector('[data-bet-mode-panel="surebet"] .form-errors')) {
   setBetMode("surebet");
 }
 
+if (document.querySelector('[data-bet-mode-panel="freebet-extract"] .form-errors')) {
+  setBetMode("freebet-extract");
+}
+
 ["#id_bankroll", "#id_odds", "#id_stake", "#id_exchange_commission"].forEach((selector) => {
   document.querySelector(selector)?.addEventListener("input", updateBetPreview);
   document.querySelector(selector)?.addEventListener("change", updateBetPreview);
@@ -753,6 +1031,7 @@ if (document.querySelector('[data-bet-mode-panel="surebet"] .form-errors')) {
 
 updateBetPreview();
 updateSurebetPreview();
+updateFreebetExtractionPreview();
 setupMobileSidebar();
 enhanceResponsiveTables();
 setupEventAutocomplete();

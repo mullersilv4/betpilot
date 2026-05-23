@@ -782,7 +782,7 @@ textarea {
     minmax(74px, 0.56fr)
     minmax(74px, 0.56fr)
     minmax(74px, 0.56fr)
-    minmax(32px, 190px);
+    minmax(178px, 220px);
   gap: 8px;
   align-items: end;
 }
@@ -803,6 +803,7 @@ textarea {
 .freebet-control {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   min-width: 0;
 }
@@ -847,12 +848,14 @@ textarea {
 
 .freebet-fields {
   display: none;
-  width: 118px;
-  min-width: 118px;
+  flex: 1 1 118px;
+  min-width: 0;
+  max-width: 128px;
+  gap: 6px;
 }
 
 .surebet-entry-group.has-freebet .freebet-fields {
-  display: block;
+  display: grid;
 }
 
 .freebet-fields label {
@@ -863,14 +866,17 @@ textarea {
   display: none;
 }
 
-.freebet-fields input {
+.freebet-fields input,
+.freebet-fields select {
+  width: 100%;
   min-height: 30px;
-  padding: 0 7px;
+  padding: 0 6px;
   font-size: 0.76rem;
 }
 
 .surebet-entry-return {
-  min-width: 58px;
+  flex: 0 0 58px;
+  min-width: 0;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
@@ -2164,8 +2170,9 @@ th {
   }
 
   .freebet-fields {
-    width: 96px;
-    min-width: 96px;
+    flex: 1 1 140px;
+    max-width: none;
+    width: auto;
   }
 
   .surebet-entry-return {

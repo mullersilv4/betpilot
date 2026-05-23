@@ -141,6 +141,11 @@ class FreeBet(models.Model):
 
 
 class SureBetEntry(models.Model):
+    class FreeBetTrigger(models.TextChoices):
+        WON = 'won', 'Se ganhar'
+        LOST = 'lost', 'Se perder'
+        ANY = 'any', 'Em ambos os casos'
+
     bet = models.ForeignKey(
         Bet,
         verbose_name='surebet',
@@ -160,6 +165,12 @@ class SureBetEntry(models.Model):
     net_result = models.DecimalField('resultado líquido', max_digits=12, decimal_places=2)
     freebet_enabled = models.BooleanField('gera freebet', default=False)
     freebet_amount = models.DecimalField('valor da freebet', max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    freebet_trigger = models.CharField(
+        'quando gera freebet',
+        max_length=8,
+        choices=FreeBetTrigger.choices,
+        default=FreeBetTrigger.WON,
+    )
     notes = models.CharField('observação', max_length=180, blank=True)
     is_winner = models.BooleanField('entrada vencedora', default=False)
     created_at = models.DateTimeField('criada em', default=timezone.now)

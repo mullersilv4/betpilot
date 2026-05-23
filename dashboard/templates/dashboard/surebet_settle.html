@@ -14,7 +14,7 @@
           <div>
             <p class="eyebrow">Finalização</p>
             <h1>Escolher casa vencedora</h1>
-            <p class="muted-copy">{{ bet.game }} | investimento R$ {{ bet.stake|floatformat:2 }}</p>
+            <p class="muted-copy">{{ bet.game }} | responsabilidade R$ {{ bet.stake|floatformat:2 }}</p>
           </div>
           <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Voltar</a>
         </div>
@@ -53,7 +53,7 @@
             {% endfor %}
           </div>
 
-          <button class="primary-button" type="submit" {% if not entries %}disabled{% endif %}>Finalizar surebet</button>
+          <button class="primary-button" type="submit" {% if not entries %}disabled{% endif %}>Finalizar proteção</button>
         </form>
       </article>
     </main>

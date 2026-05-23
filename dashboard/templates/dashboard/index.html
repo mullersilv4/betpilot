@@ -1236,7 +1236,7 @@
                 <form method="post" action="#promotions">
                   {% csrf_token %}
                   <input type="hidden" name="form_type" value="promotion_scan" />
-                  <button class="secondary-button compact" type="submit">Varrer promoções</button>
+                  <button class="secondary-button compact" type="submit">Varrer automaticamente</button>
                 </form>
               </div>
             </div>
@@ -1260,6 +1260,42 @@
               </article>
             </div>
           </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Oportunidades</p>
+                <h2>Promoções detectadas</h2>
+              </div>
+            </div>
+            <div class="odds-opportunity-list">
+              {% for promotion in promotions %}
+                <article class="odds-opportunity-card">
+                  <div class="goal-title">
+                    <strong>{{ promotion.title }}</strong>
+                    <span>{{ promotion.bookmaker.brand }}</span>
+                  </div>
+                  <div class="report-metrics odds-metrics">
+                    <article><span>Freebet</span><strong>R$ {{ promotion.freebet_amount|floatformat:2 }}</strong></article>
+                    <article><span>Quando gera</span><strong>{{ promotion.get_trigger_display }}</strong></article>
+                    <article><span>Odd mínima</span><strong>{{ promotion.min_odd|floatformat:2 }}</strong></article>
+                    <article><span>Jogo</span><strong>{{ promotion.suggested_game|default:"A definir" }}</strong></article>
+                  </div>
+                  {% if promotion.public_text %}
+                    <p class="field-hint">{{ promotion.public_text|truncatechars:220 }}</p>
+                  {% endif %}
+                  {% if promotion.source_url %}
+                    <a class="subtle-link" href="{{ promotion.source_url }}" target="_blank" rel="noopener">Abrir página pública</a>
+                  {% endif %}
+                </article>
+              {% empty %}
+                <div class="empty-state">Nenhuma promoção detectada ainda. Use a varredura automática acima.</div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <details class="settings-disclosure">
+            <summary>Configurações avançadas</summary>
 
           <section class="workspace-grid compact-grid">
             <article class="panel">
@@ -1471,6 +1507,7 @@
               </div>
             </article>
           </section>
+          </details>
         </section>
 
         <section id="odds" class="single-grid" data-screen="odds">

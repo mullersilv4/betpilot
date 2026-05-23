@@ -1048,6 +1048,27 @@ canvas {
   margin-top: 14px;
 }
 
+.settings-disclosure {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.settings-disclosure summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+.settings-disclosure[open] summary {
+  margin-bottom: 14px;
+}
+
 .odds-opportunity-card,
 .odds-comparison-card {
   display: grid;

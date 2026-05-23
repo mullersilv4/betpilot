@@ -262,7 +262,28 @@ def build_dashboard_context(request, **forms):
         bankroll__owner=request.user
     ).select_related('bankroll')[:8]
     regulated_bookmakers = RegulatedBookmaker.objects.filter(owner=request.user).prefetch_related('aliases', 'promotion_pages')
-    promotions = Promotion.objects.filter(bookmaker__owner=request.user).select_related('bookmaker', 'page')[:20]
+    affiliate_terms = [
+        'afiliado',
+        'afiliados',
+        'afiliação',
+        'afiliacao',
+        'affiliate',
+        'indique e ganhe',
+        'convide e ganhe',
+        'programa de indicação',
+        'programa de indicacao',
+        'referral',
+    ]
+    affiliate_filter = Q()
+    for term in affiliate_terms:
+        affiliate_filter |= Q(title__icontains=term)
+        affiliate_filter |= Q(public_text__icontains=term)
+        affiliate_filter |= Q(source_url__icontains=term)
+    promotions = (
+        Promotion.objects.filter(bookmaker__owner=request.user)
+        .exclude(affiliate_filter)
+        .select_related('bookmaker', 'page')[:20]
+    )
     promotion_pages = PromotionPage.objects.filter(bookmaker__owner=request.user).select_related('bookmaker')[:20]
     promotion_aliases = BookmakerAlias.objects.filter(bookmaker__owner=request.user).select_related('bookmaker')[:20]
     analytics = build_analytics(
@@ -922,7 +943,7 @@ def index(request):
             return render(request, 'dashboard/index.html', context)
 
         if form_type == 'promotion_scan':
-            result = scan_user_promotion_pages(request.user, timeout=6)
+            result = scan_user_promotion_pages(request.user, timeout=8, rendered=True)
             messages.success(
                 request,
                 (

@@ -26,6 +26,21 @@ KEYWORDS = [
     'bonus',
 ]
 
+AFFILIATE_KEYWORDS = [
+    'afiliado',
+    'afiliados',
+    'afiliaÃ§Ã£o',
+    'afiliacao',
+    'affiliate',
+    'affiliates',
+    'indique e ganhe',
+    'convide e ganhe',
+    'programa de indicaÃ§Ã£o',
+    'programa de indicacao',
+    'refer a friend',
+    'referral',
+]
+
 
 class TextExtractor(HTMLParser):
     def __init__(self):
@@ -67,6 +82,47 @@ def fetch_public_text(url, timeout=8):
     return parser.text()
 
 
+def fetch_rendered_text(url, timeout=8):
+    try:
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise RuntimeError('Playwright não instalado') from exc
+
+    timeout_ms = timeout * 1000
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            try:
+                page = browser.new_page(
+                    user_agent='BetPilotPromotionScanner/1.0 (+public promotion discovery)',
+                    locale='pt-BR',
+                )
+                page.goto(url, wait_until='domcontentloaded', timeout=timeout_ms)
+                try:
+                    page.wait_for_load_state('networkidle', timeout=min(timeout_ms, 5000))
+                except PlaywrightTimeoutError:
+                    pass
+                text = page.locator('body').inner_text(timeout=timeout_ms)
+            finally:
+                browser.close()
+    except (PlaywrightError, PlaywrightTimeoutError) as exc:
+        raise RuntimeError(str(exc)) from exc
+
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def fetch_scan_text(url, timeout=8, rendered=False):
+    if rendered:
+        try:
+            return fetch_rendered_text(url, timeout=timeout), 'renderizada'
+        except RuntimeError as exc:
+            text = fetch_public_text(url, timeout=timeout)
+            return text, f'simples, fallback renderizado: {exc}'
+    return fetch_public_text(url, timeout=timeout), 'simples'
+
+
 def find_keyword_snippets(text):
     lower_text = text.lower()
     snippets = []
@@ -80,6 +136,11 @@ def find_keyword_snippets(text):
         if snippet and snippet not in snippets:
             snippets.append(snippet)
     return snippets
+
+
+def is_affiliate_promotion(text, url=''):
+    target = f'{text} {url}'.lower()
+    return any(keyword in target for keyword in AFFILIATE_KEYWORDS)
 
 
 def detect_kind(snippet):
@@ -125,10 +186,10 @@ def build_title(snippet, bookmaker):
     return title[:150] or f'Promoção {bookmaker.brand}'
 
 
-def scan_promotion_page(page, timeout=8):
+def scan_promotion_page(page, timeout=8, rendered=False):
     try:
-        text = fetch_public_text(page.url, timeout=timeout)
-    except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
+        text, scan_mode = fetch_scan_text(page.url, timeout=timeout, rendered=rendered)
+    except (urllib.error.URLError, TimeoutError, ValueError, OSError, RuntimeError) as exc:
         page.last_scan_at = timezone.now()
         page.last_scan_note = f'Erro ao varrer: {exc}'[:180]
         page.save(update_fields=['last_scan_at', 'last_scan_note'])
@@ -139,6 +200,8 @@ def scan_promotion_page(page, timeout=8):
     updated = 0
 
     for snippet in snippets[:8]:
+        if is_affiliate_promotion(snippet, page.url):
+            continue
         title = build_title(snippet, page.bookmaker)
         _, was_created = Promotion.objects.update_or_create(
             bookmaker=page.bookmaker,
@@ -160,18 +223,18 @@ def scan_promotion_page(page, timeout=8):
         updated += 0 if was_created else 1
 
     page.last_scan_at = timezone.now()
-    page.last_scan_note = f'{len(snippets)} trecho(s) promocional(is) encontrado(s).'
+    page.last_scan_note = f'{len(snippets)} trecho(s) promocional(is) encontrado(s). Leitura {scan_mode}.'
     page.save(update_fields=['last_scan_at', 'last_scan_note'])
     return {'created': created, 'updated': updated, 'error': '', 'matches': len(snippets)}
 
 
-def scan_user_promotion_pages(user, limit=None, timeout=8):
+def scan_user_promotion_pages(user, limit=None, timeout=8, rendered=False):
     pages = PromotionPage.objects.filter(bookmaker__owner=user, is_active=True).select_related('bookmaker')
     if limit:
         pages = pages[:limit]
     totals = {'created': 0, 'updated': 0, 'errors': [], 'pages': 0, 'matches': 0}
     for page in pages:
-        result = scan_promotion_page(page, timeout=timeout)
+        result = scan_promotion_page(page, timeout=timeout, rendered=rendered)
         totals['pages'] += 1
         totals['created'] += result['created']
         totals['updated'] += result['updated']

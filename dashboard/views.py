@@ -56,6 +56,7 @@ from .odds_api import OddsApiClient
 from .odds_api import OddsApiError
 from .odds_api import build_odds_comparison
 from .odds_api import detect_surebets
+from .promotion_scan import scan_user_promotion_pages
 
 
 MONTH_CHOICES = [
@@ -919,6 +920,19 @@ def index(request):
                 return redirect(f'{reverse("dashboard:index")}#promotions')
             context = build_dashboard_context(request, promotion_page_form=promotion_page_form)
             return render(request, 'dashboard/index.html', context)
+
+        if form_type == 'promotion_scan':
+            result = scan_user_promotion_pages(request.user, timeout=6)
+            messages.success(
+                request,
+                (
+                    f'Varredura concluída: {result["pages"]} página(s), '
+                    f'{result["created"]} promoção(ões) nova(s), {result["updated"]} atualizada(s).'
+                ),
+            )
+            for error in result['errors'][:5]:
+                messages.warning(request, error)
+            return redirect(f'{reverse("dashboard:index")}#promotions')
 
         if form_type == 'promotion':
             promotion_form = PromotionForm(request.POST, user=request.user)

@@ -1231,7 +1231,14 @@
                 <p class="eyebrow">Regulação</p>
                 <h2>Casas regulamentadas e promoções</h2>
               </div>
-              <span class="risk-badge">Sem login, sem apostas automáticas</span>
+              <div class="topbar-actions">
+                <span class="risk-badge">Sem login, sem apostas automáticas</span>
+                <form method="post" action="#promotions">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_type" value="promotion_scan" />
+                  <button class="secondary-button compact" type="submit">Varrer promoções</button>
+                </form>
+              </div>
             </div>
 
             <div class="report-metrics odds-metrics">

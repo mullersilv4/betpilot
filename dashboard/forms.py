@@ -530,7 +530,12 @@ class PromotionForm(forms.ModelForm):
             'sport',
             'competition',
             'suggested_game',
+            'expires_at',
             'source_url',
+            'source_type',
+            'source_name',
+            'validation_status',
+            'rule_summary',
             'public_text',
             'is_active',
         ]
@@ -541,7 +546,10 @@ class PromotionForm(forms.ModelForm):
             'sport': forms.TextInput(attrs={'placeholder': 'Futebol', 'autocomplete': 'off'}),
             'competition': forms.TextInput(attrs={'placeholder': 'Brasileirão, Champions...', 'autocomplete': 'off'}),
             'suggested_game': forms.TextInput(attrs={'placeholder': 'Ex: Flamengo x Palmeiras', 'autocomplete': 'off'}),
+            'expires_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'source_url': forms.URLInput(attrs={'placeholder': 'URL pública da promoção', 'autocomplete': 'off'}),
+            'source_name': forms.TextInput(attrs={'placeholder': 'Ex: site oficial, Odds Scanner, Lance', 'autocomplete': 'off'}),
+            'rule_summary': forms.TextInput(attrs={'placeholder': 'Ex: Aposta múltipla mínima, mercados elegíveis...', 'autocomplete': 'off'}),
             'public_text': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Cole o texto público da promoção para consultar depois.'}),
         }
 
@@ -552,6 +560,14 @@ class PromotionForm(forms.ModelForm):
             bookmakers = RegulatedBookmaker.objects.filter(owner=user)
             self.fields['bookmaker'].queryset = bookmakers
             self.fields['page'].queryset = PromotionPage.objects.filter(bookmaker__owner=user)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        bookmaker = cleaned_data.get('bookmaker')
+        page = cleaned_data.get('page')
+        if bookmaker and page and page.bookmaker_id != bookmaker.id:
+            self.add_error('page', 'Escolha uma página vinculada à mesma casa da promoção.')
+        return cleaned_data
 
 
 class PromotionExtractionForm(forms.Form):

@@ -3,9 +3,13 @@ from django.contrib import admin
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import BookmakerAlias
 from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
+from .models import Promotion
+from .models import PromotionPage
+from .models import RegulatedBookmaker
 from .models import SureBetEntry
 
 
@@ -67,6 +71,46 @@ class FreeBetAdmin(admin.ModelAdmin):
     list_display = ('bookmaker', 'amount', 'is_used', 'source_bet', 'created_at')
     list_filter = ('is_used', 'bookmaker', 'created_at')
     search_fields = ('bookmaker', 'source_bet__game')
+
+
+@admin.register(RegulatedBookmaker)
+class RegulatedBookmakerAdmin(admin.ModelAdmin):
+    list_display = ('owner', 'brand', 'domain', 'status', 'judicial_alert', 'last_checked_at')
+    list_filter = ('status', 'judicial_alert')
+    search_fields = ('owner__username', 'brand', 'company_name', 'cnpj', 'domain')
+
+
+@admin.register(BookmakerAlias)
+class BookmakerAliasAdmin(admin.ModelAdmin):
+    list_display = ('bookmaker', 'provider', 'alias', 'provider_key', 'created_at')
+    list_filter = ('provider',)
+    search_fields = ('bookmaker__brand', 'alias', 'provider_key')
+
+
+@admin.register(PromotionPage)
+class PromotionPageAdmin(admin.ModelAdmin):
+    list_display = ('bookmaker', 'url', 'is_active', 'last_scan_at', 'last_scan_note')
+    list_filter = ('is_active', 'bookmaker')
+    search_fields = ('bookmaker__brand', 'url', 'last_scan_note')
+
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = (
+        'bookmaker',
+        'title',
+        'kind',
+        'trigger',
+        'freebet_amount',
+        'min_odd',
+        'source_type',
+        'validation_status',
+        'expires_at',
+        'is_active',
+        'detected_at',
+    )
+    list_filter = ('kind', 'trigger', 'source_type', 'validation_status', 'expires_at', 'is_active', 'bookmaker')
+    search_fields = ('bookmaker__brand', 'title', 'competition', 'suggested_game', 'source_name', 'rule_summary', 'public_text')
 
 
 @admin.register(SureBetEntry)

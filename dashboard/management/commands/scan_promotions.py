@@ -34,7 +34,8 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f'Paginas: {result["pages"]}; trechos: {result["matches"]}; '
-                f'promocoes criadas: {result["created"]}; atualizadas: {result["updated"]}.'
+                f'promocoes criadas: {result["created"]}; atualizadas: {result["updated"]}; '
+                f'expiradas: {result["expired"]}; ignoradas: {result["skipped"]}.'
             )
         )
         for error in result['errors']:

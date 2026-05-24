@@ -280,7 +280,7 @@ def build_dashboard_context(request, **forms):
         affiliate_filter |= Q(public_text__icontains=term)
         affiliate_filter |= Q(source_url__icontains=term)
     promotions = (
-        Promotion.objects.filter(bookmaker__owner=request.user)
+        Promotion.objects.filter(bookmaker__owner=request.user, is_active=True)
         .exclude(affiliate_filter)
         .select_related('bookmaker', 'page')[:20]
     )
@@ -948,7 +948,8 @@ def index(request):
                 request,
                 (
                     f'Varredura concluída: {result["pages"]} página(s), '
-                    f'{result["created"]} promoção(ões) nova(s), {result["updated"]} atualizada(s).'
+                    f'{result["created"]} promoção(ões) nova(s), {result["updated"]} atualizada(s), '
+                    f'{result["expired"]} expirada(s), {result["skipped"]} ignorada(s).'
                 ),
             )
             for error in result['errors'][:5]:

@@ -2299,3 +2299,58 @@ th {
     min-width: 0;
   }
 }
+
+#promotions .promotion-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#promotions .promotion-card-grid .odds-opportunity-card {
+  gap: 8px;
+  padding: 10px;
+}
+
+#promotions .promotion-card-grid .goal-title {
+  gap: 3px;
+}
+
+#promotions .promotion-card-grid .goal-title strong {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+#promotions .promotion-card-grid .goal-title span,
+#promotions .promotion-card-grid .field-hint,
+#promotions .promotion-card-grid .subtle-link {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+#promotions .promotion-card-grid .odds-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+#promotions .promotion-card-grid .report-metrics article {
+  padding: 8px;
+}
+
+#promotions .promotion-card-grid .report-metrics span {
+  margin-bottom: 3px;
+  font-size: 0.68rem;
+}
+
+#promotions .promotion-card-grid .report-metrics strong {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+#promotions .promotion-card-grid .field-hint {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  #promotions .promotion-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

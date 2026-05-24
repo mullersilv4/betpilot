@@ -17,6 +17,7 @@ from .automation import import_bets_from_text
 from .forms import BankrollForm
 from .forms import BankrollTransactionForm
 from .forms import BetForm
+from .forms import PromotionForm
 from .forms import TransferForm
 from .models import Bankroll
 from .models import BankrollTransaction
@@ -24,7 +25,14 @@ from .models import Bet
 from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
+from .models import Promotion
+from .models import PromotionPage
+from .models import RegulatedBookmaker
 from .models import SureBetEntry
+from .promotion_scan import detect_money
+from .promotion_scan import detect_expires_at
+from .promotion_scan import is_actionable_promotion
+from .promotion_scan import scan_promotion_page
 from .result_settlement import apply_settlement
 from .result_settlement import apply_surebet_settlement
 from .result_settlement import resolve_bet_from_event
@@ -160,6 +168,192 @@ class BankrollFormTests(TestCase):
         self.assertTrue(form.is_valid())
         bankroll = form.save(commit=False)
         self.assertEqual(bankroll.name, 'Muller - Betfair')
+
+
+class PromotionFormTests(TestCase):
+    def test_page_must_belong_to_same_bookmaker(self):
+        user = User.objects.create_user(username='owner')
+        betano = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Kaizen Gaming Brasil',
+            brand='Betano',
+            domain='betano.bet.br',
+        )
+        bet365 = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Hillside Brasil',
+            brand='bet365',
+            domain='bet365.bet.br',
+        )
+        page = PromotionPage.objects.create(bookmaker=bet365, url='https://www.bet365.bet.br/promos')
+        form = PromotionForm(
+            data={
+                'bookmaker': betano.id,
+                'page': page.id,
+                'title': 'Perdeu ganhou freebet',
+                'kind': Promotion.Kind.FREEBET,
+                'trigger': Promotion.Trigger.LOST,
+                'freebet_amount': '50.00',
+                'min_odd': '1.80',
+                'sport': 'Futebol',
+                'competition': '',
+                'suggested_game': '',
+                'source_url': 'https://www.bet365.bet.br/promos',
+                'public_text': '',
+                'is_active': 'on',
+            },
+            user=user,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('page', form.errors)
+
+
+class PromotionScanTests(TestCase):
+    def test_detect_money_supports_brazilian_and_decimal_formats(self):
+        self.assertEqual(detect_money('Ganhe R$ 1.000,50 em freebet'), Decimal('1000.50'))
+        self.assertEqual(detect_money('Ganhe R$ 50.25 em freebet'), Decimal('50.25'))
+        self.assertEqual(detect_money('Ganhe R$ 2.000 em bonus'), Decimal('2000.00'))
+
+    def test_actionable_filter_rejects_navigation_fragments(self):
+        self.assertFalse(
+            is_actionable_promotion(
+                'EXCHANGE TRADEBALL SPORTSBOOK CRIADOR EVENTOS SUPER ODDS CASSINO FERRAMENTAS ACADEMIA ENTRAR CADASTRO'
+            )
+        )
+
+    def test_detect_expires_at_uses_local_datetime(self):
+        expires_at = detect_expires_at('Aposta Grátis Expira: 28/05/2026 19:59 Ganhe uma aposta grátis.')
+
+        self.assertIsNotNone(expires_at)
+        self.assertEqual(expires_at.day, 28)
+        self.assertEqual(expires_at.hour, 19)
+        self.assertTrue(timezone.is_aware(expires_at))
+        self.assertTrue(
+            is_actionable_promotion(
+                'Aposta Grátis em Todo Gol Brasileiro Expira: 28/05/2026 Ganhe uma aposta grátis a cada gol brasileiro.'
+            )
+        )
+
+    @patch('dashboard.promotion_scan.fetch_scan_text')
+    def test_scan_promotion_page_creates_public_promotion(self, mocked_fetch):
+        user = User.objects.create_user(username='owner')
+        bookmaker = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Kaizen Gaming Brasil',
+            brand='Betano',
+            domain='betano.bet.br',
+        )
+        page = PromotionPage.objects.create(bookmaker=bookmaker, url='https://www.betano.bet.br/promocoes')
+        mocked_fetch.return_value = (
+            'Perdeu ganhou: aposte em futebol com odd mínima 1,80 e receba freebet de R$ 50,00.',
+            'simples',
+        )
+
+        result = scan_promotion_page(page)
+
+        self.assertEqual(result['created'], 1)
+        promotion = Promotion.objects.get(bookmaker=bookmaker)
+        self.assertEqual(promotion.kind, Promotion.Kind.FREEBET)
+        self.assertEqual(promotion.trigger, Promotion.Trigger.LOST)
+        self.assertEqual(promotion.freebet_amount, Decimal('50.00'))
+        self.assertEqual(promotion.min_odd, Decimal('1.80'))
+        self.assertEqual(promotion.source_type, Promotion.SourceType.OFFICIAL)
+        self.assertEqual(promotion.validation_status, Promotion.ValidationStatus.CONFIRMED_OFFICIAL)
+        self.assertIsNone(promotion.expires_at)
+
+    @patch('dashboard.promotion_scan.fetch_scan_text')
+    def test_scan_promotion_page_ignores_affiliate_blocks(self, mocked_fetch):
+        user = User.objects.create_user(username='owner')
+        bookmaker = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Kaizen Gaming Brasil',
+            brand='Betano',
+            domain='betano.bet.br',
+        )
+        page = PromotionPage.objects.create(bookmaker=bookmaker, url='https://www.betano.bet.br/afiliados')
+        mocked_fetch.return_value = (
+            'Programa de afiliação: indique e ganhe bonus com seus amigos.',
+            'simples',
+        )
+
+        result = scan_promotion_page(page)
+
+        self.assertEqual(result['created'], 0)
+        self.assertFalse(Promotion.objects.exists())
+
+    @patch('dashboard.promotion_scan.fetch_scan_text')
+    def test_scan_promotion_page_ignores_generic_navigation(self, mocked_fetch):
+        user = User.objects.create_user(username='owner')
+        bookmaker = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Bolsa de Aposta',
+            brand='Bolsa de Aposta',
+            domain='bolsadeaposta.bet.br',
+        )
+        page = PromotionPage.objects.create(bookmaker=bookmaker, url='https://bolsadeaposta.bet.br/')
+        mocked_fetch.return_value = (
+            'EXCHANGE TRADEBALL SPORTSBOOK CRIADOR EVENTOS SUPER ODDS CASSINO FERRAMENTAS ACADEMIA ENTRAR CADASTRO',
+            'renderizada',
+        )
+
+        result = scan_promotion_page(page)
+
+        self.assertEqual(result['created'], 0)
+        self.assertEqual(result['skipped'], 1)
+        self.assertFalse(Promotion.objects.exists())
+
+    @patch('dashboard.promotion_scan.fetch_scan_text')
+    def test_scan_promotion_page_expires_stale_page_promotions(self, mocked_fetch):
+        user = User.objects.create_user(username='owner')
+        bookmaker = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Sportingbet',
+            brand='Sportingbet',
+            domain='sportingbet.bet.br',
+        )
+        page = PromotionPage.objects.create(bookmaker=bookmaker, url='https://www.sportingbet.bet.br/promocoes')
+        stale = Promotion.objects.create(
+            bookmaker=bookmaker,
+            page=page,
+            title='Menu antigo Promoções Ajuda Entrar',
+            source_url=page.url,
+            public_text='Menu antigo Promoções Ajuda Entrar',
+        )
+        mocked_fetch.return_value = (
+            'Aposta Grátis em Todo Gol Brasileiro Expira: 28/05/2026 Ganhe uma aposta grátis a cada gol brasileiro.',
+            'renderizada',
+        )
+
+        result = scan_promotion_page(page)
+
+        stale.refresh_from_db()
+        self.assertEqual(result['created'], 1)
+        self.assertEqual(result['expired'], 1)
+        self.assertFalse(stale.is_active)
+        self.assertEqual(stale.validation_status, Promotion.ValidationStatus.EXPIRED)
+
+    @patch('dashboard.promotion_scan.fetch_scan_text')
+    def test_scan_promotion_page_saves_expiration_and_rule_summary(self, mocked_fetch):
+        user = User.objects.create_user(username='owner')
+        bookmaker = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Sportingbet',
+            brand='Sportingbet',
+            domain='sportingbet.bet.br',
+        )
+        page = PromotionPage.objects.create(bookmaker=bookmaker, url='https://www.sportingbet.bet.br/promocoes')
+        mocked_fetch.return_value = (
+            'Aposta Grátis em Todo Gol Brasileiro Expira: 28/05/2026 19:59 Ganhe uma aposta grátis a cada gol brasileiro.',
+            'renderizada',
+        )
+
+        scan_promotion_page(page)
+
+        promotion = Promotion.objects.get(bookmaker=bookmaker)
+        self.assertEqual(promotion.title, 'Aposta Grátis em Todo Gol Brasileiro')
+        self.assertEqual(promotion.expires_at.day, 28)
+        self.assertIn('Ganhe uma aposta grátis', promotion.rule_summary)
 
 
 class AnalyticsTests(TestCase):

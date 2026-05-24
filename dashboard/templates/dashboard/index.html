@@ -1268,7 +1268,7 @@
                 <h2>Promoções detectadas</h2>
               </div>
             </div>
-            <div class="odds-opportunity-list">
+            <div class="odds-opportunity-list promotion-card-grid">
               {% for promotion in promotions %}
                 <article class="odds-opportunity-card">
                   <div class="goal-title">
@@ -1279,8 +1279,11 @@
                     <article><span>Freebet</span><strong>R$ {{ promotion.freebet_amount|floatformat:2 }}</strong></article>
                     <article><span>Quando gera</span><strong>{{ promotion.get_trigger_display }}</strong></article>
                     <article><span>Odd mínima</span><strong>{{ promotion.min_odd|floatformat:2 }}</strong></article>
-                    <article><span>Jogo</span><strong>{{ promotion.suggested_game|default:"A definir" }}</strong></article>
+                    <article><span>Expira</span><strong>{{ promotion.expires_at|date:"d/m H:i"|default:"A confirmar" }}</strong></article>
                   </div>
+                  {% if promotion.rule_summary %}
+                    <p class="field-hint">{{ promotion.rule_summary }}</p>
+                  {% endif %}
                   {% if promotion.public_text %}
                     <p class="field-hint">{{ promotion.public_text|truncatechars:220 }}</p>
                   {% endif %}
@@ -1416,7 +1419,14 @@
                   <label><span>Competição</span>{{ promotion_form.competition }}</label>
                   <label><span>Jogo sugerido</span>{{ promotion_form.suggested_game }}</label>
                 </div>
+                <label><span>Expira em</span>{{ promotion_form.expires_at }}</label>
+                <div class="form-row">
+                  <label><span>Fonte</span>{{ promotion_form.source_type }}</label>
+                  <label><span>Status validação</span>{{ promotion_form.validation_status }}</label>
+                </div>
+                <label><span>Nome da fonte</span>{{ promotion_form.source_name }}</label>
                 <label><span>URL da promoção</span>{{ promotion_form.source_url }}</label>
+                <label><span>Resumo da regra</span>{{ promotion_form.rule_summary }}</label>
                 <label><span>Texto público</span>{{ promotion_form.public_text }}</label>
                 <label class="checkbox-field">{{ promotion_form.is_active }}<span>Promoção ativa</span></label>
                 <button class="primary-button" type="submit">Salvar promoção</button>
@@ -1484,7 +1494,7 @@
                   <h2>Oportunidades mapeadas</h2>
                 </div>
               </div>
-              <div class="odds-opportunity-list">
+              <div class="odds-opportunity-list promotion-card-grid">
                 {% for promotion in promotions %}
                   <article class="odds-opportunity-card">
                     <div class="goal-title">
@@ -1495,8 +1505,11 @@
                       <article><span>Freebet</span><strong>R$ {{ promotion.freebet_amount|floatformat:2 }}</strong></article>
                       <article><span>Quando gera</span><strong>{{ promotion.get_trigger_display }}</strong></article>
                       <article><span>Odd mínima</span><strong>{{ promotion.min_odd|floatformat:2 }}</strong></article>
-                      <article><span>Jogo</span><strong>{{ promotion.suggested_game|default:"A definir" }}</strong></article>
+                      <article><span>Expira</span><strong>{{ promotion.expires_at|date:"d/m H:i"|default:"A confirmar" }}</strong></article>
                     </div>
+                    {% if promotion.rule_summary %}
+                      <p class="field-hint">{{ promotion.rule_summary }}</p>
+                    {% endif %}
                     {% if promotion.source_url %}
                       <a class="subtle-link" href="{{ promotion.source_url }}" target="_blank" rel="noopener">Abrir página pública</a>
                     {% endif %}
@@ -1694,50 +1707,53 @@
               </div>
             </div>
 
-            <form class="filter-form" method="get">
-              <label class="history-filter-bankroll">
-                <span>Banca</span>
-                {{ filter_form.bankroll }}
-              </label>
-              <label class="history-filter-status">
-                <span>Status</span>
-                {{ filter_form.status }}
-              </label>
-              <label class="history-filter-type">
-                <span>Tipo</span>
-                {{ filter_form.entry_type }}
-              </label>
-              <label class="history-filter-sport">
-                <span>Esporte</span>
-                {{ filter_form.sport }}
-              </label>
-              <label class="history-filter-competition">
-                <span>Competição</span>
-                {{ filter_form.competition }}
-              </label>
-              <label class="history-filter-strategy">
-                <span>Estratégia</span>
-                {{ filter_form.strategy }}
-              </label>
-              <label class="history-filter-market">
-                <span>Mercado</span>
-                {{ filter_form.market }}
-              </label>
-              <label class="history-filter-search">
-                <span>Busca</span>
-                {{ filter_form.query }}
-              </label>
-              <label class="history-filter-min-odds">
-                <span>Odd min.</span>
-                {{ filter_form.min_odds }}
-              </label>
-              <label class="history-filter-max-odds">
-                <span>Odd max.</span>
-                {{ filter_form.max_odds }}
-              </label>
-              <button class="ghost-button compact" type="submit">Filtrar</button>
-              <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Limpar</a>
-            </form>
+            <details class="settings-disclosure history-filters">
+              <summary>Filtros</summary>
+              <form class="filter-form" method="get">
+                <label class="history-filter-bankroll">
+                  <span>Banca</span>
+                  {{ filter_form.bankroll }}
+                </label>
+                <label class="history-filter-status">
+                  <span>Status</span>
+                  {{ filter_form.status }}
+                </label>
+                <label class="history-filter-type">
+                  <span>Tipo</span>
+                  {{ filter_form.entry_type }}
+                </label>
+                <label class="history-filter-sport">
+                  <span>Esporte</span>
+                  {{ filter_form.sport }}
+                </label>
+                <label class="history-filter-competition">
+                  <span>Competição</span>
+                  {{ filter_form.competition }}
+                </label>
+                <label class="history-filter-strategy">
+                  <span>Estratégia</span>
+                  {{ filter_form.strategy }}
+                </label>
+                <label class="history-filter-market">
+                  <span>Mercado</span>
+                  {{ filter_form.market }}
+                </label>
+                <label class="history-filter-search">
+                  <span>Busca</span>
+                  {{ filter_form.query }}
+                </label>
+                <label class="history-filter-min-odds">
+                  <span>Odd min.</span>
+                  {{ filter_form.min_odds }}
+                </label>
+                <label class="history-filter-max-odds">
+                  <span>Odd max.</span>
+                  {{ filter_form.max_odds }}
+                </label>
+                <button class="ghost-button compact" type="submit">Filtrar</button>
+                <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Limpar</a>
+              </form>
+            </details>
 
             <div class="table-wrap">
               <table>

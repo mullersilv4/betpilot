@@ -236,6 +236,17 @@ class Promotion(models.Model):
         WON = 'won', 'Se ganhar'
         ANY = 'any', 'Ambas'
 
+    class SourceType(models.TextChoices):
+        OFFICIAL = 'official', 'Site oficial'
+        AFFILIATE = 'affiliate', 'Agregador/afiliado'
+        MANUAL = 'manual', 'Manual'
+
+    class ValidationStatus(models.TextChoices):
+        CONFIRMED_OFFICIAL = 'confirmed_official', 'Confirmada no site oficial'
+        FOUND_AFFILIATE = 'found_affiliate', 'Encontrada em afiliado'
+        PENDING = 'pending_validation', 'Pendente de validação'
+        EXPIRED = 'expired', 'Expirada'
+
     bookmaker = models.ForeignKey(
         RegulatedBookmaker,
         verbose_name='casa regulamentada',
@@ -259,7 +270,17 @@ class Promotion(models.Model):
     competition = models.CharField('competição', max_length=120, blank=True)
     suggested_game = models.CharField('jogo sugerido', max_length=160, blank=True)
     public_text = models.TextField('texto público', blank=True)
+    rule_summary = models.CharField('resumo da regra', max_length=220, blank=True)
     source_url = models.URLField('URL da promoção', blank=True)
+    source_type = models.CharField('tipo de fonte', max_length=16, choices=SourceType.choices, default=SourceType.OFFICIAL)
+    source_name = models.CharField('nome da fonte', max_length=120, blank=True)
+    validation_status = models.CharField(
+        'status de validação',
+        max_length=24,
+        choices=ValidationStatus.choices,
+        default=ValidationStatus.CONFIRMED_OFFICIAL,
+    )
+    expires_at = models.DateTimeField('expira em', null=True, blank=True)
     is_active = models.BooleanField('ativa', default=True)
     detected_at = models.DateTimeField('detectada em', default=timezone.now)
     updated_at = models.DateTimeField('atualizada em', auto_now=True)

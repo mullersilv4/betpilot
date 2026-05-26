@@ -1487,6 +1487,49 @@ def delete_bankroll(request, pk):
 
 
 @login_required
+def edit_transaction(request, pk):
+    bankroll_transaction = get_object_or_404(
+        BankrollTransaction,
+        pk=pk,
+        bankroll__owner=request.user,
+    )
+    if request.method == 'POST':
+        form = BankrollTransactionForm(
+            request.POST,
+            instance=bankroll_transaction,
+            user=request.user,
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Movimentação atualizada.')
+            return redirect('dashboard:index')
+    else:
+        form = BankrollTransactionForm(instance=bankroll_transaction, user=request.user)
+
+    return render(
+        request,
+        'dashboard/transaction_form.html',
+        {
+            'form': form,
+            'transaction': bankroll_transaction,
+        },
+    )
+
+
+@login_required
+def delete_transaction(request, pk):
+    bankroll_transaction = get_object_or_404(
+        BankrollTransaction,
+        pk=pk,
+        bankroll__owner=request.user,
+    )
+    if request.method == 'POST':
+        bankroll_transaction.delete()
+        messages.success(request, 'Movimentação excluída.')
+    return redirect('dashboard:index')
+
+
+@login_required
 def delete_entity(request, pk):
     entity = get_object_or_404(Entity, pk=pk, owner=request.user)
     if request.method == 'POST':

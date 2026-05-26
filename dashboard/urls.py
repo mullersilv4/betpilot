@@ -53,4 +53,6 @@ urlpatterns = [
     path('bancas/<int:pk>/', views.bankroll_detail, name='bankroll_detail'),
     path('bancas/<int:pk>/editar/', views.edit_bankroll, name='edit_bankroll'),
     path('bancas/<int:pk>/excluir/', views.delete_bankroll, name='delete_bankroll'),
+    path('movimentacoes/<int:pk>/editar/', views.edit_transaction, name='edit_transaction'),
+    path('movimentacoes/<int:pk>/excluir/', views.delete_transaction, name='delete_transaction'),
 ]

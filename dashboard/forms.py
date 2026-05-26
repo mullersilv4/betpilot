@@ -230,6 +230,7 @@ class BankrollTransactionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        self.original_signed_amount = self.instance.signed_amount if self.instance.pk else 0
         if user is not None:
             self.fields['bankroll'].queryset = Bankroll.objects.filter(owner=user)
         self.fields['kind'].choices = [
@@ -237,6 +238,8 @@ class BankrollTransactionForm(forms.ModelForm):
             (BankrollTransaction.Kind.WITHDRAW, 'Saque'),
             (BankrollTransaction.Kind.ADJUSTMENT, 'Ajuste'),
         ]
+        if self.instance.pk and self.instance.kind == BankrollTransaction.Kind.ADJUSTMENT:
+            self.initial['amount'] = self.instance.bankroll.current_balance
 
     class Meta:
         model = BankrollTransaction
@@ -271,6 +274,25 @@ class BankrollTransactionForm(forms.ModelForm):
             )
 
         return cleaned_data
+
+    def save(self, commit=True):
+        transaction = super().save(commit=False)
+        if (
+            transaction.kind == BankrollTransaction.Kind.ADJUSTMENT
+            and transaction.bankroll_id
+            and self.cleaned_data.get('amount') is not None
+        ):
+            target_balance = self.cleaned_data['amount']
+            base_balance = transaction.bankroll.current_balance
+            if transaction.pk:
+                base_balance -= self.original_signed_amount
+            transaction.amount = target_balance - base_balance
+
+        if commit:
+            transaction.save()
+            self.save_m2m()
+
+        return transaction
 
 
 class TransferForm(forms.Form):

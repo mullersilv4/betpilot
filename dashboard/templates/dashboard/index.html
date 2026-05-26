@@ -412,9 +412,31 @@
 
             <div class="automation-list">
               {% for transaction in latest_transactions %}
-                <div>
+                <div class="transaction-row">
                   <span>{{ transaction.bankroll.name }} - {{ transaction.get_kind_display }}</span>
-                  <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
+                  <div class="transaction-meta">
+                    <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
+                    <div class="transaction-actions">
+                      <a class="icon-button" href="{% url 'dashboard:edit_transaction' transaction.pk %}" aria-label="Editar movimentação" title="Editar">
+                        <svg aria-hidden="true" viewBox="0 0 24 24">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </a>
+                      <form method="post" action="{% url 'dashboard:delete_transaction' transaction.pk %}" onsubmit="return confirm('Excluir esta movimentação?');">
+                        {% csrf_token %}
+                        <button class="icon-button" type="submit" aria-label="Excluir movimentação" title="Excluir">
+                          <svg aria-hidden="true" viewBox="0 0 24 24">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v5" />
+                            <path d="M14 11v5" />
+                          </svg>
+                        </button>
+                      </form>
+                    </div>
+                  </div>
                 </div>
               {% empty %}
                 <div class="empty-state">Nenhuma movimentação registrada.</div>

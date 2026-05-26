@@ -106,6 +106,27 @@ class BetCalculationTests(TestCase):
         self.assertEqual(self.bankroll.transaction_total, Decimal('150.00'))
         self.assertEqual(self.bankroll.current_balance, Decimal('1150.00'))
 
+    def test_bankroll_adjustment_sets_exact_current_balance(self):
+        BankrollTransaction.objects.create(
+            bankroll=self.bankroll,
+            kind=BankrollTransaction.Kind.DEPOSIT,
+            amount=Decimal('200.00'),
+        )
+
+        form = BankrollTransactionForm(
+            data={
+                'bankroll': self.bankroll.id,
+                'kind': BankrollTransaction.Kind.ADJUSTMENT,
+                'amount': '900.00',
+                'note': '',
+            }
+        )
+
+        self.assertTrue(form.is_valid())
+        form.save()
+
+        self.assertEqual(self.bankroll.current_balance, Decimal('900.00'))
+
 
 class BetFormTests(TestCase):
     def setUp(self):
@@ -463,6 +484,46 @@ class BankrollTransactionFormTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn('amount', form.errors)
+
+    def test_edit_adjustment_keeps_amount_as_exact_target_balance(self):
+        adjustment = BankrollTransaction.objects.create(
+            bankroll=self.bankroll,
+            kind=BankrollTransaction.Kind.ADJUSTMENT,
+            amount=Decimal('50.00'),
+        )
+        form = BankrollTransactionForm(
+            data={
+                'bankroll': self.bankroll.id,
+                'kind': BankrollTransaction.Kind.ADJUSTMENT,
+                'amount': '80.00',
+                'note': '',
+            },
+            instance=adjustment,
+        )
+
+        self.assertTrue(form.is_valid())
+        form.save()
+
+        self.assertEqual(self.bankroll.current_balance, Decimal('80.00'))
+
+    def test_delete_transaction_removes_movement(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        bankroll = Bankroll.objects.create(
+            owner=user,
+            name='Minha banca',
+            initial_balance=Decimal('100.00'),
+        )
+        movement = BankrollTransaction.objects.create(
+            bankroll=bankroll,
+            kind=BankrollTransaction.Kind.DEPOSIT,
+            amount=Decimal('25.00'),
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.post(reverse('dashboard:delete_transaction', args=[movement.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(BankrollTransaction.objects.filter(pk=movement.pk).exists())
 
     def test_transfer_requires_different_bankrolls(self):
         form = TransferForm(

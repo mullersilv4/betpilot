@@ -1,0 +1,58 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editar movimentação | BetPilot</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}" />
+  </head>
+  <body>
+    <main class="standalone-page">
+      <article class="panel standalone-card">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Financeiro</p>
+            <h1>Editar movimentação</h1>
+          </div>
+          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#transactions">Voltar</a>
+        </div>
+
+        <form class="bet-form" method="post" novalidate>
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="form-errors">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="form-row">
+            <label>
+              <span>Banca</span>
+              {{ form.bankroll }}
+              {{ form.bankroll.errors }}
+            </label>
+            <label>
+              <span>Tipo</span>
+              {{ form.kind }}
+              {{ form.kind.errors }}
+            </label>
+          </div>
+
+          <label>
+            <span>Valor</span>
+            {{ form.amount }}
+            {{ form.amount.errors }}
+          </label>
+
+          <label>
+            <span>Observação</span>
+            {{ form.note }}
+            {{ form.note.errors }}
+          </label>
+
+          <button class="primary-button" type="submit">Salvar movimentação</button>
+        </form>
+      </article>
+    </main>
+  </body>
+</html>

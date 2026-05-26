@@ -1009,6 +1009,52 @@ canvas {
   background: var(--surface-2);
 }
 
+.automation-list .transaction-meta,
+.automation-list .transaction-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.transaction-actions form {
+  margin: 0;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.icon-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .entity-list strong,
 .entity-list span {
   display: block;

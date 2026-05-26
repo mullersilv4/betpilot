@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -39,6 +40,25 @@ BRAZIL_REGULATED_BOOKMAKER_NAMES = {
     'estrelabet',
     'reals',
     'betnacional',
+}
+
+BRAZIL_PRIORITY_BOOKMAKER_TERMS = {
+    'bet365',
+    'betano',
+    'superbet',
+    'novibet',
+    'jogo_de_ouro',
+    'jogodeouro',
+    'bolsa_de_aposta',
+    'bolsadeaposta',
+    'betfair',
+    'pagol',
+    'pago',
+    'sportingbet',
+    'estrela_bet',
+    'estrelabet',
+    'esportes_da_sorte',
+    'esportesdasorte',
 }
 
 
@@ -85,12 +105,23 @@ class OddsApiClient:
 
     def odds(self, sport_key, regions='eu', markets='h2h', bookmakers=''):
         params = {
-            'regions': regions,
             'markets': markets,
         }
         if bookmakers:
             params['bookmakers'] = bookmakers
+        else:
+            params['regions'] = regions
         return self._get(f'/sports/{sport_key}/odds/', params)
+
+    def event_odds(self, sport_key, event_id, regions='eu', markets='h2h', bookmakers=''):
+        params = {
+            'markets': markets,
+        }
+        if bookmakers:
+            params['bookmakers'] = bookmakers
+        else:
+            params['regions'] = regions
+        return self._get(f'/sports/{sport_key}/events/{event_id}/odds/', params)
 
 
 def summarize_odds(events, limit=5):
@@ -133,6 +164,21 @@ def is_brazil_regulated_bookmaker(bookmaker):
     title = (bookmaker.get('title') or '').lower()
     return key in BRAZIL_REGULATED_BOOKMAKER_KEYS or any(
         allowed_name in title for allowed_name in BRAZIL_REGULATED_BOOKMAKER_NAMES
+    )
+
+
+def normalize_bookmaker_text(value):
+    return re.sub(r'[^a-z0-9]+', '_', (value or '').lower()).strip('_')
+
+
+def matches_allowed_bookmaker(bookmaker, allowed_terms):
+    if not allowed_terms:
+        return True
+    key = normalize_bookmaker_text(bookmaker.get('key'))
+    title = normalize_bookmaker_text(bookmaker.get('title'))
+    return any(
+        term and (term == key or term == title or term in title)
+        for term in allowed_terms
     )
 
 
@@ -237,3 +283,69 @@ def build_odds_comparison(events, limit=10, brazil_regulated_only=False):
         )
 
     return comparisons
+
+
+def build_event_odds_board(event, brazil_regulated_only=False, allowed_bookmaker_terms=None):
+    allowed_bookmaker_terms = [
+        normalize_bookmaker_text(term)
+        for term in (allowed_bookmaker_terms or [])
+        if normalize_bookmaker_text(term)
+    ]
+
+    def collect_bookmakers(use_allowed_filter):
+        outcome_names = []
+        bookmakers = []
+        for bookmaker in event.get('bookmakers', []):
+            if brazil_regulated_only and not is_brazil_regulated_bookmaker(bookmaker):
+                continue
+            if (
+                use_allowed_filter
+                and allowed_bookmaker_terms
+                and not matches_allowed_bookmaker(bookmaker, allowed_bookmaker_terms)
+            ):
+                continue
+
+            outcomes = {}
+            for market in bookmaker.get('markets', []):
+                if market.get('key') != 'h2h':
+                    continue
+                for outcome in market.get('outcomes', []):
+                    name = outcome.get('name')
+                    price = outcome.get('price')
+                    if not name or price is None:
+                        continue
+                    if name not in outcome_names:
+                        outcome_names.append(name)
+                    outcomes[name] = float(price)
+
+            if outcomes:
+                bookmakers.append(
+                    {
+                        'key': bookmaker.get('key') or '',
+                        'title': bookmaker.get('title') or '',
+                        'last_update': bookmaker.get('last_update') or '',
+                        'outcomes': outcomes,
+                    }
+                )
+        return outcome_names, bookmakers
+
+    outcome_names, bookmakers = collect_bookmakers(use_allowed_filter=True)
+    filter_note = ''
+    if allowed_bookmaker_terms and len(bookmakers) < 2:
+        fallback_outcome_names, fallback_bookmakers = collect_bookmakers(use_allowed_filter=False)
+        if len(fallback_bookmakers) > len(bookmakers):
+            outcome_names = fallback_outcome_names
+            bookmakers = fallback_bookmakers
+            filter_note = (
+                'Poucas casas prioritárias disponíveis para este jogo; '
+                'mostrando também outras casas retornadas pela API.'
+            )
+
+    return {
+        'event': f'{event.get("home_team")} x {event.get("away_team")}'.strip(' x'),
+        'sport': event.get('sport_title') or '',
+        'commence_time': event.get('commence_time') or '',
+        'outcome_names': outcome_names,
+        'bookmakers': bookmakers,
+        'filter_note': filter_note,
+    }

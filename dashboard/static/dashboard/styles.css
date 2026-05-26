@@ -1156,6 +1156,144 @@ canvas {
   font-size: 0.82rem;
 }
 
+.event-odds-board {
+  margin-top: 16px;
+}
+
+.event-odds-header,
+.event-odds-row {
+  display: grid;
+  grid-template-columns: 180px 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.event-odds-header {
+  padding: 0 12px 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.event-odds-header strong,
+.event-odds-header span {
+  display: block;
+}
+
+.event-odds-header strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.event-outcome-labels,
+.event-odds-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(84px, 1fr));
+  gap: 12px;
+}
+
+.event-outcome-labels {
+  grid-column: 3;
+  text-align: center;
+}
+
+.event-odds-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.event-odds-note {
+  margin: 0 12px 10px;
+  color: var(--amber);
+  font-size: 0.82rem;
+}
+
+.event-odds-row {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bookmaker-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 32px;
+  max-width: 100%;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.live-badge {
+  display: inline-flex;
+  justify-content: center;
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #e9004f;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.event-odd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.event-odd:hover,
+.event-odd:focus-visible {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.event-odd.is-up {
+  color: var(--green);
+}
+
+.event-odd.is-down {
+  color: var(--red);
+}
+
+.event-odd.is-empty {
+  color: var(--muted);
+  cursor: default;
+}
+
+@media (max-width: 760px) {
+  .event-odds-header {
+    display: none;
+  }
+
+  .event-odds-row {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .event-odds-values {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .event-odd {
+    min-width: 0;
+    padding: 0 6px;
+  }
+}
+
 .compact-table table {
   min-width: 920px;
 }

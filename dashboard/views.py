@@ -30,6 +30,7 @@ from .forms import BankrollTransactionForm
 from .forms import BetFilterForm
 from .forms import BetForm
 from .forms import EntityForm
+from .forms import EventOddsForm
 from .forms import ImportTextForm
 from .forms import MonthlyGoalForm
 from .forms import BookmakerAliasForm
@@ -54,8 +55,11 @@ from .models import RegulatedBookmaker
 from .models import SureBetEntry
 from .odds_api import OddsApiClient
 from .odds_api import OddsApiError
+from .odds_api import BRAZIL_PRIORITY_BOOKMAKER_TERMS
+from .odds_api import build_event_odds_board
 from .odds_api import build_odds_comparison
 from .odds_api import detect_surebets
+from .odds_api import normalize_bookmaker_text
 from .promotion_scan import scan_user_promotion_pages
 
 
@@ -300,6 +304,7 @@ def build_dashboard_context(request, **forms):
         'transfer_form': forms.get('transfer_form') or TransferForm(user=request.user),
         'filter_form': filter_form,
         'import_form': forms.get('import_form') or ImportTextForm(),
+        'event_odds_form': forms.get('event_odds_form') or EventOddsForm(prefix='event_odds'),
         'odds_form': forms.get('odds_form') or OddsSearchForm(),
         'odds_opportunities': forms.get('odds_opportunities') or [],
         'odds_comparisons': forms.get('odds_comparisons') or [],
@@ -645,6 +650,47 @@ def add_suggested_stakes(opportunities, total_stake):
     return enriched
 
 
+def regulated_bookmaker_terms_for_user(user):
+    terms = [
+        normalize_bookmaker_text(term)
+        for term in BRAZIL_PRIORITY_BOOKMAKER_TERMS
+        if normalize_bookmaker_text(term)
+    ]
+    aliases = BookmakerAlias.objects.filter(
+        bookmaker__owner=user,
+        provider='the_odds_api',
+    ).select_related('bookmaker')
+    for alias in aliases:
+        bookmaker_terms = {
+            normalize_bookmaker_text(alias.bookmaker.brand),
+            normalize_bookmaker_text(alias.bookmaker.domain.split('.')[0] if alias.bookmaker.domain else ''),
+        }
+        if not bookmaker_terms.intersection(terms):
+            continue
+        candidates = [
+            alias.provider_key,
+            alias.alias,
+            alias.bookmaker.brand,
+            alias.bookmaker.domain.split('.')[0] if alias.bookmaker.domain else '',
+        ]
+        for candidate in candidates:
+            term = normalize_bookmaker_text(candidate)
+            if term and term not in terms:
+                terms.append(term)
+    return terms
+
+
+def odds_bookmakers_for_request(user, cleaned_data):
+    manual_bookmakers = (cleaned_data.get('bookmakers') or '').strip()
+    if manual_bookmakers:
+        return manual_bookmakers, False, []
+    if cleaned_data.get('brazil_regulated_only'):
+        terms = regulated_bookmaker_terms_for_user(user)
+        if terms:
+            return '', True, terms
+    return '', False, []
+
+
 def import_regulated_bookmakers_from_text(user, raw_text):
     imported = 0
     updated = 0
@@ -719,6 +765,8 @@ def calculate_promotion_extraction(promotion, freebet_odd, protection_odd, prote
 def guess_event_sports(sport_text, competition_text):
     text = f'{sport_text or ""} {competition_text or ""}'.lower()
     choices = dict(OddsSearchForm.SPORT_CHOICES)
+    if sport_text in choices:
+        return [sport_text]
     exact_matches = [
         key
         for key, label in choices.items()
@@ -809,6 +857,66 @@ def event_autocomplete(request):
     normalized = [event for event in normalized if event['game']]
     normalized.sort(key=lambda item: item['event_date'] or '9999')
     return JsonResponse({'results': normalized[:12]})
+
+
+@login_required
+def event_odds(request):
+    api_key = os.environ.get('THE_ODDS_API_KEY')
+    if not api_key:
+        return JsonResponse({'error': 'API key não configurada.'}, status=503)
+
+    form_data = request.GET.copy()
+    sport_key = (form_data.get('sport_key') or '').strip()
+    if sport_key and sport_key in dict(EventOddsForm.base_fields['sport'].choices):
+        form_data['event_odds-sport'] = sport_key
+
+    form = EventOddsForm(form_data, prefix='event_odds')
+    if not form.is_valid():
+        return JsonResponse({'error': 'Filtros inválidos.', 'errors': form.errors}, status=400)
+
+    event_id = (request.GET.get('event_id') or '').strip()
+    sport_key = (sport_key or form.cleaned_data['sport']).strip()
+    if not event_id or not sport_key:
+        return JsonResponse({'error': 'Selecione um jogo antes de buscar odds.'}, status=400)
+
+    client = OddsApiClient(api_key)
+    request_bookmakers, uses_regulated_aliases, allowed_bookmaker_terms = odds_bookmakers_for_request(
+        request.user,
+        form.cleaned_data,
+    )
+    request_regions = 'eu,uk,us,au' if uses_regulated_aliases else form.cleaned_data['regions']
+    cache_key = (
+        'event_odds:h2h:'
+        f'{sport_key}:{event_id}:{request_regions}:'
+        f'{request_bookmakers}:{form.cleaned_data["brazil_regulated_only"]}'
+    )
+    odds_payload = cache.get(cache_key)
+    used_cache = odds_payload is not None
+    if odds_payload is None:
+        try:
+            odds_payload = client.event_odds(
+                sport_key=sport_key,
+                event_id=event_id,
+                regions=request_regions,
+                markets='h2h',
+                bookmakers=request_bookmakers,
+            )
+        except OddsApiError as error:
+            return JsonResponse({'error': str(error)}, status=502)
+        cache.set(cache_key, odds_payload, ODDS_CACHE_TIMEOUT)
+
+    board = build_event_odds_board(
+        odds_payload,
+        brazil_regulated_only=(
+            form.cleaned_data['brazil_regulated_only'] and not uses_regulated_aliases
+        ),
+        allowed_bookmaker_terms=allowed_bookmaker_terms,
+    )
+    board['used_cache'] = used_cache
+    board['bookmaker_filter'] = request_bookmakers
+    board['regions_used'] = request_regions
+    board['uses_regulated_aliases'] = uses_regulated_aliases
+    return JsonResponse(board)
 
 
 @login_required
@@ -997,11 +1105,16 @@ def index(request):
                 else:
                     client = OddsApiClient(api_key=api_key)
                     try:
+                        request_bookmakers, uses_regulated_aliases, allowed_bookmaker_terms = odds_bookmakers_for_request(
+                            request.user,
+                            odds_form.cleaned_data,
+                        )
+                        request_regions = 'eu,uk,us,au' if uses_regulated_aliases else odds_form.cleaned_data['regions']
                         cache_key = (
                             'odds_api:h2h:'
                             f'{odds_form.cleaned_data["sport"]}:'
-                            f'{odds_form.cleaned_data["regions"]}:'
-                            f'{odds_form.cleaned_data["bookmakers"]}:'
+                            f'{request_regions}:'
+                            f'{request_bookmakers}:'
                             f'{odds_form.cleaned_data["brazil_regulated_only"]}'
                         )
                         events = cache.get(cache_key)
@@ -1009,24 +1122,46 @@ def index(request):
                         if events is None:
                             events = client.odds(
                                 sport_key=odds_form.cleaned_data['sport'],
-                                regions=odds_form.cleaned_data['regions'],
+                                regions=request_regions,
                                 markets='h2h',
-                                bookmakers=odds_form.cleaned_data['bookmakers'],
+                                bookmakers=request_bookmakers,
                             )
                             cache.set(cache_key, events, ODDS_CACHE_TIMEOUT)
+                        if allowed_bookmaker_terms:
+                            events = [
+                                {
+                                    **event,
+                                    'bookmakers': [
+                                        bookmaker
+                                        for bookmaker in event.get('bookmakers', [])
+                                        if any(
+                                            term
+                                            and (
+                                                term == normalize_bookmaker_text(bookmaker.get('key'))
+                                                or term == normalize_bookmaker_text(bookmaker.get('title'))
+                                                or term in normalize_bookmaker_text(bookmaker.get('title'))
+                                            )
+                                            for term in allowed_bookmaker_terms
+                                        )
+                                    ],
+                                }
+                                for event in events
+                            ]
                         odds_opportunities = detect_surebets(
                             events,
                             limit=odds_form.cleaned_data['limit'],
-                            brazil_regulated_only=odds_form.cleaned_data[
-                                'brazil_regulated_only'
-                            ],
+                            brazil_regulated_only=(
+                                odds_form.cleaned_data['brazil_regulated_only']
+                                and not uses_regulated_aliases
+                            ),
                         )
                         odds_comparisons = build_odds_comparison(
                             events,
                             limit=odds_form.cleaned_data['limit'],
-                            brazil_regulated_only=odds_form.cleaned_data[
-                                'brazil_regulated_only'
-                            ],
+                            brazil_regulated_only=(
+                                odds_form.cleaned_data['brazil_regulated_only']
+                                and not uses_regulated_aliases
+                            ),
                         )
                         odds_opportunities = add_suggested_stakes(
                             odds_opportunities,

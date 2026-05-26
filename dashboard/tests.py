@@ -22,6 +22,7 @@ from .forms import TransferForm
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
+from .models import BookmakerAlias
 from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
@@ -1126,3 +1127,193 @@ class AuthenticationTests(TestCase):
         self.assertEqual(payload['results'][0]['game'], 'Palmeiras x Flamengo')
         self.assertEqual(payload['results'][0]['competition'], 'Brasileirao')
         self.assertTrue(payload['results'][0]['event_date'])
+
+    @patch.dict('os.environ', {'THE_ODDS_API_KEY': 'test-key'})
+    @patch('dashboard.views.OddsApiClient.event_odds')
+    def test_event_odds_returns_bookmakers_for_selected_game(self, mocked_event_odds):
+        mocked_event_odds.return_value = {
+            'id': 'event-bahia-coritiba',
+            'home_team': 'Bahia',
+            'away_team': 'Coritiba',
+            'sport_title': 'Brasileirao',
+            'commence_time': '2026-05-22T22:30:00Z',
+            'bookmakers': [
+                {
+                    'key': 'bet365',
+                    'title': 'Bet365',
+                    'markets': [
+                        {
+                            'key': 'h2h',
+                            'outcomes': [
+                                {'name': 'Bahia', 'price': 1.03},
+                                {'name': 'Draw', 'price': 17.0},
+                                {'name': 'Coritiba', 'price': 51.0},
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(
+            reverse('dashboard:event_odds'),
+            {
+                'event_id': 'event-bahia-coritiba',
+                'sport_key': 'soccer_brazil_campeonato',
+                'event_odds-sport': 'soccer_brazil_campeonato',
+                'event_odds-regions': 'eu',
+                'event_odds-bookmakers': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['event'], 'Bahia x Coritiba')
+        self.assertEqual(payload['outcome_names'], ['Bahia', 'Draw', 'Coritiba'])
+        self.assertEqual(payload['bookmakers'][0]['title'], 'Bet365')
+        self.assertEqual(payload['bookmakers'][0]['outcomes']['Coritiba'], 51.0)
+
+    @patch.dict('os.environ', {'THE_ODDS_API_KEY': 'test-key'})
+    @patch('dashboard.views.OddsApiClient.event_odds')
+    def test_event_odds_accepts_sport_key_when_select_value_is_stale(self, mocked_event_odds):
+        mocked_event_odds.return_value = {
+            'id': 'event-1',
+            'home_team': 'Atletico Paranaense',
+            'away_team': 'Mirassol',
+            'sport_title': 'Brasileirao',
+            'bookmakers': [],
+        }
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(
+            reverse('dashboard:event_odds'),
+            {
+                'event_id': 'event-1',
+                'sport_key': 'soccer_brazil_campeonato',
+                'event_odds-sport': 'Futebol',
+                'event_odds-regions': 'eu',
+                'event_odds-bookmakers': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mocked_event_odds.assert_called_once()
+
+    @patch.dict('os.environ', {'THE_ODDS_API_KEY': 'test-key'})
+    @patch('dashboard.views.OddsApiClient.event_odds')
+    def test_event_odds_filters_region_results_by_user_regulated_aliases(self, mocked_event_odds):
+        mocked_event_odds.return_value = {
+            'id': 'event-aliases',
+            'home_team': 'Bahia',
+            'away_team': 'Coritiba',
+            'sport_title': 'Brasileirao',
+            'bookmakers': [
+                {
+                    'key': 'bet365',
+                    'title': 'Bet365',
+                    'markets': [{'key': 'h2h', 'outcomes': [{'name': 'Bahia', 'price': 1.5}]}],
+                },
+                {
+                    'key': 'unknown_book',
+                    'title': 'Unknown Book',
+                    'markets': [{'key': 'h2h', 'outcomes': [{'name': 'Bahia', 'price': 1.7}]}],
+                },
+                {
+                    'key': 'betano',
+                    'title': 'Betano',
+                    'markets': [{'key': 'h2h', 'outcomes': [{'name': 'Bahia', 'price': 1.6}]}],
+                },
+            ],
+        }
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        bet365 = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Bet365 Brasil',
+            brand='Bet365',
+            domain='bet365.bet.br',
+        )
+        betano = RegulatedBookmaker.objects.create(
+            owner=user,
+            company_name='Betano Brasil',
+            brand='Betano',
+            domain='betano.bet.br',
+        )
+        BookmakerAlias.objects.create(
+            bookmaker=bet365,
+            provider='the_odds_api',
+            alias='Bet365',
+            provider_key='bet365',
+        )
+        BookmakerAlias.objects.create(
+            bookmaker=betano,
+            provider='the_odds_api',
+            alias='Betano',
+            provider_key='betano',
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(
+            reverse('dashboard:event_odds'),
+            {
+                'event_id': 'event-aliases',
+                'sport_key': 'soccer_brazil_campeonato',
+                'event_odds-sport': 'soccer_brazil_campeonato',
+                'event_odds-regions': 'eu',
+                'event_odds-bookmakers': '',
+                'event_odds-brazil_regulated_only': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['uses_regulated_aliases'])
+        self.assertEqual(payload['bookmaker_filter'], '')
+        self.assertEqual(payload['regions_used'], 'eu,uk,us,au')
+        self.assertEqual([bookmaker['title'] for bookmaker in payload['bookmakers']], ['Bet365', 'Betano'])
+        mocked_event_odds.assert_called_once()
+        self.assertEqual(mocked_event_odds.call_args.kwargs['bookmakers'], '')
+        self.assertEqual(mocked_event_odds.call_args.kwargs['regions'], 'eu,uk,us,au')
+
+    @patch.dict('os.environ', {'THE_ODDS_API_KEY': 'test-key'})
+    @patch('dashboard.views.OddsApiClient.event_odds')
+    def test_event_odds_expands_results_when_only_one_priority_book_is_available(self, mocked_event_odds):
+        mocked_event_odds.return_value = {
+            'id': 'event-priority',
+            'home_team': 'Bahia',
+            'away_team': 'Botafogo',
+            'sport_title': 'Brasileirao',
+            'bookmakers': [
+                {
+                    'key': 'betclic',
+                    'title': 'Betclic',
+                    'markets': [{'key': 'h2h', 'outcomes': [{'name': 'Bahia', 'price': 1.8}]}],
+                },
+                {
+                    'key': 'betano',
+                    'title': 'Betano',
+                    'markets': [{'key': 'h2h', 'outcomes': [{'name': 'Bahia', 'price': 1.7}]}],
+                },
+            ],
+        }
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(
+            reverse('dashboard:event_odds'),
+            {
+                'event_id': 'event-priority',
+                'sport_key': 'soccer_brazil_campeonato',
+                'event_odds-sport': 'soccer_brazil_campeonato',
+                'event_odds-regions': 'eu',
+                'event_odds-bookmakers': '',
+                'event_odds-brazil_regulated_only': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([bookmaker['title'] for bookmaker in payload['bookmakers']], ['Betclic', 'Betano'])
+        self.assertTrue(payload['filter_note'])

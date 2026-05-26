@@ -1549,6 +1549,75 @@
           <article class="panel">
             <div class="panel-header">
               <div>
+                <p class="eyebrow">Jogo</p>
+                <h2>Odds por casa</h2>
+              </div>
+              <span class="dev-badge">Pré-live</span>
+            </div>
+
+            <form
+              class="bet-form event-odds-form"
+              data-event-odds-form
+              data-odds-url="{% url 'dashboard:event_odds' %}"
+              novalidate
+            >
+              <div class="form-row">
+                <label>
+                  <span>Campeonato</span>
+                  {{ event_odds_form.sport }}
+                  {{ event_odds_form.sport.errors }}
+                </label>
+                <label>
+                  <span>Casas por região</span>
+                  {{ event_odds_form.regions }}
+                  {{ event_odds_form.regions.errors }}
+                </label>
+              </div>
+
+              <label>
+                <span>Jogo</span>
+                <input
+                  type="text"
+                  name="event_game"
+                  placeholder="Ex: Bahia x Coritiba"
+                  autocomplete="off"
+                  data-event-game-input
+                />
+                <input type="hidden" name="event_id" data-event-id-input />
+                <input type="hidden" name="sport_key" data-event-sport-key-input />
+                <input type="hidden" name="home_team" data-event-home-team-input />
+                <input type="hidden" name="away_team" data-event-away-team-input />
+                <div
+                  class="event-autocomplete"
+                  data-event-autocomplete
+                  data-url="{% url 'dashboard:event_autocomplete' %}"
+                  hidden
+                ></div>
+              </label>
+
+              <label>
+                <span>Filtrar casas específicas</span>
+                {{ event_odds_form.bookmakers }}
+                {{ event_odds_form.bookmakers.errors }}
+                <small class="field-hint">Opcional. Use os nomes da API separados por vírgula.</small>
+              </label>
+
+              <label class="checkbox-field">
+                {{ event_odds_form.brazil_regulated_only }}
+                <span>Apenas casas regulamentadas no Brasil</span>
+              </label>
+
+              <button class="primary-button" type="submit">Carregar odds do jogo</button>
+            </form>
+
+            <div class="event-odds-board" data-event-odds-board>
+              <div class="empty-state">Selecione um jogo para ver as odds por casa.</div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
                 <p class="eyebrow">API</p>
                 <h2>Buscar oportunidades</h2>
               </div>

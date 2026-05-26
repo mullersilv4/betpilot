@@ -43,6 +43,7 @@ urlpatterns = [
         name='password_reset_complete',
     ),
     path('api/jogos/', views.event_autocomplete, name='event_autocomplete'),
+    path('api/jogo-odds/', views.event_odds, name='event_odds'),
     path('', views.index, name='index'),
     path('entidades/<int:pk>/excluir/', views.delete_entity, name='delete_entity'),
     path('apostas/<int:pk>/editar/', views.edit_bet, name='edit_bet'),

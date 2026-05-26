@@ -463,6 +463,35 @@ class OddsSearchForm(forms.Form):
     )
 
 
+class EventOddsForm(forms.Form):
+    sport = forms.ChoiceField(
+        label='campeonato',
+        choices=OddsSearchForm.SPORT_CHOICES,
+        initial='soccer_brazil_campeonato',
+        widget=forms.Select(attrs={'data-event-sport-input': ''}),
+    )
+    regions = forms.ChoiceField(
+        label='casas por região',
+        choices=OddsSearchForm.REGION_CHOICES,
+        initial='eu',
+    )
+    bookmakers = forms.CharField(
+        label='casas',
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                'placeholder': 'Opcional: bet365,betano,superbet',
+                'autocomplete': 'off',
+            }
+        ),
+    )
+    brazil_regulated_only = forms.BooleanField(
+        label='apenas casas regulamentadas no Brasil',
+        required=False,
+        initial=True,
+    )
+
+
 class RegulatedBookmakerForm(forms.ModelForm):
     class Meta:
         model = RegulatedBookmaker

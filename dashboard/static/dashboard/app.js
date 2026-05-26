@@ -359,7 +359,7 @@ function setEventAutocompleteState(container, html) {
 function setupSingleEventAutocomplete(container) {
   const form = container.closest("form") || document;
   const gameInput = form.querySelector("[data-event-game-input]") || document.querySelector("#id_game");
-  const sportInput = form.querySelector("[name='surebet_sport']") || document.querySelector("#id_sport");
+  const sportInput = form.querySelector("[data-event-sport-input]") || form.querySelector("[name='surebet_sport']") || document.querySelector("#id_sport");
   const competitionInput = form.querySelector("[name='surebet_competition']") || document.querySelector("#id_competition");
   const eventDateInput = form.querySelector("[data-event-date-input]") || document.querySelector("#id_event_date");
   const eventIdInput = form.querySelector("[data-event-id-input]") || document.querySelector("#id_external_event_id");
@@ -429,7 +429,13 @@ function setupSingleEventAutocomplete(container) {
     const option = event.target.closest(".event-option");
     if (!option) return;
     gameInput.value = option.dataset.game || "";
-    if (sportInput && option.dataset.sport) sportInput.value = option.dataset.sport;
+    if (sportInput) {
+      const isSportSelect = sportInput.matches("select");
+      const nextSport = isSportSelect
+        ? option.dataset.sportKey || sportInput.value
+        : option.dataset.sport || "";
+      if (nextSport) sportInput.value = nextSport;
+    }
     if (competitionInput && option.dataset.competition) {
       competitionInput.value = option.dataset.competition;
     }
@@ -441,6 +447,11 @@ function setupSingleEventAutocomplete(container) {
     if (homeTeamInput) homeTeamInput.value = option.dataset.homeTeam || "";
     if (awayTeamInput) awayTeamInput.value = option.dataset.awayTeam || "";
     container.hidden = true;
+  });
+
+  sportInput?.addEventListener("change", () => {
+    if (sportKeyInput) sportKeyInput.value = "";
+    if (eventIdInput) eventIdInput.value = "";
   });
 
   document.addEventListener("click", (event) => {
@@ -455,6 +466,133 @@ function setupEventAutocomplete() {
   if (legacyContainer) setupSingleEventAutocomplete(legacyContainer);
   document.querySelectorAll("[data-event-autocomplete]").forEach((container) => {
     setupSingleEventAutocomplete(container);
+  });
+}
+
+function formatOdd(value) {
+  return Number(value).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function readPreviousEventOdds(eventId) {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(`event-odds:${eventId}`) || "{}");
+  } catch (_error) {
+    return {};
+  }
+}
+
+function writePreviousEventOdds(eventId, payload) {
+  try {
+    window.sessionStorage.setItem(`event-odds:${eventId}`, JSON.stringify(payload));
+  } catch (_error) {
+    // Session storage can be unavailable in private browsing modes.
+  }
+}
+
+function renderEventOddsBoard(board, payload, eventId) {
+  if (!board) return;
+  const outcomeNames = payload.outcome_names || [];
+  const bookmakers = payload.bookmakers || [];
+
+  if (!bookmakers.length || !outcomeNames.length) {
+    board.innerHTML = '<div class="empty-state">Nenhuma odd disponível para esse jogo com os filtros atuais.</div>';
+    return;
+  }
+
+  const previous = readPreviousEventOdds(eventId);
+  const nextSnapshot = {};
+  const rows = bookmakers.map((bookmaker) => {
+    const bookmakerKey = bookmaker.key || bookmaker.title;
+    const odds = outcomeNames.map((outcomeName) => {
+      const price = bookmaker.outcomes[outcomeName];
+      if (!price) {
+        return '<span class="event-odd is-empty">-</span>';
+      }
+
+      const snapshotKey = `${bookmakerKey}:${outcomeName}`;
+      const oldPrice = previous[snapshotKey];
+      nextSnapshot[snapshotKey] = price;
+      const trend =
+        oldPrice && price > oldPrice ? "is-up" : oldPrice && price < oldPrice ? "is-down" : "";
+      const arrow = trend === "is-up" ? "↑" : trend === "is-down" ? "↓" : "";
+
+      return `
+        <button class="event-odd ${trend}" type="button" data-odd="${escapeHtml(price)}" title="Usar odd ${escapeHtml(formatOdd(price))}">
+          <span>${arrow}</span>
+          <strong>${escapeHtml(formatOdd(price))}</strong>
+        </button>
+      `;
+    }).join("");
+
+    return `
+      <div class="event-odds-row">
+        <div class="bookmaker-pill">${escapeHtml(bookmaker.title || bookmaker.key || "Casa")}</div>
+        <span class="live-badge">Pré</span>
+        <div class="event-odds-values">${odds}</div>
+      </div>
+    `;
+  }).join("");
+
+  board.innerHTML = `
+    <div class="event-odds-header">
+      <div>
+        <strong>${escapeHtml(payload.event || "Jogo selecionado")}</strong>
+        <span>${escapeHtml(payload.sport || "")}${payload.used_cache ? " | cache" : ""}</span>
+      </div>
+      <div class="event-outcome-labels">
+        ${outcomeNames.map((name) => `<span>${escapeHtml(name)}</span>`).join("")}
+      </div>
+    </div>
+    ${payload.filter_note ? `<div class="event-odds-note">${escapeHtml(payload.filter_note)}</div>` : ""}
+    <div class="event-odds-list">${rows}</div>
+  `;
+  writePreviousEventOdds(eventId, nextSnapshot);
+}
+
+function setupEventOddsLookup() {
+  const form = document.querySelector("[data-event-odds-form]");
+  const board = document.querySelector("[data-event-odds-board]");
+  if (!form || !board) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const eventIdInput = form.querySelector("[name='event_id']");
+    const sportKeyInput = form.querySelector("[name='sport_key']");
+    const sportInput = form.querySelector("[data-event-sport-input]");
+    const eventId = eventIdInput?.value || "";
+    if (!eventId) {
+      board.innerHTML = '<div class="empty-state">Escolha um jogo da lista antes de carregar as odds.</div>';
+      return;
+    }
+
+    const params = new URLSearchParams(new FormData(form));
+    if (!sportKeyInput?.value && sportInput?.value) {
+      params.set("sport_key", sportInput.value);
+    }
+
+    board.innerHTML = '<div class="empty-state">Carregando odds por casa...</div>';
+    try {
+      const response = await fetch(`${form.dataset.oddsUrl}?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        board.innerHTML = `<div class="empty-state">${escapeHtml(payload.error || "Não foi possível carregar as odds.")}</div>`;
+        return;
+      }
+      renderEventOddsBoard(board, payload, eventId);
+    } catch (_error) {
+      board.innerHTML = '<div class="empty-state">Não foi possível carregar as odds agora.</div>';
+    }
+  });
+
+  board.addEventListener("click", (event) => {
+    const oddButton = event.target.closest("[data-odd]");
+    const simpleOddInput = document.querySelector("#id_odds");
+    if (!oddButton || !simpleOddInput) return;
+    simpleOddInput.value = oddButton.dataset.odd;
+    simpleOddInput.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
 
@@ -1035,6 +1173,7 @@ updateFreebetExtractionPreview();
 setupMobileSidebar();
 enhanceResponsiveTables();
 setupEventAutocomplete();
+setupEventOddsLookup();
 activateScreen();
 drawChart();
 drawBarChart();

@@ -4,9 +4,11 @@ from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
 from .models import BookmakerAlias
+from .models import BookmakerEventLink
 from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
+from .models import OddsSnapshot
 from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
@@ -85,6 +87,35 @@ class BookmakerAliasAdmin(admin.ModelAdmin):
     list_display = ('bookmaker', 'provider', 'alias', 'provider_key', 'created_at')
     list_filter = ('provider',)
     search_fields = ('bookmaker__brand', 'alias', 'provider_key')
+
+
+@admin.register(BookmakerEventLink)
+class BookmakerEventLinkAdmin(admin.ModelAdmin):
+    list_display = (
+        'external_event_id',
+        'bookmaker',
+        'home_team',
+        'away_team',
+        'status',
+        'matched_confidence',
+        'last_checked_at',
+    )
+    list_filter = ('bookmaker', 'status')
+    search_fields = ('external_event_id', 'bookmaker', 'home_team', 'away_team', 'event_url')
+
+
+@admin.register(OddsSnapshot)
+class OddsSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        'external_event_id',
+        'bookmaker',
+        'market',
+        'selection',
+        'odd',
+        'captured_at',
+    )
+    list_filter = ('bookmaker', 'market', 'captured_at')
+    search_fields = ('external_event_id', 'bookmaker', 'market', 'selection', 'source_url')
 
 
 @admin.register(PromotionPage)

@@ -875,12 +875,14 @@ textarea {
 }
 
 .surebet-entry-return {
-  flex: 0 0 58px;
+  flex: 0 0 86px;
   min-width: 0;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
   text-align: right;
+  min-height: 30px;
+  padding: 0 6px;
 }
 
 .surebet-entry-note {

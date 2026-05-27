@@ -1,5 +1,6 @@
 from decimal import Decimal
 from decimal import InvalidOperation
+from datetime import timedelta
 import os
 
 from django.contrib import messages
@@ -43,23 +44,30 @@ from .forms import RegulatedImportForm
 from .forms import SignUpForm
 from .forms import TransferForm
 from .models import BookmakerAlias
+from .models import BookmakerEventLink
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
+from .models import OddsSnapshot
 from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
 from .models import SureBetEntry
 from .odds_api import OddsApiClient
 from .odds_api import OddsApiError
+from .odds_api import OddsPapiClient
 from .odds_api import BRAZIL_PRIORITY_BOOKMAKER_TERMS
 from .odds_api import build_event_odds_board
 from .odds_api import build_odds_comparison
 from .odds_api import detect_surebets
 from .odds_api import normalize_bookmaker_text
+from .odds_crawler import DEFAULT_BOOKMAKERS as CRAWLER_DEFAULT_BOOKMAKERS
+from .odds_crawler import capture_event_odds
+from .odds_crawler import latest_event_odds
+from .odds_crawler import normalize_bookmaker_list as normalize_crawler_bookmakers
 from .promotion_scan import scan_user_promotion_pages
 
 
@@ -80,6 +88,34 @@ MONTH_CHOICES = [
 
 ODDS_CACHE_TIMEOUT = 60 * 15
 EVENT_SEARCH_CACHE_TIMEOUT = 60 * 20
+
+ODDSPAPI_SPORT_IDS = {
+    'soccer_epl': 10,
+    'soccer_brazil_campeonato': 10,
+    'soccer_uefa_champs_league': 10,
+    'soccer_spain_la_liga': 10,
+    'soccer_italy_serie_a': 10,
+    'soccer_germany_bundesliga': 10,
+    'soccer_france_ligue_one': 10,
+    'basketball_nba': 11,
+    'americanfootball_nfl': 15,
+}
+
+ODDSPAPI_BRAZIL_BOOKMAKERS = [
+    'sportingbet.bet.br',
+    'stake.bet.br',
+    'betnacional',
+    'betano',
+    'superbet',
+    'estrelabet',
+    'kto',
+    'bet365',
+    'betfair-spb',
+    'bolsadeaposta-spb',
+]
+
+EVENT_SOURCE_THE_ODDS_API = 'the_odds_api'
+EVENT_SOURCE_ODDSPAPI = 'oddspapi'
 
 
 def redirect_to_history():
@@ -407,6 +443,7 @@ def build_surebet_rows(post_data=None):
                 'mode': (post_data.get(f'surebet_mode_{index}') if post_data else '') or 'back',
                 'odd': (post_data.get(f'surebet_odd_{index}') if post_data else '') or '',
                 'stake': (post_data.get(f'surebet_stake_{index}') if post_data else '') or '',
+                'return_amount': (post_data.get(f'surebet_return_{index}') if post_data else '') or '',
                 'commission': (post_data.get(f'surebet_commission_{index}') if post_data else '') or '',
                 'cashback': (post_data.get(f'surebet_cashback_{index}') if post_data else '') or '',
                 'boost': (post_data.get(f'surebet_boost_{index}') if post_data else '') or '',
@@ -458,6 +495,7 @@ def build_surebet_payload(post_data):
         label = (post_data.get(f'surebet_outcome_{index}') or '').strip()
         odd = decimal_from_post(post_data, f'surebet_odd_{index}')
         stake = decimal_from_post(post_data, f'surebet_stake_{index}')
+        return_amount = decimal_from_post(post_data, f'surebet_return_{index}')
         commission = decimal_from_post(post_data, f'surebet_commission_{index}')
         cashback = decimal_from_post(post_data, f'surebet_cashback_{index}')
         boost = decimal_from_post(post_data, f'surebet_boost_{index}')
@@ -472,6 +510,7 @@ def build_surebet_payload(post_data):
             and not label
             and (not odd or odd == 0)
             and (not stake or stake == 0)
+            and (not return_amount or return_amount == 0)
             and (not commission or commission == 0)
             and (not cashback or cashback == 0)
             and (not boost or boost == 0)
@@ -495,7 +534,11 @@ def build_surebet_payload(post_data):
                     * (Decimal('1.00') - commission / Decimal('100'))
                 )
         if index == 1 and odd and odd > 1 and stake and stake > 0:
-            target_return = (stake * payout_multiplier).quantize(Decimal('0.01'))
+            target_return = (
+                return_amount.quantize(Decimal('0.01'))
+                if return_amount and return_amount > 0
+                else (stake * payout_multiplier).quantize(Decimal('0.01'))
+            )
         elif target_return and payout_multiplier and payout_multiplier > 0:
             stake = (target_return / payout_multiplier).quantize(Decimal('0.01'))
         liability = Decimal('0.00')
@@ -508,6 +551,10 @@ def build_surebet_payload(post_data):
                 'mode': mode,
                 'odd': odd,
                 'stake': stake,
+                'return_amount': (
+                    return_amount.quantize(Decimal('0.01'))
+                    if return_amount and return_amount > 0 else None
+                ),
                 'liability': liability,
                 'commission': commission,
                 'cashback': cashback,
@@ -798,6 +845,42 @@ def guess_event_sports(sport_text, competition_text):
     return ['soccer_brazil_campeonato']
 
 
+def get_oddspapi_api_key():
+    return os.environ.get('ODDSPAPI_API_KEY') or os.environ.get('ODDS_PAPI_API_KEY')
+
+
+def oddspapi_sport_id(sport_key):
+    return ODDSPAPI_SPORT_IDS.get(sport_key or '', 10)
+
+
+def oddspapi_fixture_window():
+    now = timezone.now()
+    return (
+        now.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        (now + timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    )
+
+
+def normalize_oddspapi_event(event, sport_key=''):
+    home_team = event.get('participant1Name') or event.get('participant1ShortName') or ''
+    away_team = event.get('participant2Name') or event.get('participant2ShortName') or ''
+    starts_at = parse_datetime(event.get('startTime') or '') if event.get('startTime') else None
+    local_starts_at = timezone.localtime(starts_at) if starts_at else None
+    sport_name = event.get('sportName') or ''
+    fixture_id = event.get('fixtureId')
+    return {
+        'id': f'{EVENT_SOURCE_ODDSPAPI}:{fixture_id}' if fixture_id else '',
+        'game': f'{home_team} x {away_team}'.strip(' x'),
+        'home_team': home_team,
+        'away_team': away_team,
+        'sport_key': sport_key,
+        'competition': event.get('tournamentName') or event.get('tournamentSlug') or '',
+        'sport': 'Futebol' if sport_name.lower() == 'soccer' else sport_name,
+        'event_date': local_starts_at.strftime('%Y-%m-%dT%H:%M') if local_starts_at else '',
+        'display_date': local_starts_at.strftime('%d/%m/%Y %H:%M') if local_starts_at else '',
+    }
+
+
 def normalize_event(event):
     home_team = event.get('home_team') or ''
     away_team = event.get('away_team') or ''
@@ -805,7 +888,7 @@ def normalize_event(event):
     starts_at = parse_datetime(commence_time) if commence_time else None
     local_starts_at = timezone.localtime(starts_at) if starts_at else None
     return {
-        'id': event.get('id'),
+        'id': f'{EVENT_SOURCE_THE_ODDS_API}:{event.get("id")}' if event.get('id') else '',
         'game': f'{home_team} x {away_team}'.strip(' x'),
         'home_team': home_team,
         'away_team': away_team,
@@ -817,54 +900,337 @@ def normalize_event(event):
     }
 
 
+def crawler_bookmakers_for_request(cleaned_data):
+    manual_bookmakers = (cleaned_data.get('bookmakers') or '').strip()
+    if manual_bookmakers:
+        return normalize_crawler_bookmakers(manual_bookmakers)
+    if cleaned_data.get('brazil_regulated_only'):
+        return CRAWLER_DEFAULT_BOOKMAKERS
+    return CRAWLER_DEFAULT_BOOKMAKERS
+
+
+def build_crawler_event_payload(external_event_id, home_team, away_team, start_time, bookmakers):
+    return {
+        'external_event_id': external_event_id,
+        'home_team': home_team,
+        'away_team': away_team,
+        'start_time': start_time,
+        'bookmakers': bookmakers,
+    }
+
+
+def build_crawler_event_odds_board(event, snapshots, used_cache=False):
+    outcome_names = [
+        event['home_team'] or 'Mandante',
+        'Empate',
+        event['away_team'] or 'Visitante',
+    ]
+    bookmaker_rows = {}
+    for snapshot in snapshots:
+        row = bookmaker_rows.setdefault(
+            snapshot.bookmaker,
+            {
+                'key': snapshot.bookmaker,
+                'title': snapshot.bookmaker,
+                'last_update': snapshot.captured_at.isoformat(),
+                'outcomes': {},
+            },
+        )
+        row['outcomes'][snapshot.selection] = float(snapshot.odd)
+
+    return {
+        'event': f'{event["home_team"]} x {event["away_team"]}'.strip(' x'),
+        'sport': 'Crawler de casas brasileiras',
+        'commence_time': event.get('start_time') or '',
+        'outcome_names': outcome_names,
+        'bookmakers': list(bookmaker_rows.values()),
+        'filter_note': (
+            ''
+            if bookmaker_rows
+            else 'Nenhuma odd capturada ainda. Os adapters das casas precisam encontrar o evento público primeiro.'
+        ),
+        'provider': 'crawler',
+        'used_cache': used_cache,
+    }
+
+
+def build_standard_events_from_snapshots(snapshots):
+    events = []
+    snapshots_by_event = {}
+    for snapshot in snapshots:
+        snapshots_by_event.setdefault(snapshot.external_event_id, []).append(snapshot)
+
+    for external_event_id, event_snapshots in snapshots_by_event.items():
+        link = (
+            BookmakerEventLink.objects.filter(external_event_id=external_event_id)
+            .order_by('-last_checked_at')
+            .first()
+        )
+        home_team = link.home_team if link else ''
+        away_team = link.away_team if link else ''
+        bookmakers = {}
+        for snapshot in event_snapshots:
+            bookmaker = bookmakers.setdefault(
+                snapshot.bookmaker,
+                {
+                    'key': snapshot.bookmaker,
+                    'title': snapshot.bookmaker,
+                    'last_update': snapshot.captured_at.isoformat(),
+                    'markets': [
+                        {
+                            'key': 'h2h',
+                            'outcomes': [],
+                        }
+                    ],
+                },
+            )
+            bookmaker['markets'][0]['outcomes'].append(
+                {
+                    'name': snapshot.selection,
+                    'price': float(snapshot.odd),
+                }
+            )
+        events.append(
+            {
+                'id': external_event_id,
+                'home_team': home_team,
+                'away_team': away_team,
+                'sport_title': 'Crawler',
+                'commence_time': '',
+                'bookmakers': list(bookmakers.values()),
+            }
+        )
+    return events
+
+
+def oddspapi_bookmaker_terms_for_request(cleaned_data):
+    manual_bookmakers = (cleaned_data.get('bookmakers') or '').strip()
+    if manual_bookmakers:
+        return manual_bookmakers, []
+    if cleaned_data.get('brazil_regulated_only'):
+        return ','.join(ODDSPAPI_BRAZIL_BOOKMAKERS), [
+            normalize_bookmaker_text(bookmaker)
+            for bookmaker in ODDSPAPI_BRAZIL_BOOKMAKERS
+        ]
+    return '', []
+
+
+def parse_oddspapi_restricted_bookmakers(error):
+    message = str(error)
+    marker = 'Restricted bookmakers:'
+    if marker not in message:
+        return []
+    restricted_text = message.split(marker, 1)[1].split('.', 1)[0]
+    return [
+        bookmaker.strip()
+        for bookmaker in restricted_text.split(',')
+        if bookmaker.strip()
+    ]
+
+
+def without_restricted_bookmakers(bookmakers, restricted_bookmakers):
+    restricted_terms = {normalize_bookmaker_text(bookmaker) for bookmaker in restricted_bookmakers}
+    allowed = [
+        bookmaker.strip()
+        for bookmaker in (bookmakers or '').split(',')
+        if bookmaker.strip() and normalize_bookmaker_text(bookmaker) not in restricted_terms
+    ]
+    return ','.join(allowed)
+
+
+def oddspapi_outcome_label(raw_value, event):
+    normalized = normalize_bookmaker_text(raw_value)
+    home_team = event.get('participant1Name') or event.get('participant1ShortName') or 'Casa'
+    away_team = event.get('participant2Name') or event.get('participant2ShortName') or 'Visitante'
+    if normalized in {'home', 'team1', 'participant1', '1'} or normalized.endswith('_home'):
+        return home_team
+    if normalized in {'away', 'team2', 'participant2', '2'} or normalized.endswith('_away'):
+        return away_team
+    if normalized in {'draw', 'x', 'tie'} or normalized.endswith('_draw'):
+        return 'Empate'
+    return raw_value or ''
+
+
+def oddspapi_collect_h2h_outcomes(bookmaker_payload, event):
+    outcomes = {}
+    h2h_labels = {
+        event.get('participant1Name') or event.get('participant1ShortName') or 'Casa',
+        'Empate',
+        event.get('participant2Name') or event.get('participant2ShortName') or 'Visitante',
+    }
+
+    for market in bookmaker_payload.get('markets', {}).values():
+        market_outcomes = {}
+        for outcome_key, outcome in market.get('outcomes', {}).items():
+            for player in outcome.get('players', {}).values():
+                price = player.get('price')
+                if price is None or player.get('active') is False:
+                    continue
+                raw_label = (
+                    player.get('bookmakerOutcomeId')
+                    or outcome.get('name')
+                    or outcome.get('outcomeName')
+                    or outcome_key
+                )
+                label = oddspapi_outcome_label(str(raw_label), event)
+                if label not in h2h_labels:
+                    continue
+                market_outcomes[label] = float(price)
+                break
+        if len(market_outcomes) >= 2:
+            outcomes.update(market_outcomes)
+            if len(outcomes) >= 3:
+                break
+    return outcomes
+
+
+def build_oddspapi_event_odds_board(event, allowed_bookmaker_terms=None):
+    allowed_bookmaker_terms = [
+        normalize_bookmaker_text(term)
+        for term in (allowed_bookmaker_terms or [])
+        if normalize_bookmaker_text(term)
+    ]
+    home_team = event.get('participant1Name') or event.get('participant1ShortName') or 'Casa'
+    away_team = event.get('participant2Name') or event.get('participant2ShortName') or 'Visitante'
+    outcome_names = [home_team, 'Empate', away_team]
+    bookmakers = []
+
+    for slug, bookmaker_payload in sorted((event.get('bookmakerOdds') or {}).items()):
+        normalized_slug = normalize_bookmaker_text(slug)
+        if allowed_bookmaker_terms and normalized_slug not in allowed_bookmaker_terms:
+            continue
+        outcomes = oddspapi_collect_h2h_outcomes(bookmaker_payload, event)
+        if not outcomes:
+            continue
+        bookmakers.append(
+            {
+                'key': slug,
+                'title': slug,
+                'last_update': event.get('updatedAt') or '',
+                'outcomes': outcomes,
+            }
+        )
+
+    starts_at = parse_datetime(event.get('startTime') or '') if event.get('startTime') else None
+    return {
+        'event': f'{home_team} x {away_team}'.strip(' x'),
+        'sport': event.get('tournamentName') or event.get('sportName') or '',
+        'commence_time': event.get('startTime') or '',
+        'outcome_names': outcome_names,
+        'bookmakers': bookmakers,
+        'filter_note': '',
+        'provider': 'oddspapi',
+        'display_date': timezone.localtime(starts_at).strftime('%d/%m/%Y %H:%M') if starts_at else '',
+    }
+
+
+def oddspapi_event_to_standard_event(event, allowed_bookmaker_terms=None):
+    board = build_oddspapi_event_odds_board(
+        event,
+        allowed_bookmaker_terms=allowed_bookmaker_terms,
+    )
+    bookmakers = []
+    for bookmaker in board['bookmakers']:
+        outcomes = [
+            {
+                'name': outcome_name,
+                'price': price,
+            }
+            for outcome_name, price in bookmaker['outcomes'].items()
+        ]
+        bookmakers.append(
+            {
+                'key': bookmaker['key'],
+                'title': bookmaker['title'],
+                'last_update': bookmaker['last_update'],
+                'markets': [
+                    {
+                        'key': 'h2h',
+                        'outcomes': outcomes,
+                    }
+                ],
+            }
+        )
+    return {
+        'id': event.get('fixtureId'),
+        'home_team': event.get('participant1Name') or event.get('participant1ShortName') or '',
+        'away_team': event.get('participant2Name') or event.get('participant2ShortName') or '',
+        'sport_key': str(event.get('sportId') or ''),
+        'sport_title': event.get('tournamentName') or event.get('sportName') or '',
+        'commence_time': event.get('startTime') or '',
+        'bookmakers': bookmakers,
+    }
+
+
 def user_bets(user):
     return Bet.objects.filter(Q(bankroll__owner=user) | Q(entity__owner=user)).distinct()
 
 
 @login_required
 def event_autocomplete(request):
-    api_key = os.environ.get('THE_ODDS_API_KEY')
+    odds_api_key = os.environ.get('THE_ODDS_API_KEY')
+    oddspapi_key = get_oddspapi_api_key()
     query = (request.GET.get('q') or '').strip().lower()
     sport_text = request.GET.get('sport') or ''
     competition_text = request.GET.get('competition') or ''
 
-    if not api_key:
-        return JsonResponse({'results': [], 'error': 'API key não configurada.'}, status=503)
+    if not odds_api_key and not oddspapi_key:
+        return JsonResponse(
+            {'results': [], 'error': 'Configure THE_ODDS_API_KEY ou ODDSPAPI_API_KEY.'},
+            status=503,
+        )
 
     sport_keys = guess_event_sports(sport_text, competition_text)
-    client = OddsApiClient(api_key)
     events = []
+    from_time, to_time = oddspapi_fixture_window()
 
-    for sport_key in sport_keys:
-        cache_key = f'events:{sport_key}'
-        sport_events = cache.get(cache_key)
-        if sport_events is None:
-            try:
-                sport_events = client.events(sport_key)
-            except OddsApiError:
-                sport_events = []
-            cache.set(cache_key, sport_events, EVENT_SEARCH_CACHE_TIMEOUT)
-        events.extend({**event, 'sport_key': sport_key} for event in sport_events)
+    if oddspapi_key:
+        client = OddsPapiClient(oddspapi_key)
+        for sport_key in sport_keys:
+            sport_id = oddspapi_sport_id(sport_key)
+            cache_key = f'oddspapi:fixtures:{sport_id}:{from_time}:{to_time}'
+            sport_events = cache.get(cache_key)
+            if sport_events is None:
+                try:
+                    sport_events = client.fixtures(
+                        sport_id=sport_id,
+                        from_time=from_time,
+                        to_time=to_time,
+                        status_id=0,
+                        has_odds=True,
+                    )
+                except OddsApiError:
+                    sport_events = []
+                cache.set(cache_key, sport_events, EVENT_SEARCH_CACHE_TIMEOUT)
+            events.extend(normalize_oddspapi_event(event, sport_key=sport_key) for event in sport_events)
 
-    normalized = [normalize_event(event) for event in events]
+    if odds_api_key:
+        client = OddsApiClient(odds_api_key)
+        for sport_key in sport_keys:
+            cache_key = f'the_odds_api:events:{sport_key}'
+            sport_events = cache.get(cache_key)
+            if sport_events is None:
+                try:
+                    sport_events = client.events(sport_key)
+                except OddsApiError:
+                    sport_events = []
+                cache.set(cache_key, sport_events, EVENT_SEARCH_CACHE_TIMEOUT)
+            events.extend({**normalize_event(event), 'sport_key': sport_key} for event in sport_events)
+
     if query:
-        normalized = [
+        events = [
             event
-            for event in normalized
+            for event in events
             if query in event['game'].lower() or query in event['competition'].lower()
         ]
 
-    normalized = [event for event in normalized if event['game']]
-    normalized.sort(key=lambda item: item['event_date'] or '9999')
-    return JsonResponse({'results': normalized[:12]})
+    events = [event for event in events if event['game']]
+    events.sort(key=lambda item: item['event_date'] or '9999')
+    return JsonResponse({'results': events[:12]})
 
 
 @login_required
 def event_odds(request):
-    api_key = os.environ.get('THE_ODDS_API_KEY')
-    if not api_key:
-        return JsonResponse({'error': 'API key não configurada.'}, status=503)
-
     form_data = request.GET.copy()
     sport_key = (form_data.get('sport_key') or '').strip()
     if sport_key and sport_key in dict(EventOddsForm.base_fields['sport'].choices):
@@ -879,43 +1245,36 @@ def event_odds(request):
     if not event_id or not sport_key:
         return JsonResponse({'error': 'Selecione um jogo antes de buscar odds.'}, status=400)
 
-    client = OddsApiClient(api_key)
-    request_bookmakers, uses_regulated_aliases, allowed_bookmaker_terms = odds_bookmakers_for_request(
-        request.user,
-        form.cleaned_data,
-    )
-    request_regions = 'eu,uk,us,au' if uses_regulated_aliases else form.cleaned_data['regions']
-    cache_key = (
-        'event_odds:h2h:'
-        f'{sport_key}:{event_id}:{request_regions}:'
-        f'{request_bookmakers}:{form.cleaned_data["brazil_regulated_only"]}'
-    )
-    odds_payload = cache.get(cache_key)
-    used_cache = odds_payload is not None
-    if odds_payload is None:
-        try:
-            odds_payload = client.event_odds(
-                sport_key=sport_key,
-                event_id=event_id,
-                regions=request_regions,
-                markets='h2h',
-                bookmakers=request_bookmakers,
-            )
-        except OddsApiError as error:
-            return JsonResponse({'error': str(error)}, status=502)
-        cache.set(cache_key, odds_payload, ODDS_CACHE_TIMEOUT)
+    bookmakers = crawler_bookmakers_for_request(form.cleaned_data)
+    home_team = (request.GET.get('home_team') or '').strip()
+    away_team = (request.GET.get('away_team') or '').strip()
+    start_time = (request.GET.get('event_date') or '').strip()
+    if not home_team or not away_team:
+        return JsonResponse({'error': 'Selecione um jogo da lista antes de buscar odds.'}, status=400)
 
-    board = build_event_odds_board(
-        odds_payload,
-        brazil_regulated_only=(
-            form.cleaned_data['brazil_regulated_only'] and not uses_regulated_aliases
-        ),
-        allowed_bookmaker_terms=allowed_bookmaker_terms,
+    event = build_crawler_event_payload(
+        external_event_id=event_id,
+        home_team=home_team,
+        away_team=away_team,
+        start_time=start_time,
+        bookmakers=bookmakers,
     )
-    board['used_cache'] = used_cache
-    board['bookmaker_filter'] = request_bookmakers
-    board['regions_used'] = request_regions
-    board['uses_regulated_aliases'] = uses_regulated_aliases
+    cache_key = (
+        'crawler:event_odds:resultado_final:'
+        f'{event_id}:{",".join(bookmakers)}'
+    )
+    snapshot_ids = cache.get(cache_key)
+    used_cache = snapshot_ids is not None
+    snapshots = latest_event_odds(event_id)
+    if not snapshots.exists() and snapshot_ids is None:
+        capture_event_odds(event, bookmakers=bookmakers, markets=['Resultado Final'])
+        snapshots = latest_event_odds(event_id)
+        cache.set(cache_key, list(snapshots.values_list('id', flat=True)), ODDS_CACHE_TIMEOUT)
+
+    board = build_crawler_event_odds_board(event, snapshots, used_cache=used_cache)
+    board['bookmaker_filter'] = ','.join(bookmakers)
+    board['regions_used'] = 'crawler'
+    board['uses_regulated_aliases'] = True
     return JsonResponse(board)
 
 
@@ -1096,96 +1455,42 @@ def index(request):
             odds_opportunities = []
             odds_comparisons = []
             if odds_form.is_valid():
-                api_key = os.environ.get('THE_ODDS_API_KEY')
-                if not api_key:
-                    messages.error(
+                bookmakers = crawler_bookmakers_for_request(odds_form.cleaned_data)
+                captured_since = timezone.now() - timedelta(hours=12)
+                snapshots = OddsSnapshot.objects.filter(
+                    market='Resultado Final',
+                    captured_at__gte=captured_since,
+                )
+                if bookmakers:
+                    snapshots = snapshots.filter(bookmaker__in=bookmakers)
+                events = build_standard_events_from_snapshots(snapshots)
+                if not events:
+                    messages.warning(
                         request,
-                        'Defina THE_ODDS_API_KEY no ambiente para buscar odds.',
+                        'Nenhuma odd capturada pelo crawler nas últimas 12 horas.',
                     )
                 else:
-                    client = OddsApiClient(api_key=api_key)
-                    try:
-                        request_bookmakers, uses_regulated_aliases, allowed_bookmaker_terms = odds_bookmakers_for_request(
-                            request.user,
-                            odds_form.cleaned_data,
+                    odds_opportunities = detect_surebets(
+                        events,
+                        limit=odds_form.cleaned_data['limit'],
+                        brazil_regulated_only=False,
+                    )
+                    odds_comparisons = build_odds_comparison(
+                        events,
+                        limit=odds_form.cleaned_data['limit'],
+                        brazil_regulated_only=False,
+                    )
+                    odds_opportunities = add_suggested_stakes(
+                        odds_opportunities,
+                        odds_form.cleaned_data['stake'],
+                    )
+                    if odds_opportunities:
+                        messages.success(
+                            request,
+                            f'{len(odds_opportunities)} oportunidade(s) encontrada(s).',
                         )
-                        request_regions = 'eu,uk,us,au' if uses_regulated_aliases else odds_form.cleaned_data['regions']
-                        cache_key = (
-                            'odds_api:h2h:'
-                            f'{odds_form.cleaned_data["sport"]}:'
-                            f'{request_regions}:'
-                            f'{request_bookmakers}:'
-                            f'{odds_form.cleaned_data["brazil_regulated_only"]}'
-                        )
-                        events = cache.get(cache_key)
-                        used_cache = events is not None
-                        if events is None:
-                            events = client.odds(
-                                sport_key=odds_form.cleaned_data['sport'],
-                                regions=request_regions,
-                                markets='h2h',
-                                bookmakers=request_bookmakers,
-                            )
-                            cache.set(cache_key, events, ODDS_CACHE_TIMEOUT)
-                        if allowed_bookmaker_terms:
-                            events = [
-                                {
-                                    **event,
-                                    'bookmakers': [
-                                        bookmaker
-                                        for bookmaker in event.get('bookmakers', [])
-                                        if any(
-                                            term
-                                            and (
-                                                term == normalize_bookmaker_text(bookmaker.get('key'))
-                                                or term == normalize_bookmaker_text(bookmaker.get('title'))
-                                                or term in normalize_bookmaker_text(bookmaker.get('title'))
-                                            )
-                                            for term in allowed_bookmaker_terms
-                                        )
-                                    ],
-                                }
-                                for event in events
-                            ]
-                        odds_opportunities = detect_surebets(
-                            events,
-                            limit=odds_form.cleaned_data['limit'],
-                            brazil_regulated_only=(
-                                odds_form.cleaned_data['brazil_regulated_only']
-                                and not uses_regulated_aliases
-                            ),
-                        )
-                        odds_comparisons = build_odds_comparison(
-                            events,
-                            limit=odds_form.cleaned_data['limit'],
-                            brazil_regulated_only=(
-                                odds_form.cleaned_data['brazil_regulated_only']
-                                and not uses_regulated_aliases
-                            ),
-                        )
-                        odds_opportunities = add_suggested_stakes(
-                            odds_opportunities,
-                            odds_form.cleaned_data['stake'],
-                        )
-                    except OddsApiError as error:
-                        messages.error(request, str(error))
                     else:
-                        if odds_opportunities:
-                            messages.success(
-                                request,
-                                (
-                                    f'{len(odds_opportunities)} oportunidade(s) encontrada(s).'
-                                    + (' Resultado vindo do cache.' if used_cache else '')
-                                ),
-                            )
-                        else:
-                            messages.warning(
-                                request,
-                                (
-                                    'Nenhuma surebet encontrada para esses filtros.'
-                                    + (' Resultado vindo do cache.' if used_cache else '')
-                                ),
-                            )
+                        messages.warning(request, 'Nenhuma surebet encontrada nos snapshots capturados.')
             context = build_dashboard_context(
                 request,
                 odds_form=odds_form,
@@ -1232,6 +1537,8 @@ def index(request):
                     surebet_errors.append(f'A odd de {outcome["label"]} precisa ser maior que 1.00.')
                 if outcome['stake'] is None or outcome['stake'] <= 0:
                     surebet_errors.append(f'O valor de {outcome["label"]} precisa ser maior que zero.')
+                if outcome['return_amount'] is not None and outcome['return_amount'] <= 0:
+                    surebet_errors.append(f'O retorno de {outcome["label"]} precisa ser maior que zero.')
                 for field, label in [
                     ('commission', 'comissão'),
                     ('cashback', 'cashback'),
@@ -1258,7 +1565,9 @@ def index(request):
                     {
                         **outcome,
                         'return': (
-                            outcome['stake'] * outcome['payout_multiplier']
+                            outcome['return_amount']
+                            if outcome['return_amount'] is not None
+                            else outcome['stake'] * outcome['payout_multiplier']
                         ).quantize(Decimal('0.01')),
                     }
                     for outcome in outcomes

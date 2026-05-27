@@ -64,7 +64,7 @@ CSRF_FAILURE_VIEW = 'dashboard.views.csrf_failure'
 # Application definition
 
 INSTALLED_APPS = [
-    'dashboard',
+    'dashboard.apps.DashboardConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

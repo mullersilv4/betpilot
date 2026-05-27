@@ -436,7 +436,7 @@ class OddsSearchForm(forms.Form):
         required=False,
         widget=forms.TextInput(
             attrs={
-                'placeholder': 'Opcional: pinnacle,betfair,1xbet',
+                'placeholder': 'Opcional: betano,superbet,bet365,novibet',
                 'autocomplete': 'off',
             }
         ),
@@ -480,7 +480,7 @@ class EventOddsForm(forms.Form):
         required=False,
         widget=forms.TextInput(
             attrs={
-                'placeholder': 'Opcional: bet365,betano,superbet',
+                'placeholder': 'Opcional: betano,superbet,bet365,novibet',
                 'autocomplete': 'off',
             }
         ),

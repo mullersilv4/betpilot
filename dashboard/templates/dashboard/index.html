@@ -760,7 +760,7 @@
                   <span>Comissão %</span>
                   <span>Cashback %</span>
                   <span>Aumento %</span>
-                  <span>Freebet / Resultado</span>
+                  <span>Freebet / Retorno</span>
                 </div>
                 {% for row in surebet_rows %}
                   <div class="surebet-entry-group{% if row.freebet_enabled == '1' or row.freebet_amount %} has-freebet{% endif %}" data-surebet-group="{{ row.index }}">
@@ -812,7 +812,7 @@
                             </select>
                           </label>
                         </div>
-                        <output class="surebet-entry-return" data-surebet-result="{{ row.index }}">0,00</output>
+                        <input type="number" name="surebet_return_{{ row.index }}" value="{{ row.return_amount }}" class="surebet-entry-return" step="0.01" min="0.01" placeholder="Retorno" data-surebet-result="{{ row.index }}" />
                       </div>
                       <label class="surebet-entry-note">
                         <span class="sr-only">Observação {{ row.index }}</span>
@@ -1549,7 +1549,7 @@
           <article class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Jogo</p>
+                <p class="eyebrow">Agenda + crawler</p>
                 <h2>Odds por casa</h2>
               </div>
               <span class="dev-badge">Pré-live</span>
@@ -1567,11 +1567,7 @@
                   {{ event_odds_form.sport }}
                   {{ event_odds_form.sport.errors }}
                 </label>
-                <label>
-                  <span>Casas por região</span>
-                  {{ event_odds_form.regions }}
-                  {{ event_odds_form.regions.errors }}
-                </label>
+                <input type="hidden" name="{{ event_odds_form.regions.html_name }}" value="eu" />
               </div>
 
               <label>
@@ -1587,6 +1583,7 @@
                 <input type="hidden" name="sport_key" data-event-sport-key-input />
                 <input type="hidden" name="home_team" data-event-home-team-input />
                 <input type="hidden" name="away_team" data-event-away-team-input />
+                <input type="hidden" name="event_date" data-event-date-input />
                 <div
                   class="event-autocomplete"
                   data-event-autocomplete
@@ -1599,7 +1596,7 @@
                 <span>Filtrar casas específicas</span>
                 {{ event_odds_form.bookmakers }}
                 {{ event_odds_form.bookmakers.errors }}
-                <small class="field-hint">Opcional. Use os nomes da API separados por vírgula.</small>
+                <small class="field-hint">Opcional. Use os adapters cadastrados separados por vírgula.</small>
               </label>
 
               <label class="checkbox-field">
@@ -1618,7 +1615,7 @@
           <article class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">API</p>
+                <p class="eyebrow">Snapshots</p>
                 <h2>Buscar oportunidades</h2>
               </div>
               <span class="dev-badge">Em desenvolvimento</span>
@@ -1638,18 +1635,14 @@
                   {{ odds_form.sport }}
                   {{ odds_form.sport.errors }}
                 </label>
-                <label>
-                  <span>Casas por regiao</span>
-                  {{ odds_form.regions }}
-                  {{ odds_form.regions.errors }}
-                </label>
+                <input type="hidden" name="{{ odds_form.regions.html_name }}" value="eu" />
               </div>
 
               <label>
                 <span>Filtrar casas especificas</span>
                 {{ odds_form.bookmakers }}
                 {{ odds_form.bookmakers.errors }}
-                <small class="field-hint">Opcional. Deixe vazio para buscar em todas as casas disponiveis.</small>
+                <small class="field-hint">Opcional. Use adapters como betano, superbet, bet365, novibet.</small>
               </label>
 
               <label class="checkbox-field">

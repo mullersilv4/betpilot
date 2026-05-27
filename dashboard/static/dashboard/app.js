@@ -625,10 +625,15 @@ function updateSurebetPreview() {
   const firstStake = readNumber(document.querySelector('[name="surebet_stake_1"]'));
   const firstCommission = readNumber(document.querySelector('[name="surebet_commission_1"]'));
   const firstBoost = readNumber(document.querySelector('[name="surebet_boost_1"]'));
+  const firstReturnInput = document.querySelector('[name="surebet_return_1"]');
+  const firstManualReturn = firstReturnInput?.dataset.manualReturn === "true"
+    ? readNumber(firstReturnInput)
+    : 0;
   const firstMode = readSurebetMode(1);
   const firstEffectiveOdd = firstOdd * (1 + firstBoost / 100);
   const firstMultiplier = surebetTargetMultiplier(firstMode, firstEffectiveOdd, firstCommission);
-  const targetReturn = firstMultiplier > 0 && firstStake > 0 ? firstMultiplier * firstStake : 0;
+  const calculatedTargetReturn = firstMultiplier > 0 && firstStake > 0 ? firstMultiplier * firstStake : 0;
+  const targetReturn = firstManualReturn > 0 ? firstManualReturn : calculatedTargetReturn;
   const indices = getSurebetIndices();
 
   indices.filter((index) => index > 1).forEach((index) => {
@@ -649,6 +654,7 @@ function updateSurebetPreview() {
     const bookmakerInput = document.querySelector(`[name="surebet_bookmaker_${index}"]`);
     const oddInput = document.querySelector(`[name="surebet_odd_${index}"]`);
     const stakeInput = document.querySelector(`[name="surebet_stake_${index}"]`);
+    const returnInput = document.querySelector(`[name="surebet_return_${index}"]`);
     const commission = readNumber(document.querySelector(`[name="surebet_commission_${index}"]`));
     const cashback = readNumber(document.querySelector(`[name="surebet_cashback_${index}"]`));
     const boost = readNumber(document.querySelector(`[name="surebet_boost_${index}"]`));
@@ -658,6 +664,14 @@ function updateSurebetPreview() {
     const multiplier = surebetTargetMultiplier(mode, effectiveOdd, commission);
     const stake = readNumber(stakeInput);
     const liability = mode === "lay" && effectiveOdd > 1 ? stake * (effectiveOdd - 1) : 0;
+    const calculatedReturn = multiplier > 0 && stake > 0 ? stake * multiplier : 0;
+    if (
+      returnInput &&
+      returnInput.dataset.manualReturn !== "true" &&
+      document.activeElement !== returnInput
+    ) {
+      returnInput.value = calculatedReturn > 0 ? calculatedReturn.toFixed(2) : "";
+    }
     return {
       index,
       bookmaker: bookmakerInput?.value?.trim() || "-",
@@ -671,17 +685,13 @@ function updateSurebetPreview() {
       multiplier,
       stake,
       liability,
+      returnAmount: readNumber(returnInput) || calculatedReturn,
     };
   }).filter((row) => row.multiplier > 0 && row.stake > 0);
 
   const totalStake = rows.reduce((sum, row) => sum + surebetExposure(row), 0);
   const impliedTotal = rows.reduce((sum, row) => sum + 1 / row.multiplier, 0);
-  const scenarios = rows.map((row) => ({
-    ...row,
-    returnAmount: row.mode === "lay"
-      ? row.stake * (1 - row.commission / 100)
-      : row.stake * row.multiplier,
-  })).map((row, _index, allRows) => {
+  const scenarios = rows.map((row, _index, allRows) => {
     const cashbackReturn = allRows
       .filter((candidate) => candidate !== row && candidate.mode === "back")
       .reduce((sum, candidate) => sum + candidate.stake * (candidate.cashback / 100), 0);
@@ -708,16 +718,11 @@ function updateSurebetPreview() {
   const worst = scenarios.length ? Math.min(...scenarios.map((row) => row.net)) : 0;
   const margin = impliedTotal > 0 ? (1 / impliedTotal - 1) * 100 : 0;
 
-  document.querySelectorAll("[data-surebet-result]").forEach((output) => {
-    output.textContent = formatPlainAmount(0);
-    output.classList.remove("positive", "negative");
-  });
   scenarios.forEach((row) => {
-    const output = document.querySelector(`[data-surebet-result="${row.index}"]`);
-    if (output) {
-      output.textContent = formatPlainAmount(row.net);
-      output.classList.toggle("positive", row.net >= 0);
-      output.classList.toggle("negative", row.net < 0);
+    const input = document.querySelector(`[data-surebet-result="${row.index}"]`);
+    if (input) {
+      input.classList.toggle("positive", row.net >= 0);
+      input.classList.toggle("negative", row.net < 0);
     }
   });
 
@@ -822,7 +827,7 @@ function createSurebetEntry(index) {
             </select>
           </label>
         </div>
-        <output class="surebet-entry-return" data-surebet-result="${index}">0,00</output>
+        <input type="number" name="surebet_return_${index}" class="surebet-entry-return" step="0.01" min="0.01" placeholder="Retorno" data-surebet-result="${index}" />
       </div>
       <label class="surebet-entry-note">
         <span class="sr-only">Observação ${index}</span>
@@ -1097,7 +1102,12 @@ document.querySelectorAll("[data-bet-mode-button]").forEach((button) => {
   button.addEventListener("click", () => setBetMode(button.dataset.betModeButton));
 });
 
-document.querySelector(".surebet-form")?.addEventListener("input", updateSurebetPreview);
+document.querySelector(".surebet-form")?.addEventListener("input", (event) => {
+  if (event.target.classList.contains("surebet-entry-return")) {
+    event.target.dataset.manualReturn = event.target.value ? "true" : "false";
+  }
+  updateSurebetPreview();
+});
 document.querySelector(".surebet-form")?.addEventListener("change", updateSurebetPreview);
 document.querySelector(".surebet-form")?.addEventListener("click", (event) => {
   const modeToggle = event.target.closest(".surebet-mode-toggle");

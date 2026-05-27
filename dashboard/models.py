@@ -201,6 +201,66 @@ class BookmakerAlias(models.Model):
         return f'{self.alias} -> {self.bookmaker.brand}'
 
 
+class BookmakerEventLink(models.Model):
+    class Status(models.TextChoices):
+        FOUND = 'found', 'Encontrado'
+        NOT_FOUND = 'not_found', 'Não encontrado'
+        ERROR = 'error', 'Erro'
+        STALE = 'stale', 'Desatualizado'
+
+    external_event_id = models.CharField('id externo do evento', max_length=120)
+    bookmaker = models.CharField('casa', max_length=80)
+    home_team = models.CharField('mandante', max_length=120)
+    away_team = models.CharField('visitante', max_length=120)
+    event_url = models.URLField('URL do evento', max_length=1000, blank=True)
+    matched_confidence = models.DecimalField(
+        'confiança do match',
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+    status = models.CharField(
+        'status',
+        max_length=40,
+        choices=Status.choices,
+        default=Status.NOT_FOUND,
+    )
+    last_error = models.CharField('último erro', max_length=220, blank=True)
+    last_checked_at = models.DateTimeField('última verificação', null=True, blank=True)
+    created_at = models.DateTimeField('criado em', default=timezone.now)
+
+    class Meta:
+        ordering = ['bookmaker', '-last_checked_at']
+        unique_together = ('external_event_id', 'bookmaker')
+        verbose_name = 'link de evento por casa'
+        verbose_name_plural = 'links de eventos por casa'
+
+    def __str__(self):
+        return f'{self.bookmaker} - {self.home_team} x {self.away_team}'
+
+
+class OddsSnapshot(models.Model):
+    external_event_id = models.CharField('id externo do evento', max_length=120)
+    bookmaker = models.CharField('casa', max_length=80)
+    market = models.CharField('mercado', max_length=80)
+    selection = models.CharField('seleção', max_length=120)
+    odd = models.DecimalField('odd', max_digits=8, decimal_places=3)
+    source_url = models.URLField('URL fonte', max_length=1000, blank=True)
+    captured_at = models.DateTimeField('capturada em', default=timezone.now)
+
+    class Meta:
+        ordering = ['-captured_at']
+        indexes = [
+            models.Index(fields=['external_event_id', 'market', '-captured_at']),
+            models.Index(fields=['bookmaker', '-captured_at']),
+        ]
+        verbose_name = 'snapshot de odd'
+        verbose_name_plural = 'snapshots de odds'
+
+    def __str__(self):
+        return f'{self.bookmaker} - {self.market} - {self.selection}: {self.odd}'
+
+
 class PromotionPage(models.Model):
     bookmaker = models.ForeignKey(
         RegulatedBookmaker,

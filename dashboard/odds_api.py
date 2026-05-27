@@ -79,7 +79,13 @@ class OddsApiClient:
         url = f'{self.base_url}{path}'
         if query:
             url = f'{url}?{query}'
-        request = Request(url)
+        request = Request(
+            url,
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'BETPilot/1.0 (+https://localhost)',
+            },
+        )
 
         try:
             with urlopen(request, timeout=self.timeout) as response:
@@ -122,6 +128,104 @@ class OddsApiClient:
         else:
             params['regions'] = regions
         return self._get(f'/sports/{sport_key}/events/{event_id}/odds/', params)
+
+
+@dataclass
+class OddsPapiClient:
+    api_key: str
+    base_url: str = 'https://api.oddspapi.io/v4'
+    timeout: int = 20
+
+    def _get(self, path, params=None):
+        request_params = {'apiKey': self.api_key}
+        request_params.update(params or {})
+        query = urlencode(request_params)
+        url = f'{self.base_url}{path}'
+        if query:
+            url = f'{url}?{query}'
+        request = Request(
+            url,
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'BETPilot/1.0 (+https://localhost)',
+            },
+        )
+
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                payload = response.read().decode('utf-8')
+                return json.loads(payload)
+        except HTTPError as error:
+            body = error.read().decode('utf-8', errors='replace')
+            raise OddsApiError(f'Erro {error.code} da OddsPapi: {body}') from error
+        except OSError as error:
+            raise OddsApiError(f'Falha ao conectar na OddsPapi: {error}') from error
+
+    def sports(self, language='en'):
+        return self._get('/sports', {'language': language})
+
+    def bookmakers(self):
+        return self._get('/bookmakers')
+
+    def tournaments(self, sport_id, language='en'):
+        return self._get('/tournaments', {'sportId': sport_id, 'language': language})
+
+    def fixtures(
+        self,
+        sport_id=None,
+        tournament_id=None,
+        from_time='',
+        to_time='',
+        status_id=0,
+        has_odds=True,
+        bookmakers='',
+        language='en',
+    ):
+        params = {'language': language}
+        if sport_id is not None:
+            params['sportId'] = sport_id
+        if tournament_id is not None:
+            params['tournamentId'] = tournament_id
+        if from_time:
+            params['from'] = from_time
+        if to_time:
+            params['to'] = to_time
+        if status_id is not None:
+            params['statusId'] = status_id
+        if has_odds is not None:
+            params['hasOdds'] = str(bool(has_odds)).lower()
+        if bookmakers:
+            params['bookmakers'] = bookmakers
+        return self._get('/fixtures', params)
+
+    def odds(self, fixture_id, bookmakers='', language='en', verbosity=3, odds_format='decimal'):
+        params = {
+            'fixtureId': fixture_id,
+            'language': language,
+            'verbosity': verbosity,
+            'oddsFormat': odds_format,
+        }
+        if bookmakers:
+            params['bookmakers'] = bookmakers
+        return self._get('/odds', params)
+
+    def odds_by_tournaments(
+        self,
+        tournament_ids,
+        bookmakers='',
+        language='en',
+        verbosity=3,
+        odds_format='decimal',
+    ):
+        params = {
+            'tournamentIds': tournament_ids,
+            'language': language,
+            'verbosity': verbosity,
+            'oddsFormat': odds_format,
+        }
+        if bookmakers:
+            params['bookmakers'] = bookmakers
+        return self._get('/odds-by-tournaments', params)
 
 
 def summarize_odds(events, limit=5):

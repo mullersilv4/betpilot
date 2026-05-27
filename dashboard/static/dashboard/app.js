@@ -616,6 +616,13 @@ function surebetTargetMultiplier(mode, effectiveOdd, commission) {
   return mode === "lay" ? effectiveOdd : surebetBackMultiplier(effectiveOdd, commission);
 }
 
+function surebetGrossReturnMultiplier(mode, effectiveOdd, commission) {
+  if (effectiveOdd <= 1) return 0;
+  return mode === "lay"
+    ? effectiveOdd - commission / 100
+    : surebetBackMultiplier(effectiveOdd, commission);
+}
+
 function surebetExposure(row) {
   return row.mode === "lay" ? row.liability : row.stake;
 }
@@ -633,7 +640,7 @@ function updateSurebetPreview() {
   const firstBoost = readNumber(document.querySelector('[name="surebet_boost_1"]'));
   const firstMode = readSurebetMode(1);
   const firstEffectiveOdd = firstOdd * (1 + firstBoost / 100);
-  const firstMultiplier = surebetTargetMultiplier(firstMode, firstEffectiveOdd, firstCommission);
+  const firstMultiplier = surebetGrossReturnMultiplier(firstMode, firstEffectiveOdd, firstCommission);
   const targetReturn = firstMultiplier > 0 && firstStake > 0 ? firstMultiplier * firstStake : 0;
   const indices = getSurebetIndices();
   const firstResultInput = document.querySelector('[name="surebet_net_1"]');
@@ -651,7 +658,7 @@ function updateSurebetPreview() {
       const commission = readNumber(document.querySelector(`[name="surebet_commission_${index}"]`));
       const boost = readNumber(document.querySelector(`[name="surebet_boost_${index}"]`));
       const effectiveOdd = odd * (1 + boost / 100);
-      const multiplier = surebetTargetMultiplier(readSurebetMode(index), effectiveOdd, commission);
+      const multiplier = surebetGrossReturnMultiplier(readSurebetMode(index), effectiveOdd, commission);
       return { index, multiplier };
     }).filter((row) => row.multiplier > 0);
     const targetOtherExposure = Math.max(targetReturn - firstExposure - firstManualNet, 0);
@@ -672,7 +679,7 @@ function updateSurebetPreview() {
     const boost = readNumber(document.querySelector(`[name="surebet_boost_${index}"]`));
     const mode = readSurebetMode(index);
     const effectiveOdd = odd * (1 + boost / 100);
-    const multiplier = surebetTargetMultiplier(mode, effectiveOdd, commission);
+    const multiplier = surebetGrossReturnMultiplier(mode, effectiveOdd, commission);
     if (
       stakeInput &&
       stakeInput !== activeStakeInput &&
@@ -695,7 +702,7 @@ function updateSurebetPreview() {
     const odd = readNumber(oddInput);
     const mode = readSurebetMode(index);
     const effectiveOdd = odd * (1 + boost / 100);
-    const multiplier = surebetTargetMultiplier(mode, effectiveOdd, commission);
+    const multiplier = surebetGrossReturnMultiplier(mode, effectiveOdd, commission);
     const stake = readNumber(stakeInput);
     const liability = mode === "lay" && effectiveOdd > 1 ? stake * (effectiveOdd - 1) : 0;
     const returnAmount = multiplier > 0 && stake > 0 ? stake * multiplier : 0;
@@ -716,25 +723,27 @@ function updateSurebetPreview() {
     };
   }).filter((row) => row.multiplier > 0 && row.stake > 0);
 
+  document.querySelectorAll("[data-surebet-liability]").forEach((output) => {
+    output.textContent = "";
+    output.closest(".surebet-entry-group")?.classList.remove("has-liability");
+  });
+  rows.forEach((row) => {
+    const output = document.querySelector(`[data-surebet-liability="${row.index}"]`);
+    if (output) {
+      const group = output.closest(".surebet-entry-group");
+      const hasLiability = row.mode === "lay";
+      group?.classList.toggle("has-liability", hasLiability);
+      output.textContent = hasLiability ? formatCurrency(row.liability) : "";
+    }
+  });
+
   const totalStake = rows.reduce((sum, row) => sum + surebetExposure(row), 0);
   const impliedTotal = rows.reduce((sum, row) => sum + 1 / row.multiplier, 0);
   const scenarios = rows.map((row, _index, allRows) => {
     const cashbackReturn = allRows
       .filter((candidate) => candidate !== row && candidate.mode === "back")
       .reduce((sum, candidate) => sum + candidate.stake * (candidate.cashback / 100), 0);
-    const scenarioNet = allRows.reduce((sum, candidate) => {
-      if (candidate === row) {
-        return sum + (
-          candidate.mode === "lay"
-            ? -candidate.liability
-            : candidate.returnAmount - candidate.stake
-        );
-      }
-      if (candidate.mode === "lay") {
-        return sum + candidate.stake * (1 - candidate.commission / 100);
-      }
-      return sum - candidate.stake;
-    }, 0);
+    const scenarioNet = row.returnAmount - totalStake;
     const resultInput = document.querySelector(`[name="surebet_net_${row.index}"]`);
     const net = resultInput === activeResultInput || resultInput?.dataset.manualResult === "true"
       ? readNumber(resultInput)
@@ -831,6 +840,7 @@ function createSurebetEntry(index) {
       <label>
         <span class="sr-only">Valor ${index}</span>
         <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" />
+        <output class="surebet-liability" data-surebet-liability="${index}"></output>
       </label>
       <label>
         <span class="sr-only">Odd ${index}</span>
@@ -967,6 +977,20 @@ function updateFreebetExtractionPreview() {
     };
   }).filter((row) => row.multiplier > 0 && row.stake > 0);
 
+  document.querySelectorAll("[data-freebet-liability]").forEach((output) => {
+    output.textContent = "";
+    output.closest(".surebet-entry-group")?.classList.remove("has-liability");
+  });
+  rows.forEach((row) => {
+    const output = document.querySelector(`[data-freebet-liability="${row.index}"]`);
+    if (output) {
+      const group = output.closest(".surebet-entry-group");
+      const hasLiability = row.mode === "lay" && !row.isFreebetSource;
+      group?.classList.toggle("has-liability", hasLiability);
+      output.textContent = hasLiability ? formatCurrency(row.liability) : "";
+    }
+  });
+
   const cashExposure = rows.reduce((sum, row) => sum + freebetExposure(row), 0);
   const scenarios = rows.map((row) => ({
     ...row,
@@ -1083,6 +1107,7 @@ function createFreebetEntry(index) {
       <label>
         <span class="sr-only">Valor ${index}</span>
         <input type="number" name="freebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly />
+        <output class="surebet-liability" data-freebet-liability="${index}"></output>
       </label>
       <label>
         <span class="sr-only">Odd ${index}</span>

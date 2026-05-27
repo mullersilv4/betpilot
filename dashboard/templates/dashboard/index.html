@@ -778,6 +778,7 @@
                       <label>
                         <span class="sr-only">Valor {{ row.index }}</span>
                         <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" />
+                        <output class="surebet-liability" data-surebet-liability="{{ row.index }}"></output>
                       </label>
                       <label>
                         <span class="sr-only">Odd {{ row.index }}</span>
@@ -999,6 +1000,7 @@
                       <label>
                         <span class="sr-only">Valor {{ row.index }}</span>
                         <input type="number" name="freebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly or row.is_source %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.is_source %}Valor da freebet{% elif row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly or row.is_source %}readonly{% endif %} />
+                        <output class="surebet-liability" data-freebet-liability="{{ row.index }}"></output>
                       </label>
                       <label>
                         <span class="sr-only">Odd {{ row.index }}</span>

@@ -530,7 +530,7 @@ def build_surebet_payload(post_data):
         payout_multiplier = None
         if effective_odd and effective_odd > 1:
             if mode == 'lay':
-                payout_multiplier = effective_odd
+                payout_multiplier = effective_odd - commission / Decimal('100')
             else:
                 payout_multiplier = Decimal('1.00') + (
                     (effective_odd - Decimal('1.00'))
@@ -1596,19 +1596,7 @@ def index(request):
                         ),
                         start=Decimal('0.00'),
                     )
-                    scenario_net = Decimal('0.00')
-                    for entry in outcome_results:
-                        if entry is outcome:
-                            if entry['mode'] == 'lay':
-                                scenario_net -= entry['liability']
-                            else:
-                                scenario_net += entry['return'] - entry['stake']
-                        elif entry['mode'] == 'lay':
-                            scenario_net += entry['stake'] * (
-                                Decimal('1.00') - entry['commission'] / Decimal('100')
-                            )
-                        else:
-                            scenario_net -= entry['stake']
+                    scenario_net = outcome['return'] - total_stake
                     outcome['cashback_return'] = losing_cashback.quantize(Decimal('0.01'))
                     calculated_net = (scenario_net + outcome['cashback_return']).quantize(Decimal('0.01'))
                     outcome['net'] = (

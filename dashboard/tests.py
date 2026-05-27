@@ -987,6 +987,49 @@ class AuthenticationTests(TestCase):
         self.assertEqual(bet.entity, entity)
         self.assertIsNone(bet.bankroll)
 
+    def test_surebet_back_lay_uses_shared_exposure_for_net_results(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        entity = Entity.objects.create(owner=user, name='Operacao A')
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.post(
+            '/',
+            {
+                'form_type': 'surebet',
+                'surebet_entity': str(entity.id),
+                'surebet_sport': 'Futebol',
+                'surebet_competition': 'Serie A',
+                'surebet_game': 'Palmeiras x Flamengo',
+                'surebet_entry_count': '2',
+                'surebet_bookmaker_1': 'Casa Back',
+                'surebet_outcome_1': 'Palmeiras',
+                'surebet_mode_1': 'back',
+                'surebet_odd_1': '6.20',
+                'surebet_stake_1': '40.00',
+                'surebet_commission_1': '0',
+                'surebet_cashback_1': '0',
+                'surebet_boost_1': '0',
+                'surebet_freebet_enabled_1': '0',
+                'surebet_bookmaker_2': 'Exchange',
+                'surebet_outcome_2': 'Lay Palmeiras',
+                'surebet_mode_2': 'lay',
+                'surebet_odd_2': '7.00',
+                'surebet_stake_2': '35.43',
+                'surebet_commission_2': '0',
+                'surebet_cashback_2': '0',
+                'surebet_boost_2': '0',
+                'surebet_freebet_enabled_2': '0',
+            },
+        )
+
+        bet = Bet.objects.get(strategy='Surebet')
+        back_entry = bet.surebet_entries.get(bookmaker='Casa Back')
+        lay_entry = bet.surebet_entries.get(bookmaker='Exchange')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(bet.stake, Decimal('252.58'))
+        self.assertEqual(back_entry.net_result, Decimal('-4.58'))
+        self.assertEqual(lay_entry.net_result, Decimal('-4.57'))
+
     def test_freebet_extraction_marks_freebet_used(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')
         entity = Entity.objects.create(owner=user, name='Operacao A')

@@ -794,21 +794,43 @@ textarea {
 .surebet-entry-row {
   display: grid;
   grid-template-columns:
-    minmax(130px, 1.05fr)
-    62px
-    minmax(88px, 0.75fr)
-    minmax(76px, 0.62fr)
-    minmax(74px, 0.56fr)
-    minmax(74px, 0.56fr)
-    minmax(74px, 0.56fr)
-    minmax(178px, 220px);
-  gap: 8px;
-  align-items: end;
+    minmax(126px, 1fr)
+    60px
+    108px
+    82px
+    78px
+    78px
+    78px
+    minmax(210px, 1fr);
+  column-gap: 8px;
+  row-gap: 8px;
+  align-items: start;
+}
+
+.surebet-entry-row > label {
+  gap: 4px;
+  min-width: 0;
+  position: relative;
+}
+
+.surebet-entry-row input,
+.surebet-entry-row select {
+  min-height: 38px;
+  padding-inline: 10px;
+}
+
+.surebet-entry-row .surebet-adjustment,
+.surebet-entry-row .surebet-odd {
+  padding-inline: 8px;
 }
 
 .surebet-entry-group {
   display: grid;
   gap: 8px;
+}
+
+.surebet-entry-group.has-liability {
+  gap: 10px;
 }
 
 .surebet-entry-header {
@@ -817,6 +839,10 @@ textarea {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.surebet-entry-header span {
+  white-space: nowrap;
 }
 
 .freebet-control {
@@ -924,6 +950,32 @@ textarea {
 
 .calculated-stake {
   color: var(--green) !important;
+  font-weight: 700;
+}
+
+.surebet-liability {
+  display: none;
+  min-height: 30px;
+  width: 100%;
+  border: 1px solid rgb(240 111 101 / 58%);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgb(240 111 101 / 12%);
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 30px;
+  white-space: nowrap;
+}
+
+.surebet-entry-group.has-liability .surebet-liability {
+  display: block;
+}
+
+.surebet-entry-group.has-liability .surebet-liability::before {
+  content: "Resp. ";
+  color: var(--muted);
+  font-size: 0.68rem;
   font-weight: 700;
 }
 

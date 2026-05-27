@@ -760,7 +760,7 @@
                   <span>Comissão %</span>
                   <span>Cashback %</span>
                   <span>Aumento %</span>
-                  <span>Freebet / Retorno</span>
+                  <span>Freebet / Resultado</span>
                 </div>
                 {% for row in surebet_rows %}
                   <div class="surebet-entry-group{% if row.freebet_enabled == '1' or row.freebet_amount %} has-freebet{% endif %}" data-surebet-group="{{ row.index }}">
@@ -777,7 +777,7 @@
                       </div>
                       <label>
                         <span class="sr-only">Valor {{ row.index }}</span>
-                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly %}readonly{% endif %} />
+                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" />
                       </label>
                       <label>
                         <span class="sr-only">Odd {{ row.index }}</span>
@@ -812,7 +812,7 @@
                             </select>
                           </label>
                         </div>
-                        <input type="number" name="surebet_return_{{ row.index }}" value="{{ row.return_amount }}" class="surebet-entry-return" step="0.01" min="0.01" placeholder="Retorno" data-surebet-result="{{ row.index }}" />
+                        <input type="number" name="surebet_net_{{ row.index }}" value="{{ row.net_result }}" class="surebet-entry-return" step="0.01" placeholder="Resultado" data-surebet-result="{{ row.index }}" />
                       </div>
                       <label class="surebet-entry-note">
                         <span class="sr-only">Observação {{ row.index }}</span>
@@ -875,6 +875,34 @@
               </label>
 
               <button class="primary-button" type="submit">Salvar surebet</button>
+            </form>
+
+            <form class="bet-form compact-bet-form manual-freebet-form bet-mode-panel" data-bet-mode-panel="freebet-extract" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="freebet_manual" />
+
+              {% if freebet_manual_errors %}
+                <div class="form-errors">
+                  {% for error in freebet_manual_errors %}
+                    <div>{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <div class="form-row mobile-pair">
+                <label>
+                  <span>Casa da freebet</span>
+                  <input type="text" name="manual_freebet_bookmaker" value="{{ freebet_manual_data.manual_freebet_bookmaker }}" placeholder="Ex: Betano" autocomplete="off" />
+                </label>
+                <label>
+                  <span>Valor da freebet</span>
+                  <input type="number" name="manual_freebet_amount" value="{{ freebet_manual_data.manual_freebet_amount }}" step="0.01" min="0.01" placeholder="Ex: 25.00" />
+                </label>
+              </div>
+
+              <div class="manual-freebet-actions">
+                <button class="ghost-button compact" type="submit">Adicionar freebet avulsa</button>
+              </div>
             </form>
 
             <form class="bet-form surebet-form freebet-extraction-form bet-mode-panel" data-bet-mode-panel="freebet-extract" method="post" novalidate>

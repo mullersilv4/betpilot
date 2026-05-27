@@ -758,6 +758,25 @@ textarea {
   min-height: 34px;
 }
 
+.manual-freebet-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+}
+
+.manual-freebet-form .form-row {
+  display: grid;
+  grid-column: 1 / -1;
+}
+
+.manual-freebet-actions {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.manual-freebet-actions button {
+  justify-self: start;
+}
+
 .surebet-form {
   max-width: 980px;
 }

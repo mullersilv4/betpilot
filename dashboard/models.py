@@ -125,6 +125,16 @@ class FreeBet(models.Model):
         verbose_name='aposta de origem',
         related_name='generated_freebets',
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='usuário',
+        related_name='manual_freebets',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     bookmaker = models.CharField('casa de aposta', max_length=80)
     amount = models.DecimalField('valor', max_digits=10, decimal_places=2)

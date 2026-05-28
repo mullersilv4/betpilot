@@ -16,6 +16,7 @@ from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.cache import never_cache
 from django.db import transaction
 from django.db.models import Q
 from django.db.models import Sum
@@ -1273,6 +1274,7 @@ def event_odds(request):
     return JsonResponse(board)
 
 
+@never_cache
 @login_required
 def index(request):
     if request.method == 'POST':

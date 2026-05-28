@@ -857,6 +857,34 @@ class AuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response.url)
 
+    def test_dashboard_shows_password_change_link(self):
+        User.objects.create_user(username='owner', password='StrongPass123!')
+        self.client.login(username='owner', password='StrongPass123!')
+
+        response = self.client.get('/')
+
+        self.assertContains(response, reverse('dashboard:password_change'))
+        self.assertContains(response, 'Trocar senha')
+
+    def test_authenticated_user_can_change_password(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        self.client.login(username='owner', password='StrongPass123!')
+
+        response = self.client.post(
+            reverse('dashboard:password_change'),
+            {
+                'old_password': 'StrongPass123!',
+                'new_password1': 'NewStrongPass123!',
+                'new_password2': 'NewStrongPass123!',
+            },
+        )
+
+        user.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard:password_change_done'))
+        self.assertTrue(user.check_password('NewStrongPass123!'))
+        self.assertEqual(self.client.get('/').status_code, 200)
+
     def test_signup_logs_user_in_without_creating_default_bankroll(self):
         response = self.client.post(
             '/cadastro/',

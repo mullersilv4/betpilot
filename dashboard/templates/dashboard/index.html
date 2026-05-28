@@ -44,6 +44,7 @@
             <small>Conta ativa</small>
           </div>
         </div>
+        <a class="ghost-button compact full-button link-button" href="{% url 'dashboard:password_change' %}">Trocar senha</a>
         <form method="post" action="{% url 'dashboard:logout' %}">
           {% csrf_token %}
           <button class="ghost-button compact full-button" type="submit">Sair</button>

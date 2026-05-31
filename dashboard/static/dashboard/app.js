@@ -290,6 +290,19 @@ function setupMobileSidebar() {
   });
 }
 
+function setupCollapsiblePanels() {
+  document.querySelectorAll("[data-collapsible-toggle]").forEach((button) => {
+    const target = document.getElementById(button.dataset.collapsibleToggle);
+    if (!target) return;
+
+    button.addEventListener("click", () => {
+      const isOpen = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", isOpen ? "false" : "true");
+      target.hidden = isOpen;
+    });
+  });
+}
+
 function enhanceResponsiveTables() {
   document.querySelectorAll("table").forEach((table) => {
     const headers = [...table.querySelectorAll("thead th")].map((header) =>
@@ -607,6 +620,17 @@ function readSurebetMode(index) {
   return document.querySelector(`[name="surebet_mode_${index}"]`)?.value === "lay" ? "lay" : "back";
 }
 
+function bankrollOptionsHtml() {
+  return document.querySelector("#bankrollOptionsTemplate")?.innerHTML?.trim()
+    || '<option value="">Selecione a casa</option>';
+}
+
+function selectedBankrollText(name) {
+  const select = document.querySelector(`[name="${name}"]`);
+  const option = select?.options?.[select.selectedIndex];
+  return option && option.value ? option.textContent.trim() : "-";
+}
+
 function surebetBackMultiplier(effectiveOdd, commission) {
   return effectiveOdd > 1 ? 1 + (effectiveOdd - 1) * (1 - commission / 100) : 0;
 }
@@ -693,7 +717,6 @@ function updateSurebetPreview() {
   });
 
   const rows = indices.map((index) => {
-    const bookmakerInput = document.querySelector(`[name="surebet_bookmaker_${index}"]`);
     const oddInput = document.querySelector(`[name="surebet_odd_${index}"]`);
     const stakeInput = document.querySelector(`[name="surebet_stake_${index}"]`);
     const commission = readNumber(document.querySelector(`[name="surebet_commission_${index}"]`));
@@ -708,7 +731,7 @@ function updateSurebetPreview() {
     const returnAmount = multiplier > 0 && stake > 0 ? stake * multiplier : 0;
     return {
       index,
-      bookmaker: bookmakerInput?.value?.trim() || "-",
+      bookmaker: selectedBankrollText(`surebet_bankroll_${index}`),
       label: `Entrada ${index}`,
       mode,
       odd,
@@ -831,7 +854,10 @@ function createSurebetEntry(index) {
     <div class="surebet-entry-row" data-surebet-row="${index}">
       <label>
         <span class="sr-only">Casa de aposta ${index} opcional</span>
-        <input type="text" name="surebet_bookmaker_${index}" placeholder="Ex: Pinnacle" autocomplete="off" />
+        <select name="surebet_bankroll_${index}" class="surebet-bankroll-select">
+          ${bankrollOptionsHtml()}
+        </select>
+        <input type="hidden" name="surebet_bookmaker_${index}" value="" />
       </label>
       <div class="surebet-mode-control">
         <input type="hidden" name="surebet_mode_${index}" value="back" />
@@ -905,8 +931,8 @@ function updateSelectedFreebetFields() {
   const amount = selected?.dataset.amount || "";
   const bookmaker = selected?.dataset.bookmaker || "";
   const stakeInput = document.querySelector('[name="freebet_stake_1"]');
-  const bookmakerInput = document.querySelector('[name="freebet_bookmaker_1"]');
   if (stakeInput && amount) stakeInput.value = Number.parseFloat(amount).toFixed(2);
+  const bookmakerInput = document.querySelector('[name="freebet_bookmaker_1"]');
   if (bookmakerInput && bookmaker && !bookmakerInput.value) bookmakerInput.value = bookmaker;
 }
 
@@ -946,7 +972,6 @@ function updateFreebetExtractionPreview() {
   });
 
   const rows = indices.map((index) => {
-    const bookmakerInput = document.querySelector(`[name="freebet_bookmaker_${index}"]`);
     const oddInput = document.querySelector(`[name="freebet_odd_${index}"]`);
     const stakeInput = document.querySelector(`[name="freebet_stake_${index}"]`);
     const commission = readNumber(document.querySelector(`[name="freebet_commission_${index}"]`));
@@ -962,7 +987,7 @@ function updateFreebetExtractionPreview() {
     const liability = mode === "lay" && effectiveOdd > 1 ? stake * (effectiveOdd - 1) : 0;
     return {
       index,
-      bookmaker: bookmakerInput?.value?.trim() || "-",
+      bookmaker: selectedBankrollText(`freebet_bankroll_${index}`),
       label: index === 1 ? "Freebet" : `Proteção ${index}`,
       mode,
       odd,
@@ -1098,7 +1123,10 @@ function createFreebetEntry(index) {
     <div class="surebet-entry-row" data-freebet-row="${index}">
       <label>
         <span class="sr-only">Casa de aposta ${index} opcional</span>
-        <input type="text" name="freebet_bookmaker_${index}" placeholder="Ex: Betfair" autocomplete="off" />
+        <select name="freebet_bankroll_${index}" class="surebet-bankroll-select">
+          ${bankrollOptionsHtml()}
+        </select>
+        <input type="hidden" name="freebet_bookmaker_${index}" value="" />
       </label>
       <div class="surebet-mode-control">
         <input type="hidden" name="freebet_mode_${index}" value="back" />
@@ -1254,6 +1282,7 @@ updateBetPreview();
 updateSurebetPreview();
 updateFreebetExtractionPreview();
 setupMobileSidebar();
+setupCollapsiblePanels();
 enhanceResponsiveTables();
 setupEventAutocomplete();
 setupEventOddsLookup();

@@ -640,9 +640,9 @@ class PromotionExtractionForm(forms.Form):
 class MonthlyGoalForm(forms.ModelForm):
     class Meta:
         model = MonthlyGoal
-        fields = ['bankroll', 'month', 'profit_target', 'roi_target', 'volume_target', 'max_loss']
+        fields = ['entity', 'month', 'profit_target', 'roi_target', 'volume_target', 'max_loss']
         widgets = {
-            'bankroll': forms.Select(),
+            'entity': forms.Select(),
             'month': forms.DateInput(attrs={'type': 'date'}),
             'profit_target': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
             'roi_target': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
@@ -654,7 +654,8 @@ class MonthlyGoalForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         if user is not None:
-            self.fields['bankroll'].queryset = Bankroll.objects.filter(owner=user)
+            self.fields['entity'].queryset = Entity.objects.filter(owner=user)
+        self.fields['entity'].empty_label = 'Selecione uma entidade'
 
     def clean_month(self):
         month = self.cleaned_data['month']

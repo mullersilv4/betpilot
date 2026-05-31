@@ -648,9 +648,17 @@ class ImportTextTests(TestCase):
 
 class MonthlyGoalTests(TestCase):
     def test_monthly_goal_calculates_progress(self):
-        bankroll = Bankroll.objects.create(name='Banca principal', initial_balance=Decimal('1000.00'))
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        entity = Entity.objects.create(owner=user, name='Operacao A')
+        bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Banca principal',
+            initial_balance=Decimal('1000.00'),
+        )
         Bet.objects.create(
             bankroll=bankroll,
+            entity=entity,
             game='Time A x Time B',
             market='Over 2.5',
             odds=Decimal('2.00'),
@@ -659,7 +667,7 @@ class MonthlyGoalTests(TestCase):
             created_at=timezone.now(),
         )
         goal = MonthlyGoal.objects.create(
-            bankroll=bankroll,
+            entity=entity,
             month=timezone.localdate().replace(day=1),
             profit_target=Decimal('100.00'),
             roi_target=Decimal('50.00'),
@@ -850,6 +858,77 @@ class AutomaticSettlementTests(TestCase):
         self.assertEqual(winner.label, 'Over 2.5 gols')
 
 
+class ProtectionBalanceMovementTests(TestCase):
+    def test_surebet_uses_registered_bankrolls_and_moves_each_balance(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        entity = Entity.objects.create(owner=user, name='Operacao')
+        back_bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Conta Bet365',
+            bookmaker='Bet365',
+            initial_balance=Decimal('1000.00'),
+        )
+        lay_bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Conta Betfair',
+            bookmaker='Betfair',
+            initial_balance=Decimal('1000.00'),
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.post(
+            reverse('dashboard:index'),
+            {
+                'form_type': 'surebet',
+                'surebet_entity': str(entity.pk),
+                'surebet_sport': 'Futebol',
+                'surebet_game': 'Palmeiras x Flamengo',
+                'surebet_entry_count': '2',
+                'surebet_bankroll_1': str(back_bankroll.pk),
+                'surebet_outcome_1': 'Palmeiras',
+                'surebet_mode_1': 'back',
+                'surebet_stake_1': '40',
+                'surebet_odd_1': '6.20',
+                'surebet_commission_1': '0',
+                'surebet_cashback_1': '0',
+                'surebet_boost_1': '0',
+                'surebet_bankroll_2': str(lay_bankroll.pk),
+                'surebet_outcome_2': 'Flamengo',
+                'surebet_mode_2': 'lay',
+                'surebet_stake_2': '35.43',
+                'surebet_odd_2': '7',
+                'surebet_commission_2': '0',
+                'surebet_cashback_2': '0',
+                'surebet_boost_2': '0',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        bet = Bet.objects.get(strategy='Surebet')
+        winner = bet.surebet_entries.get(label='Palmeiras')
+        loser = bet.surebet_entries.get(label='Flamengo')
+        self.assertEqual(winner.bankroll, back_bankroll)
+        self.assertEqual(loser.bankroll, lay_bankroll)
+        self.assertEqual(loser.mode, SureBetEntry.Mode.LAY)
+        self.assertEqual(loser.liability, Decimal('212.58'))
+
+        response = self.client.post(
+            reverse('dashboard:settle_surebet', args=[bet.pk]),
+            {'winner_entry': str(winner.pk)},
+        )
+
+        bet.refresh_from_db()
+        back_bankroll.refresh_from_db()
+        lay_bankroll.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(bet.actual_net_result, Decimal('-4.58'))
+        self.assertEqual(back_bankroll.current_balance, Decimal('1208.00'))
+        self.assertEqual(lay_bankroll.current_balance, Decimal('787.42'))
+        self.assertEqual(bet.bankroll_transactions.count(), 2)
+
+
 class AuthenticationTests(TestCase):
     def test_dashboard_requires_login(self):
         response = self.client.get('/')
@@ -980,6 +1059,20 @@ class AuthenticationTests(TestCase):
     def test_surebet_is_linked_to_entity_without_bankroll(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')
         entity = Entity.objects.create(owner=user, name='Operacao A')
+        bankroll_1 = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Banca Casa 1',
+            bookmaker='Casa 1',
+            initial_balance=Decimal('1000.00'),
+        )
+        bankroll_2 = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Banca Casa 2',
+            bookmaker='Casa 2',
+            initial_balance=Decimal('1000.00'),
+        )
 
         self.client.login(username='owner', password='StrongPass123!')
         response = self.client.post(
@@ -991,7 +1084,7 @@ class AuthenticationTests(TestCase):
                 'surebet_competition': 'Serie A',
                 'surebet_game': 'Time A x Time B',
                 'surebet_entry_count': '2',
-                'surebet_bookmaker_1': 'Casa 1',
+                'surebet_bankroll_1': str(bankroll_1.pk),
                 'surebet_outcome_1': 'Time A',
                 'surebet_odd_1': '2.10',
                 'surebet_stake_1': '100.00',
@@ -999,7 +1092,7 @@ class AuthenticationTests(TestCase):
                 'surebet_cashback_1': '0',
                 'surebet_boost_1': '0',
                 'surebet_freebet_enabled_1': '0',
-                'surebet_bookmaker_2': 'Casa 2',
+                'surebet_bankroll_2': str(bankroll_2.pk),
                 'surebet_outcome_2': 'Time B',
                 'surebet_odd_2': '2.20',
                 'surebet_stake_2': '95.45',
@@ -1018,6 +1111,20 @@ class AuthenticationTests(TestCase):
     def test_surebet_back_lay_uses_shared_exposure_for_net_results(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')
         entity = Entity.objects.create(owner=user, name='Operacao A')
+        back_bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Banca Back',
+            bookmaker='Casa Back',
+            initial_balance=Decimal('1000.00'),
+        )
+        lay_bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Banca Exchange',
+            bookmaker='Exchange',
+            initial_balance=Decimal('1000.00'),
+        )
 
         self.client.login(username='owner', password='StrongPass123!')
         response = self.client.post(
@@ -1029,7 +1136,7 @@ class AuthenticationTests(TestCase):
                 'surebet_competition': 'Serie A',
                 'surebet_game': 'Palmeiras x Flamengo',
                 'surebet_entry_count': '2',
-                'surebet_bookmaker_1': 'Casa Back',
+                'surebet_bankroll_1': str(back_bankroll.pk),
                 'surebet_outcome_1': 'Palmeiras',
                 'surebet_mode_1': 'back',
                 'surebet_odd_1': '6.20',
@@ -1038,7 +1145,7 @@ class AuthenticationTests(TestCase):
                 'surebet_cashback_1': '0',
                 'surebet_boost_1': '0',
                 'surebet_freebet_enabled_1': '0',
-                'surebet_bookmaker_2': 'Exchange',
+                'surebet_bankroll_2': str(lay_bankroll.pk),
                 'surebet_outcome_2': 'Lay Palmeiras',
                 'surebet_mode_2': 'lay',
                 'surebet_odd_2': '7.00',
@@ -1061,6 +1168,20 @@ class AuthenticationTests(TestCase):
     def test_freebet_extraction_marks_freebet_used(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')
         entity = Entity.objects.create(owner=user, name='Operacao A')
+        promo_bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Banca Promo',
+            bookmaker='Casa Promo',
+            initial_balance=Decimal('1000.00'),
+        )
+        protection_bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Banca Protecao',
+            bookmaker='Casa Protecao',
+            initial_balance=Decimal('1000.00'),
+        )
         source_bet = Bet.objects.create(
             bankroll=None,
             entity=entity,
@@ -1088,13 +1209,14 @@ class AuthenticationTests(TestCase):
                 'freebet_competition': 'Serie A',
                 'freebet_game': 'Time A x Time B',
                 'freebet_entry_count': '2',
+                'freebet_bankroll_1': str(promo_bankroll.pk),
                 'freebet_outcome_1': 'Time A',
                 'freebet_odd_1': '3.00',
                 'freebet_commission_1': '0',
                 'freebet_cashback_1': '0',
                 'freebet_boost_1': '0',
                 'freebet_freebet_enabled_1': '0',
-                'freebet_bookmaker_2': 'Casa Protecao',
+                'freebet_bankroll_2': str(protection_bankroll.pk),
                 'freebet_outcome_2': 'Time B',
                 'freebet_odd_2': '2.00',
                 'freebet_commission_2': '0',

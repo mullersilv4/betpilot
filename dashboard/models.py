@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
@@ -370,23 +371,48 @@ class SureBetEntry(models.Model):
         LOST = 'lost', 'Se perder'
         ANY = 'any', 'Em ambos os casos'
 
+    class Mode(models.TextChoices):
+        BACK = 'back', 'Back'
+        LAY = 'lay', 'Lay'
+
     bet = models.ForeignKey(
         Bet,
         verbose_name='surebet',
         related_name='surebet_entries',
         on_delete=models.CASCADE,
     )
+    bankroll = models.ForeignKey(
+        'Bankroll',
+        verbose_name='banca',
+        related_name='surebet_entries',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
     bookmaker = models.CharField('casa de aposta', max_length=80)
     label = models.CharField('tipo/resultado', max_length=80)
+    mode = models.CharField(
+        'modo',
+        max_length=4,
+        choices=Mode.choices,
+        default=Mode.BACK,
+    )
     odds = models.DecimalField('odd', max_digits=8, decimal_places=2)
     effective_odds = models.DecimalField('odd efetiva', max_digits=8, decimal_places=2)
     stake = models.DecimalField('valor apostado', max_digits=10, decimal_places=2)
+    liability = models.DecimalField(
+        'responsabilidade',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
     commission = models.DecimalField('comissão (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
     cashback = models.DecimalField('cashback (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
     boost = models.DecimalField('aumento (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'))
     return_amount = models.DecimalField('retorno', max_digits=12, decimal_places=2)
     cashback_return = models.DecimalField('cashback no cenário', max_digits=12, decimal_places=2, default=Decimal('0.00'))
     net_result = models.DecimalField('resultado líquido', max_digits=12, decimal_places=2)
+    is_freebet_source = models.BooleanField('entrada da freebet usada', default=False)
     freebet_enabled = models.BooleanField('gera freebet', default=False)
     freebet_amount = models.DecimalField('valor da freebet', max_digits=10, decimal_places=2, default=Decimal('0.00'))
     freebet_trigger = models.CharField(
@@ -407,6 +433,26 @@ class SureBetEntry(models.Model):
     def __str__(self):
         return f'{self.bookmaker} - {self.label}'
 
+    @property
+    def exposure(self):
+        if self.is_freebet_source:
+            return Decimal('0.00')
+        if self.mode == self.Mode.LAY:
+            return self.liability
+        return self.stake
+
+    def settlement_result_for(self, winner):
+        if self.pk == winner.pk:
+            if self.is_freebet_source:
+                return self.return_amount.quantize(MONEY_PLACES)
+            return (self.return_amount - self.exposure).quantize(MONEY_PLACES)
+        if self.is_freebet_source:
+            return Decimal('0.00')
+        cashback_return = Decimal('0.00')
+        if self.mode == self.Mode.BACK and self.cashback > 0:
+            cashback_return = self.stake * (self.cashback / Decimal('100'))
+        return (cashback_return - self.exposure).quantize(MONEY_PLACES)
+
 
 class BankrollTransaction(models.Model):
     class Kind(models.TextChoices):
@@ -421,6 +467,14 @@ class BankrollTransaction(models.Model):
         verbose_name='banca',
         related_name='transactions',
         on_delete=models.CASCADE,
+    )
+    bet = models.ForeignKey(
+        Bet,
+        verbose_name='aposta',
+        related_name='bankroll_transactions',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     kind = models.CharField('tipo', max_length=16, choices=Kind.choices)
     amount = models.DecimalField('valor', max_digits=12, decimal_places=2)
@@ -533,6 +587,14 @@ class Bankroll(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def display_name(self):
+        if not self.bookmaker:
+            return self.name
+        if self.bookmaker.lower() in self.name.lower():
+            return self.name
+        return f'{self.name} - {self.bookmaker}'
 
     @property
     def transaction_total(self):
@@ -672,9 +734,9 @@ class Bankroll(models.Model):
 
 
 class MonthlyGoal(models.Model):
-    bankroll = models.ForeignKey(
-        Bankroll,
-        verbose_name='banca',
+    entity = models.ForeignKey(
+        Entity,
+        verbose_name='entidade',
         related_name='goals',
         on_delete=models.CASCADE,
     )
@@ -701,13 +763,13 @@ class MonthlyGoal(models.Model):
     created_at = models.DateTimeField('criada em', default=timezone.now)
 
     class Meta:
-        ordering = ['-month', 'bankroll__name']
-        unique_together = ('bankroll', 'month')
+        ordering = ['-month', 'entity__name']
+        unique_together = ('entity', 'month')
         verbose_name = 'meta mensal'
         verbose_name_plural = 'metas mensais'
 
     def __str__(self):
-        return f'{self.bankroll} - {self.month:%m/%Y}'
+        return f'{self.entity} - {self.month:%m/%Y}'
 
     @property
     def month_start(self):
@@ -721,10 +783,11 @@ class MonthlyGoal(models.Model):
 
     @property
     def settled_bets(self):
-        return self.bankroll.bets.filter(
+        return Bet.objects.filter(
+            Q(entity=self.entity) | Q(bankroll__entity=self.entity),
             created_at__gte=self.month_start,
             created_at__lt=self.next_month_start,
-        ).exclude(status=Bet.Status.OPEN)
+        ).exclude(status=Bet.Status.OPEN).distinct()
 
     @property
     def profit(self):

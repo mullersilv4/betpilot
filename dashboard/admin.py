@@ -148,17 +148,20 @@ class PromotionAdmin(admin.ModelAdmin):
 class SureBetEntryAdmin(admin.ModelAdmin):
     list_display = (
         'bet',
+        'bankroll',
         'bookmaker',
         'label',
+        'mode',
         'odds',
         'stake',
+        'liability',
         'return_amount',
         'net_result',
         'freebet_enabled',
         'freebet_amount',
         'is_winner',
     )
-    list_filter = ('bookmaker', 'freebet_enabled', 'is_winner')
+    list_filter = ('bookmaker', 'bankroll', 'mode', 'freebet_enabled', 'is_winner')
     search_fields = ('bookmaker', 'label', 'bet__game')
 
 
@@ -172,7 +175,7 @@ class BankrollTransactionAdmin(admin.ModelAdmin):
 @admin.register(MonthlyGoal)
 class MonthlyGoalAdmin(admin.ModelAdmin):
     list_display = (
-        'bankroll',
+        'entity',
         'month',
         'profit_target',
         'roi_target',
@@ -182,6 +185,6 @@ class MonthlyGoalAdmin(admin.ModelAdmin):
         'roi',
         'volume',
     )
-    list_filter = ('month', 'bankroll')
+    list_filter = ('month', 'entity')
 
 # Register your models here.

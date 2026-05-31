@@ -332,118 +332,149 @@
             <h2>Financeiro e transferências</h2>
           </div>
 
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Financeiro</p>
-                <h2>Depositos, saques e ajustes</h2>
-              </div>
-            </div>
+          <button
+            class="ghost-button compact collapsible-toggle"
+            type="button"
+            data-collapsible-toggle="financeControls"
+            aria-expanded="false"
+            aria-controls="financeControls"
+          >
+            <span>Gerenciar movimentações</span>
+            <span class="collapsible-toggle-meta">
+              <i aria-hidden="true"></i>
+            </span>
+          </button>
 
-            <form class="bet-form" method="post" novalidate>
-              {% csrf_token %}
-              <input type="hidden" name="form_type" value="transaction" />
-
-              <div class="form-row">
-                <label>
-                  <span>Banca</span>
-                  {{ transaction_form.bankroll }}
-                  {{ transaction_form.bankroll.errors }}
-                </label>
-                <label>
-                  <span>Tipo</span>
-                  {{ transaction_form.kind }}
-                  {{ transaction_form.kind.errors }}
-                </label>
+          <div class="collapsible-panel panel-stack" id="financeControls" hidden>
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Financeiro</p>
+                  <h2>Depositos, saques e ajustes</h2>
+                </div>
               </div>
 
-              <label>
-                <span>Valor</span>
-                {{ transaction_form.amount }}
-                {{ transaction_form.amount.errors }}
-              </label>
+              <form class="bet-form" method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="transaction" />
 
-              <label>
-                <span>Observação</span>
-                {{ transaction_form.note }}
-                {{ transaction_form.note.errors }}
-              </label>
+                <div class="form-row">
+                  <label>
+                    <span>Banca</span>
+                    {{ transaction_form.bankroll }}
+                    {{ transaction_form.bankroll.errors }}
+                  </label>
 
-              <button class="primary-button" type="submit">Registrar movimentação</button>
-            </form>
-          </article>
+                  <label>
+                    <span>Tipo</span>
+                    {{ transaction_form.kind }}
+                    {{ transaction_form.kind.errors }}
+                  </label>
+                </div>
 
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Transferência</p>
-                <h2>Mover saldo entre bancas</h2>
-              </div>
-            </div>
-
-            <form class="bet-form" method="post" novalidate>
-              {% csrf_token %}
-              <input type="hidden" name="form_type" value="transfer" />
-
-              {% if transfer_form.non_field_errors %}
-                <div class="form-errors">{{ transfer_form.non_field_errors }}</div>
-              {% endif %}
-
-              <div class="form-row">
                 <label>
-                  <span>Origem</span>
-                  {{ transfer_form.source }}
-                  {{ transfer_form.source.errors }}
+                  <span>Valor</span>
+                  {{ transaction_form.amount }}
+                  {{ transaction_form.amount.errors }}
                 </label>
+
                 <label>
-                  <span>Destino</span>
-                  {{ transfer_form.target }}
-                  {{ transfer_form.target.errors }}
+                  <span>Observação</span>
+                  {{ transaction_form.note }}
+                  {{ transaction_form.note.errors }}
                 </label>
+
+                <button class="primary-button" type="submit">Registrar movimentação</button>
+              </form>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Transferência</p>
+                  <h2>Mover saldo entre bancas</h2>
+                </div>
               </div>
 
-              <label>
-                <span>Valor</span>
-                {{ transfer_form.amount }}
-                {{ transfer_form.amount.errors }}
-              </label>
+              <form class="bet-form" method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="transfer" />
 
-              <button class="primary-button" type="submit">Transferir</button>
-            </form>
+                {% if transfer_form.non_field_errors %}
+                  <div class="form-errors">{{ transfer_form.non_field_errors }}</div>
+                {% endif %}
 
-            <div class="automation-list">
-              {% for transaction in latest_transactions %}
-                <div class="transaction-row">
-                  <span>{{ transaction.bankroll.name }} - {{ transaction.get_kind_display }}</span>
-                  <div class="transaction-meta">
-                    <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
-                    <div class="transaction-actions">
-                      <a class="icon-button" href="{% url 'dashboard:edit_transaction' transaction.pk %}" aria-label="Editar movimentação" title="Editar">
-                        <svg aria-hidden="true" viewBox="0 0 24 24">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                        </svg>
-                      </a>
-                      <form method="post" action="{% url 'dashboard:delete_transaction' transaction.pk %}" onsubmit="return confirm('Excluir esta movimentação?');">
-                        {% csrf_token %}
-                        <button class="icon-button" type="submit" aria-label="Excluir movimentação" title="Excluir">
+                <div class="form-row">
+                  <label>
+                    <span>Origem</span>
+                    {{ transfer_form.source }}
+                    {{ transfer_form.source.errors }}
+                  </label>
+
+                  <label>
+                    <span>Destino</span>
+                    {{ transfer_form.target }}
+                    {{ transfer_form.target.errors }}
+                  </label>
+                </div>
+
+                <label>
+                  <span>Valor</span>
+                  {{ transfer_form.amount }}
+                  {{ transfer_form.amount.errors }}
+                </label>
+
+                <button class="primary-button" type="submit">Transferir</button>
+              </form>
+
+              <button
+                class="ghost-button compact collapsible-toggle"
+                type="button"
+                data-collapsible-toggle="transactionsList"
+                aria-expanded="false"
+                aria-controls="transactionsList"
+              >
+                <span>Movimentações recentes</span>
+                <span class="collapsible-toggle-meta">
+                  <strong>{{ latest_transactions|length }}</strong>
+                  <i aria-hidden="true"></i>
+                </span>
+              </button>
+
+              <div class="automation-list collapsible-panel" id="transactionsList" hidden>
+                {% for transaction in latest_transactions %}
+                  <div class="transaction-row">
+                    <span>{{ transaction.bankroll.name }} - {{ transaction.get_kind_display }}</span>
+                    <div class="transaction-meta">
+                      <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
+                      <div class="transaction-actions">
+                        <a class="icon-button" href="{% url 'dashboard:edit_transaction' transaction.pk %}" aria-label="Editar movimentação" title="Editar">
                           <svg aria-hidden="true" viewBox="0 0 24 24">
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4h8v2" />
-                            <path d="M19 6l-1 14H6L5 6" />
-                            <path d="M10 11v5" />
-                            <path d="M14 11v5" />
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
                           </svg>
-                        </button>
-                      </form>
+                        </a>
+                        <form method="post" action="{% url 'dashboard:delete_transaction' transaction.pk %}" onsubmit="return confirm('Excluir esta movimentação?');">
+                          {% csrf_token %}
+                          <button class="icon-button" type="submit" aria-label="Excluir movimentação" title="Excluir">
+                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v5" />
+                              <path d="M14 11v5" />
+                            </svg>
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   </div>
-                </div>
-              {% empty %}
-                <div class="empty-state">Nenhuma movimentação registrada.</div>
-              {% endfor %}
-            </div>
-          </article>
+                {% empty %}
+                  <div class="empty-state">Nenhuma movimentação registrada.</div>
+                {% endfor %}
+              </div>
+            </article>
+          </div>
         </section>
 
         <section id="goals" class="workspace-grid compact-grid" data-screen="goals">
@@ -466,9 +497,9 @@
 
               <div class="form-row">
                 <label>
-                  <span>Banca</span>
-                  {{ goal_form.bankroll }}
-                  {{ goal_form.bankroll.errors }}
+                  <span>Entidade</span>
+                  {{ goal_form.entity }}
+                  {{ goal_form.entity.errors }}
                 </label>
                 <label>
                   <span>Mês</span>
@@ -519,7 +550,7 @@
               {% for goal in monthly_goals %}
                 <article class="goal-card">
                   <div class="goal-title">
-                    <strong>{{ goal.bankroll.name }}</strong>
+                    <strong>{{ goal.entity.name }}</strong>
                     <span>{{ goal.month|date:"m/Y" }}</span>
                   </div>
 
@@ -729,6 +760,13 @@
 
               <div class="form-row">
                 <label>
+                  <span>Data da aposta</span>
+                  <input type="datetime-local" name="surebet_event_date" value="{{ surebet_data.surebet_event_date }}" data-event-date-input />
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
                   <span>Jogo</span>
                   <input
                     type="text"
@@ -768,7 +806,15 @@
                     <div class="surebet-entry-row" data-surebet-row="{{ row.index }}">
                       <label>
                         <span class="sr-only">Casa de aposta {{ row.index }}{% if row.optional %} opcional{% endif %}</span>
-                        <input type="text" name="surebet_bookmaker_{{ row.index }}" value="{{ row.bookmaker }}" placeholder="Ex: Bet365" autocomplete="off" />
+                        <select name="surebet_bankroll_{{ row.index }}" class="surebet-bankroll-select">
+                          <option value="">Selecione a casa</option>
+                          {% for bankroll in bankrolls %}
+                            <option value="{{ bankroll.id }}" {% if row.bankroll_id == bankroll.id|stringformat:"s" %}selected{% endif %}>
+                              {{ bankroll.display_name }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                        <input type="hidden" name="surebet_bookmaker_{{ row.index }}" value="{{ row.bookmaker }}" />
                       </label>
                       <div class="surebet-mode-control">
                         <input type="hidden" name="surebet_mode_{{ row.index }}" value="{{ row.mode|default:'back' }}" />
@@ -824,6 +870,13 @@
                   </div>
                 {% endfor %}
               </div>
+
+              <template id="bankrollOptionsTemplate">
+                <option value="">Selecione a casa</option>
+                {% for bankroll in bankrolls %}
+                  <option value="{{ bankroll.id }}">{{ bankroll.display_name }}</option>
+                {% endfor %}
+              </template>
 
               <button class="ghost-button compact surebet-add-button" type="button" id="addSurebetEntry">+ Adicionar entrada</button>
 
@@ -951,6 +1004,13 @@
 
               <div class="form-row">
                 <label>
+                  <span>Data da aposta</span>
+                  <input type="datetime-local" name="freebet_event_date" value="{{ freebet_extract_data.freebet_event_date }}" data-event-date-input />
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
                   <span>Jogo</span>
                   <input
                     type="text"
@@ -990,12 +1050,20 @@
                     <div class="surebet-entry-row" data-freebet-row="{{ row.index }}">
                       <label>
                         <span class="sr-only">Casa de aposta {{ row.index }}{% if row.optional %} opcional{% endif %}</span>
-                        <input type="text" name="freebet_bookmaker_{{ row.index }}" value="{{ row.bookmaker }}" placeholder="{% if row.is_source %}Casa da freebet{% else %}Ex: Betfair{% endif %}" autocomplete="off" />
+                        <select name="freebet_bankroll_{{ row.index }}" class="surebet-bankroll-select">
+                          <option value="">Selecione a casa</option>
+                          {% for bankroll in bankrolls %}
+                            <option value="{{ bankroll.id }}" {% if row.bankroll_id == bankroll.id|stringformat:"s" %}selected{% endif %}>
+                              {{ bankroll.display_name }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                        <input type="hidden" name="freebet_bookmaker_{{ row.index }}" value="{{ row.bookmaker }}" />
                       </label>
                       <div class="surebet-mode-control">
                         <input type="hidden" name="freebet_mode_{{ row.index }}" value="{% if row.is_source %}back{% else %}{{ row.mode|default:'back' }}{% endif %}" />
                         <button class="surebet-mode-toggle{% if row.mode == 'lay' and not row.is_source %} is-lay{% endif %}" type="button" aria-label="Alternar entrada back ou lay" {% if row.is_source %}disabled{% endif %}>
-                          {% if row.is_source %}Freebet{% elif row.mode == 'lay' %}Lay{% else %}Back{% endif %}
+                          {% if row.mode == 'lay' and not row.is_source %}Lay{% else %}Back{% endif %}
                         </button>
                       </div>
                       <label>

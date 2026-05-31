@@ -7,6 +7,7 @@ from decimal import InvalidOperation
 from django.db import transaction
 
 from .models import Bet
+from .models import BankrollTransaction
 from .models import FreeBet
 
 
@@ -204,6 +205,42 @@ def apply_settlement(bet, decision):
     return bet
 
 
+def settlement_transaction_kind(amount):
+    return (
+        BankrollTransaction.Kind.DEPOSIT
+        if amount >= 0 else BankrollTransaction.Kind.WITHDRAW
+    )
+
+
+def create_protection_balance_movements(bet, entries, winner):
+    bet.bankroll_transactions.all().delete()
+    entry_amounts = [
+        (entry, entry.settlement_result_for(winner))
+        for entry in entries
+        if entry.bankroll_id
+    ]
+    total_movement = sum((amount for _entry, amount in entry_amounts), start=Decimal('0.00'))
+    manual_delta = (winner.net_result - total_movement).quantize(Decimal('0.01'))
+    for entry in entries:
+        if not entry.bankroll_id:
+            continue
+        amount = entry.settlement_result_for(winner)
+        if entry.pk == winner.pk and manual_delta:
+            amount = (amount + manual_delta).quantize(Decimal('0.01'))
+        if amount == 0:
+            continue
+        BankrollTransaction.objects.create(
+            bankroll=entry.bankroll,
+            bet=bet,
+            kind=settlement_transaction_kind(amount),
+            amount=abs(amount).quantize(Decimal('0.01')),
+            note=(
+                f'{bet.strategy}: {entry.label} '
+                f'({"vencedora" if entry.pk == winner.pk else "perdedora"})'
+            )[:160],
+        )
+
+
 def apply_surebet_settlement(bet, decision, winner):
     with transaction.atomic():
         bet.surebet_entries.update(is_winner=False)
@@ -215,6 +252,8 @@ def apply_surebet_settlement(bet, decision, winner):
         note = f'Fechada automaticamente. Vencedora: {decision.reason}.'
         bet.notes = f'{bet.notes}\n{note}'.strip() if bet.notes else note
         bet.save(update_fields=['actual_net_result', 'status', 'exact_score', 'notes'])
+        entries = bet.surebet_entries.select_related('bankroll').all()
+        create_protection_balance_movements(bet, entries, winner)
 
         if winner.freebet_enabled and winner.freebet_amount > 0:
             FreeBet.objects.get_or_create(

@@ -45,8 +45,8 @@ function drawChart() {
   }
 
   const area = context.createLinearGradient(0, padding, 0, height - padding);
-  area.addColorStop(0, "rgba(79, 209, 139, 0.28)");
-  area.addColorStop(1, "rgba(79, 209, 139, 0)");
+  area.addColorStop(0, "rgba(90, 167, 255, 0.28)");
+  area.addColorStop(1, "rgba(90, 167, 255, 0)");
 
   context.beginPath();
   points.forEach((point, index) => {
@@ -64,7 +64,7 @@ function drawChart() {
     if (index === 0) context.moveTo(point.x, point.y);
     else context.lineTo(point.x, point.y);
   });
-  context.strokeStyle = "#4fd18b";
+  context.strokeStyle = "#5aa7ff";
   context.lineWidth = 4;
   context.lineCap = "round";
   context.lineJoin = "round";
@@ -75,7 +75,7 @@ function drawChart() {
     context.arc(point.x, point.y, 4, 0, Math.PI * 2);
     context.fillStyle = "#101414";
     context.fill();
-    context.strokeStyle = "#4fd18b";
+    context.strokeStyle = "#5aa7ff";
     context.lineWidth = 3;
     context.stroke();
   });
@@ -140,10 +140,10 @@ function drawBarChart() {
     const barHeight = Math.max(2, (Math.abs(value) / maxValue) * (plotHeight / 2 - 12));
     const y = value >= 0 ? zeroY - barHeight : zeroY;
 
-    const barColor = value > 0 ? "#4fd18b" : value < 0 ? "#f06f65" : "#56635f";
+    const barColor = value > 0 ? "#5aa7ff" : value < 0 ? "#f06f65" : "#56635f";
     context.fillStyle = barColor;
     if (index === hoveredIndex) {
-      context.shadowColor = value >= 0 ? "rgba(79, 209, 139, 0.32)" : "rgba(240, 111, 101, 0.32)";
+      context.shadowColor = value >= 0 ? "rgba(90, 167, 255, 0.32)" : "rgba(240, 111, 101, 0.32)";
       context.shadowBlur = 12;
     }
     context.fillRect(x, y, barWidth, barHeight);
@@ -189,7 +189,7 @@ function drawBarChart() {
     context.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 7);
     context.fill();
     context.stroke();
-    context.fillStyle = bar.value >= 0 ? "#4fd18b" : "#f06f65";
+    context.fillStyle = bar.value >= 0 ? "#5aa7ff" : "#f06f65";
     context.fillText(text, tooltipX + 9, tooltipY + 18);
   }
 
@@ -232,14 +232,17 @@ function activateScreen() {
   const screenAliases = {
     overview: "dashboard",
     calendar: "dashboard",
-    reports: "analytics",
   };
+  const publicScreens = new Set(["dashboard", "new-bet", "bankroll", "bets", "goals"]);
   const requestedScreen = window.location.hash.replace("#", "") || "dashboard";
   const activeScreen = screenAliases[requestedScreen] || requestedScreen;
   const availableScreens = [...document.querySelectorAll("[data-screen]")].map(
     (section) => section.dataset.screen,
   );
-  const safeScreen = availableScreens.includes(activeScreen) ? activeScreen : "dashboard";
+  const safeScreen =
+    publicScreens.has(activeScreen) && availableScreens.includes(activeScreen)
+      ? activeScreen
+      : "dashboard";
 
   document.querySelectorAll("[data-screen]").forEach((section) => {
     section.classList.toggle("is-active", section.dataset.screen === safeScreen);

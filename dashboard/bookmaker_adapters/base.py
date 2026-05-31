@@ -126,7 +126,7 @@ class PublicWebBookmakerAdapter(BaseBookmakerAdapter):
             headers={
                 'Accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.7',
-                'User-Agent': 'BETPilot odds research/1.0',
+                'User-Agent': 'Freebetar odds research/1.0',
             },
         )
         try:

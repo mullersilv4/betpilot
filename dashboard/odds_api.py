@@ -83,7 +83,7 @@ class OddsApiClient:
             url,
             headers={
                 'Accept': 'application/json',
-                'User-Agent': 'BETPilot/1.0 (+https://localhost)',
+                'User-Agent': 'Freebetar/1.0 (+https://localhost)',
             },
         )
 
@@ -147,7 +147,7 @@ class OddsPapiClient:
             url,
             headers={
                 'Accept': 'application/json',
-                'User-Agent': 'BETPilot/1.0 (+https://localhost)',
+                'User-Agent': 'Freebetar/1.0 (+https://localhost)',
             },
         )
 

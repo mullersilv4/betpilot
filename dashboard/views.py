@@ -124,6 +124,19 @@ def redirect_to_history():
     return redirect(f'{reverse("dashboard:index")}#bets')
 
 
+def sales_page(request):
+    login_form = AuthenticationForm(request, data=request.POST or None)
+    if request.method == 'POST' and request.POST.get('form_type') == 'sales_login':
+        if login_form.is_valid():
+            login(request, login_form.get_user())
+            return redirect('dashboard:index')
+    elif request.method != 'POST':
+        login_form = AuthenticationForm(request)
+
+    return render(request, 'dashboard/sales.html', {'login_form': login_form})
+
+
+
 def apply_bet_filters(bets, form):
     if not form.is_valid():
         return bets

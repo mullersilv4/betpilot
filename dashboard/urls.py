@@ -7,6 +7,7 @@ from . import views
 app_name = 'dashboard'
 
 urlpatterns = [
+    path('vendas/', views.sales_page, name='sales'),
     path('login/', views.DashboardLoginView.as_view(), name='login'),
     path('cadastro/', views.signup, name='signup'),
     path('logout/', views.logout_view, name='logout'),

@@ -4,8 +4,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BetPilot | Dashboard de Apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260527-2" />
+    <title>Freebetar | Dashboard de Apostas</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260531-6" />
   </head>
   <body>
     <div class="app-shell">
@@ -18,9 +18,9 @@
 
       <aside id="appSidebar" class="sidebar" aria-label="Navegação principal">
         <div class="brand">
-          <span class="brand-mark">BP</span>
+          <span class="brand-mark">FB</span>
           <div>
-            <strong>BetPilot</strong>
+            <strong>Freebetar</strong>
             <small>Gestão inteligente</small>
           </div>
         </div>
@@ -30,11 +30,7 @@
           <a href="#new-bet">Nova aposta</a>
           <a href="#bankroll">Bancas</a>
           <a href="#bets">Histórico</a>
-          <a class="nav-dev" href="#goals">Metas <span>Em desenvolvimento</span></a>
-          <a href="#promotions">Promoções</a>
-          <a class="nav-dev" href="#odds">Odds <span>Em desenvolvimento</span></a>
-          <a class="nav-dev" href="#automation">Automações <span>Em desenvolvimento</span></a>
-          <a class="nav-dev" href="#analytics">Analytics <span>Em desenvolvimento</span></a>
+          <a href="#goals">Metas</a>
         </nav>
 
         <div class="side-panel">
@@ -484,7 +480,6 @@
                 <p class="eyebrow">Metas</p>
                 <h2>Criar meta mensal</h2>
               </div>
-              <span class="dev-badge">Em desenvolvimento</span>
             </div>
 
             <form class="bet-form" method="post" novalidate>
@@ -2083,6 +2078,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    <script src="{% static 'dashboard/app.js' %}?v=20260527-2"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260531-2"></script>
   </body>
 </html>

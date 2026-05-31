@@ -113,7 +113,7 @@ def fetch_public_text(url, timeout=8):
     request = urllib.request.Request(
         url,
         headers={
-            'User-Agent': 'BetPilotPromotionScanner/1.0 (+public promotion discovery)',
+            'User-Agent': 'FreebetarPromotionScanner/1.0 (+public promotion discovery)',
             'Accept': 'text/html,application/xhtml+xml',
         },
     )
@@ -139,7 +139,7 @@ def fetch_rendered_text(url, timeout=8):
             browser = playwright.chromium.launch(headless=True)
             try:
                 page = browser.new_page(
-                    user_agent='BetPilotPromotionScanner/1.0 (+public promotion discovery)',
+                    user_agent='FreebetarPromotionScanner/1.0 (+public promotion discovery)',
                     locale='pt-BR',
                 )
                 page.goto(url, wait_until='domcontentloaded', timeout=timeout_ms)

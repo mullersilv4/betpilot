@@ -1,0 +1,398 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Freebetar | Gestão profissional para apostas</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260531-8" />
+  </head>
+  <body class="sales-page">
+    <header class="sales-nav" aria-label="Navegação da página de vendas">
+      <a class="brand sales-brand" href="{% url 'dashboard:sales' %}" aria-label="Freebetar">
+        <span class="brand-mark">FB</span>
+        <div>
+          <strong>Freebetar</strong>
+          <small>Gestão inteligente</small>
+        </div>
+      </a>
+
+      <nav>
+        <a href="#funcionalidades">Funcionalidades</a>
+        <a href="#telas">Telas</a>
+        <a href="#controle">Controle</a>
+        <a href="#planos">Planos</a>
+      </nav>
+
+      <div class="sales-nav-actions">
+        {% if request.user.is_authenticated %}
+          <a class="ghost-button link-button" href="{% url 'dashboard:index' %}">Abrir dashboard</a>
+        {% else %}
+          <a class="ghost-button link-button" href="#acesso">Entrar</a>
+          <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
+          <aside id="acesso" class="sales-login-panel" aria-label="Acesso ao Freebetar">
+            <p class="eyebrow">Área do cliente</p>
+            <h2>Entrar no sistema</h2>
+            <form class="bet-form sales-login-form" method="post" action="{% url 'dashboard:sales' %}#acesso" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="sales_login" />
+
+              {% if login_form.non_field_errors %}
+                <div class="form-errors">{{ login_form.non_field_errors }}</div>
+              {% endif %}
+
+              <label>
+                <span>Usuário</span>
+                {{ login_form.username }}
+                {{ login_form.username.errors }}
+              </label>
+
+              <label>
+                <span>Senha</span>
+                {{ login_form.password }}
+                {{ login_form.password.errors }}
+              </label>
+
+              <button class="primary-button" type="submit">Entrar</button>
+            </form>
+            <div class="sales-login-links">
+              <a href="{% url 'dashboard:password_reset' %}">Esqueci minha senha</a>
+              <a href="{% url 'dashboard:signup' %}">Contratar agora</a>
+            </div>
+          </aside>
+        {% endif %}
+      </div>
+    </header>
+
+    <main>
+      <section class="sales-hero">
+        <div class="sales-hero-visual" aria-hidden="true">
+          <div class="sales-product-preview">
+            <div class="preview-sidebar">
+              <span></span>
+              <i></i>
+              <i></i>
+              <i></i>
+              <i></i>
+            </div>
+            <div class="preview-content">
+              <div class="preview-topline">
+                <span></span>
+                <strong>R$ 18.742,90</strong>
+              </div>
+              <div class="preview-metrics">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="preview-chart">
+                <i style="height: 46%"></i>
+                <i style="height: 68%"></i>
+                <i style="height: 54%"></i>
+                <i style="height: 82%"></i>
+                <i style="height: 61%"></i>
+                <i style="height: 74%"></i>
+                <i style="height: 88%"></i>
+              </div>
+              <div class="preview-table">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sales-hero-copy">
+          <p class="eyebrow">Controle para apostadores organizados</p>
+          <h1>Freebetar</h1>
+          <p>
+            Gestão profissional para bancas, apostas, metas e performance. Saia da planilha
+            improvisada e acompanhe seu resultado real em um painel feito para decisão.
+          </p>
+          <div class="sales-hero-actions">
+            {% if request.user.is_authenticated %}
+              <a class="primary-button link-button" href="{% url 'dashboard:index' %}">Abrir dashboard</a>
+            {% else %}
+              <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
+              <a class="secondary-button link-button" href="#acesso">Já sou usuário</a>
+            {% endif %}
+          </div>
+        </div>
+
+      </section>
+
+      <section id="funcionalidades" class="sales-section">
+        <div class="sales-section-heading">
+          <p class="eyebrow">Funcionalidades principais</p>
+          <h2>Tudo que importa para acompanhar sua operação</h2>
+        </div>
+
+        <div class="sales-feature-grid">
+          <article>
+            <span>01</span>
+            <h3>Bancas por entidade</h3>
+            <p>Organize casas, exchanges e entidades com saldo atual, disponível e exposição aberta.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Histórico de apostas</h3>
+            <p>Registre entradas, odds, stake, mercado, estratégia e status para enxergar seu desempenho.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Metas mensais</h3>
+            <p>Acompanhe lucro, ROI, volume e limite de perda por entidade, com progresso claro.</p>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>Financeiro</h3>
+            <p>Controle depósitos, saques, ajustes e transferências entre bancas sem perder o rastro.</p>
+          </article>
+          <article>
+            <span>05</span>
+            <h3>Dashboard visual</h3>
+            <p>Veja saldo total, ROI, lucro líquido, exposição e evolução da banca em uma visão rápida.</p>
+          </article>
+          <article>
+            <span>06</span>
+            <h3>Preparado para crescer</h3>
+            <p>Estrutura pronta para promoções, odds, automações, freebets e surebets quando forem liberadas.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="telas" class="sales-section sales-screens-section">
+        <div class="sales-section-heading">
+          <p class="eyebrow">Por dentro do Freebetar</p>
+          <h2>Uma visão real de como o dashboard funciona por dentro</h2>
+        </div>
+
+        <div class="sales-real-dashboard" aria-label="Prévia realista do dashboard Freebetar">
+          <div class="real-filter-bar">
+            <label>
+              <span>Mês</span>
+              <strong>Maio</strong>
+            </label>
+            <label>
+              <span>Ano</span>
+              <strong>2026</strong>
+            </label>
+            <button type="button">Aplicar</button>
+            <button type="button">Atual</button>
+          </div>
+
+          <div class="real-metric-grid">
+            <article>
+              <span>Saldo total</span>
+              <strong>R$ 624,56</strong>
+              <small>disponível R$ 574,56</small>
+            </article>
+            <article>
+              <span>Apostas abertas</span>
+              <strong>3</strong>
+              <small>exposição R$ 372,50</small>
+            </article>
+            <article>
+              <span>Total apostado</span>
+              <strong>R$ 1727,01</strong>
+              <small>11 apostas feitas</small>
+            </article>
+            <article>
+              <span>Lucro líquido</span>
+              <strong>R$ 47,83</strong>
+              <small>resultado fechado</small>
+            </article>
+            <article>
+              <span>ROI</span>
+              <strong>2,8%</strong>
+              <small>11 apostas registradas</small>
+            </article>
+            <article>
+              <span>Freebets</span>
+              <strong>R$ 20,00</strong>
+              <small>bonus pendentes</small>
+            </article>
+          </div>
+
+          <div class="real-dashboard-grid">
+            <article class="real-panel real-calendar-panel">
+              <div class="real-panel-header">
+                <div>
+                  <p class="eyebrow">Calendário</p>
+                  <h3>Resultado diário de 05/2026</h3>
+                </div>
+                <div>
+                  <span>8 aposta(s) fechada(s)</span>
+                  <strong>R$ 47,83</strong>
+                </div>
+              </div>
+
+              <div class="real-calendar-weekdays">
+                <span>SEG</span>
+                <span>TER</span>
+                <span>QUA</span>
+                <span>QUI</span>
+                <span>SEX</span>
+                <span>SAB</span>
+                <span>DOM</span>
+              </div>
+
+              <div class="real-calendar-grid">
+                <div class="outside"></div>
+                <div class="outside"></div>
+                <div class="outside"></div>
+                <div class="outside"></div>
+                <div><strong>1</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>2</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>3</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>4</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>5</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>6</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>7</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>8</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>9</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>10</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>11</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>12</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>13</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>14</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>15</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>16</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>17</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>18</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>19</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>20</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>21</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div class="loss"><strong>22</strong><span>R$ -13,85</span><small>3 aposta(s)</small></div>
+                <div><strong>23</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>24</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>25</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div><strong>26</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div class="loss"><strong>27</strong><span>R$ -32,67</span><small>1 aposta(s)</small></div>
+                <div><strong>28</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div class="loss"><strong>29</strong><span>R$ -15,21</span><small>1 aposta(s)</small></div>
+                <div><strong>30</strong><span>R$ 0,00</span><small>0 aposta(s)</small></div>
+                <div class="win active"><strong>31</strong><span>R$ 109,56</span><small>3 aposta(s)</small></div>
+              </div>
+            </article>
+
+            <div class="real-chart-stack">
+              <article class="real-panel">
+                <div class="real-panel-header">
+                  <div>
+                    <p class="eyebrow">Evolução</p>
+                    <h3>Banca e resultado acumulado</h3>
+                  </div>
+                  <button type="button">30 dias</button>
+                </div>
+                <div class="real-line-chart">
+                  <svg viewBox="0 0 640 210" role="img" aria-label="Gráfico de evolução da banca">
+                    <path class="grid" d="M34 34H606M34 86H606M34 138H606M34 190H606" />
+                    <path class="area" d="M34 121 L106 127 L178 121 L250 126 L322 138 L394 144 L466 132 L538 126 L606 104 L606 190 L34 190 Z" />
+                    <path class="line" d="M34 121 L106 127 L178 121 L250 126 L322 138 L394 144 L466 132 L538 126 L606 104" />
+                    <g class="points">
+                      <circle cx="34" cy="121" r="4" />
+                      <circle cx="106" cy="127" r="4" />
+                      <circle cx="178" cy="121" r="4" />
+                      <circle cx="250" cy="126" r="4" />
+                      <circle cx="322" cy="138" r="4" />
+                      <circle cx="394" cy="144" r="4" />
+                      <circle cx="466" cy="132" r="4" />
+                      <circle cx="538" cy="126" r="4" />
+                      <circle cx="606" cy="104" r="4" />
+                    </g>
+                    <text x="34" y="204">R$ 218,27</text>
+                    <text x="536" y="24">R$ 767,83</text>
+                  </svg>
+                </div>
+              </article>
+
+              <article class="real-panel">
+                <div class="real-panel-header">
+                  <div>
+                    <p class="eyebrow">Relatórios</p>
+                    <h3>Lucro diário do mês</h3>
+                  </div>
+                </div>
+                <div class="real-bar-chart">
+                  <svg viewBox="0 0 640 210" role="img" aria-label="Gráfico de lucro diário do mês">
+                    <path class="grid" d="M34 42H606M34 106H606M34 178H606" />
+                    <path class="zero" d="M34 106H606" />
+                    <rect class="loss-bar" x="426" y="106" width="13" height="15" />
+                    <rect class="loss-bar" x="524" y="106" width="13" height="32" />
+                    <rect class="loss-bar" x="562" y="106" width="13" height="18" />
+                    <rect class="win-bar" x="604" y="38" width="13" height="68" />
+                    <text x="34" y="24">R$ 109,56</text>
+                    <text x="34" y="196">-R$ 109,56</text>
+                    <text x="112" y="196">5</text>
+                    <text x="214" y="196">10</text>
+                    <text x="316" y="196">15</text>
+                    <text x="418" y="196">20</text>
+                    <text x="520" y="196">25</text>
+                    <text x="586" y="196">30</text>
+                    <text x="608" y="196">31</text>
+                  </svg>
+                </div>
+              </article>
+            </div>
+        </div>
+      </section>
+
+      <section id="controle" class="sales-split-section">
+        <div>
+          <p class="eyebrow">Do registro à decisão</p>
+          <h2>Menos achismo, mais clareza sobre sua banca</h2>
+          <p>
+            O Freebetar junta a parte operacional e financeira em um mesmo lugar. Assim você
+            consegue entender onde está ganhando, onde está tomando risco e se suas metas estão
+            dentro do planejado.
+          </p>
+        </div>
+
+        <div class="sales-control-list">
+          <div>
+            <strong>Resultado real</strong>
+            <span>Lucro líquido e ROI calculados a partir das apostas fechadas.</span>
+          </div>
+          <div>
+            <strong>Exposição aberta</strong>
+            <span>Saldo comprometido separado do disponível para novas entradas.</span>
+          </div>
+          <div>
+            <strong>Rotina organizada</strong>
+            <span>Cadastro de banca, aposta e meta dentro do mesmo fluxo.</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="planos" class="sales-section sales-plan-section">
+        <div class="sales-section-heading">
+          <p class="eyebrow">Acesso</p>
+          <h2>Comece usando a base essencial</h2>
+        </div>
+
+        <div class="sales-plan-grid">
+          <article>
+            <h3>Teste inicial</h3>
+            <strong>Grátis</strong>
+            <p>Ideal para validar o fluxo com suas primeiras bancas, apostas e metas.</p>
+            <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
+          </article>
+          <article>
+            <h3>Pro</h3>
+            <strong>Em breve</strong>
+            <p>Recursos avançados de promoções, automações, odds e leitura de oportunidades.</p>
+            <a class="ghost-button link-button" href="#acesso">Acessar minha conta</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="sales-final-cta">
+        <p class="eyebrow">Freebetar</p>
+        <h2>Organize sua operação antes de aumentar o volume.</h2>
+        <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-# BetPilot
+# Freebetar
 
 Dashboard Django para controle de apostas, bancas, metas, movimentacoes, calendario de resultados e analytics.
 

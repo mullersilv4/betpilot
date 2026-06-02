@@ -1,5 +1,5 @@
 <!doctype html>
-{% load static %}
+{% load static l10n %}
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -99,15 +99,15 @@
                 </div>
                 <div class="goal-row">
                   <span>Lucro</span>
-                  <div class="progress-track"><i style="width: {{ goal.profit_progress }}%"></i></div>
+                  <div class="progress-track"><i style="width: {{ goal.profit_progress|unlocalize }}%"></i></div>
                 </div>
                 <div class="goal-row">
                   <span>ROI</span>
-                  <div class="progress-track"><i style="width: {{ goal.roi_progress }}%"></i></div>
+                  <div class="progress-track"><i style="width: {{ goal.roi_progress|unlocalize }}%"></i></div>
                 </div>
                 <div class="goal-row">
                   <span>Volume</span>
-                  <div class="progress-track"><i style="width: {{ goal.volume_progress }}%"></i></div>
+                  <div class="progress-track"><i style="width: {{ goal.volume_progress|unlocalize }}%"></i></div>
                 </div>
               </article>
             {% empty %}
@@ -145,7 +145,7 @@
                       <td><strong>{{ bet.game }}</strong></td>
                       <td>{{ bet.sport|default:"-" }}</td>
                       <td>{{ bet.competition|default:"-" }}</td>
-                      <td>{{ bet.market }}</td>
+                      <td>{{ bet.display_market }}</td>
                       <td>{{ bet.get_entry_type_display }}</td>
                       <td>{{ bet.odds|floatformat:2 }}</td>
                       <td>R$ {{ bet.stake|floatformat:2 }}</td>

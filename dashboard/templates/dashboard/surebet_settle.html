@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Finalizar proteção | Freebetar</title>
+    <title>Finalizar arbitragem | Freebetar</title>
     <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260602-3" />
   </head>
   <body>
@@ -49,11 +49,11 @@
                 {% endif %}
               </label>
             {% empty %}
-              <div class="empty-state">Esta proteção ainda não tem entradas estruturadas para finalizar.</div>
+              <div class="empty-state">Esta arbitragem ainda não tem entradas estruturadas para finalizar.</div>
             {% endfor %}
           </div>
 
-          <button class="primary-button" type="submit" {% if not entries %}disabled{% endif %}>Finalizar proteção</button>
+          <button class="primary-button" type="submit" {% if not entries %}disabled{% endif %}>Finalizar arbitragem</button>
         </form>
       </article>
     </main>

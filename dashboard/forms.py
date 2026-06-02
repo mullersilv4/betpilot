@@ -649,8 +649,8 @@ class PromotionForm(forms.ModelForm):
 class PromotionExtractionForm(forms.Form):
     promotion = forms.ModelChoiceField(label='promoção', queryset=Promotion.objects.none())
     freebet_odd = forms.DecimalField(label='odd da freebet', min_value=1.01, max_digits=8, decimal_places=2, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '1.01'}))
-    protection_odd = forms.DecimalField(label='odd da proteção', min_value=1.01, max_digits=8, decimal_places=2, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '1.01'}))
-    protection_commission = forms.DecimalField(label='comissão proteção (%)', required=False, min_value=0, max_value=100, max_digits=5, decimal_places=2, initial=0, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'}))
+    protection_odd = forms.DecimalField(label='odd da arbitragem', min_value=1.01, max_digits=8, decimal_places=2, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '1.01'}))
+    protection_commission = forms.DecimalField(label='comissão arbitragem (%)', required=False, min_value=0, max_value=100, max_digits=5, decimal_places=2, initial=0, widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'}))
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)

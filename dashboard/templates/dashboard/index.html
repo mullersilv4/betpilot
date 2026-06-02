@@ -1,5 +1,5 @@
 <!doctype html>
-{% load static %}
+{% load static l10n %}
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -27,8 +27,8 @@
 
         <nav class="nav-list">
           <a class="active" href="#dashboard">Dashboard</a>
-          <a href="#new-bet">Nova aposta</a>
           <a href="#bankroll">Financeiro</a>
+          <a href="#new-bet">Nova aposta</a>
           <a href="#bets">Histórico</a>
           <a href="#goals">Metas</a>
         </nav>
@@ -704,19 +704,19 @@
 
                   <div class="goal-row">
                     <span>Lucro: R$ {{ goal.profit|floatformat:2 }} / R$ {{ goal.profit_target|floatformat:2 }}</span>
-                    <div class="progress-track"><i style="width: {{ goal.profit_progress }}%"></i></div>
+                    <div class="progress-track"><i style="width: {{ goal.profit_progress|unlocalize }}%"></i></div>
                   </div>
                   <div class="goal-row">
                     <span>ROI: {{ goal.roi|floatformat:1 }}% / {{ goal.roi_target|floatformat:1 }}%</span>
-                    <div class="progress-track"><i style="width: {{ goal.roi_progress }}%"></i></div>
+                    <div class="progress-track"><i style="width: {{ goal.roi_progress|unlocalize }}%"></i></div>
                   </div>
                   <div class="goal-row">
                     <span>Volume: {{ goal.volume }} / {{ goal.volume_target }}</span>
-                    <div class="progress-track"><i style="width: {{ goal.volume_progress }}%"></i></div>
+                    <div class="progress-track"><i style="width: {{ goal.volume_progress|unlocalize }}%"></i></div>
                   </div>
                   <div class="goal-row">
                     <span>Perda usada: {{ goal.loss_used_percent|floatformat:1 }}%</span>
-                    <div class="progress-track loss"><i style="width: {{ goal.loss_used_percent }}%"></i></div>
+                    <div class="progress-track loss"><i style="width: {{ goal.loss_used_percent|unlocalize }}%"></i></div>
                   </div>
                   {% if goal.loss_limit_reached %}
                     <span class="risk-badge">Limite de perda atingido</span>
@@ -740,7 +740,7 @@
 
             <div class="bet-mode-tabs" role="tablist" aria-label="Tipo de aposta">
               <button class="bet-mode-tab is-active" type="button" data-bet-mode-button="simple">Aposta simples</button>
-              <button class="bet-mode-tab" type="button" data-bet-mode-button="surebet">Proteção</button>
+              <button class="bet-mode-tab" type="button" data-bet-mode-button="surebet">Arbitragem</button>
               <button class="bet-mode-tab" type="button" data-bet-mode-button="freebet-extract">Extrair freebet</button>
             </div>
 
@@ -938,7 +938,7 @@
               </div>
 
               <input type="hidden" name="surebet_entry_count" id="surebetEntryCount" value="{{ surebet_rows|length }}" />
-              <div class="surebet-grid" id="surebetEntries" aria-label="Resultados protegidos">
+              <div class="surebet-grid" id="surebetEntries" aria-label="Resultados de arbitragem">
                 <div class="surebet-entry-header" aria-hidden="true">
                   <span>Casa de aposta</span>
                   <span>Modo</span>
@@ -1077,7 +1077,7 @@
                 <textarea name="surebet_notes" rows="3" placeholder="Casas usadas, ordem das entradas, limites ou qualquer detalhe importante...">{{ surebet_data.surebet_notes }}</textarea>
               </label>
 
-              <button class="primary-button" type="submit">Salvar proteção</button>
+              <button class="primary-button" type="submit">Salvar arbitragem</button>
             </form>
 
             <form class="bet-form compact-bet-form manual-freebet-form bet-mode-panel" data-bet-mode-panel="freebet-extract" method="post" novalidate>
@@ -1135,7 +1135,7 @@
                     </option>
                   {% endfor %}
                 </select>
-                <small class="field-hint">Use a freebet recebida e informe as odds das proteções para transformar em saldo real.</small>
+                <small class="field-hint">Use a freebet recebida e informe as odds da arbitragem para transformar em saldo real.</small>
               </label>
 
               <div class="form-row mobile-pair">
@@ -1182,7 +1182,7 @@
               </div>
 
               <input type="hidden" name="freebet_entry_count" id="freebetEntryCount" value="{{ freebet_extract_rows|length }}" />
-              <div class="surebet-grid" id="freebetEntries" aria-label="Extração protegida da freebet">
+              <div class="surebet-grid" id="freebetEntries" aria-label="Extração por arbitragem da freebet">
                 <div class="surebet-entry-header" aria-hidden="true">
                   <span>Casa de aposta</span>
                   <span>Modo</span>
@@ -1237,7 +1237,7 @@
                       </label>
                       <div class="freebet-control">
                         <input type="hidden" name="freebet_freebet_enabled_{{ row.index }}" value="0" />
-                        <output class="surebet-entry-return" data-freebet-result="{{ row.index }}">0,00</output>
+                        <output class="surebet-entry-return freebet-result-box" data-freebet-result="{{ row.index }}">0,00</output>
                       </div>
                       <label class="surebet-entry-note">
                         <span class="sr-only">Observação {{ row.index }}</span>
@@ -1248,7 +1248,7 @@
                 {% endfor %}
               </div>
 
-              <button class="ghost-button compact surebet-add-button" type="button" id="addFreebetEntry">+ Adicionar proteção</button>
+              <button class="ghost-button compact surebet-add-button" type="button" id="addFreebetEntry">+ Adicionar arbitragem</button>
 
               <div class="calculation-preview surebet-preview" aria-live="polite">
                 <div>
@@ -1715,14 +1715,14 @@
                 <label><span>Promoção</span>{{ promotion_extraction_form.promotion }}</label>
                 <div class="form-row">
                   <label><span>Odd da freebet</span>{{ promotion_extraction_form.freebet_odd }}</label>
-                  <label><span>Odd da proteção</span>{{ promotion_extraction_form.protection_odd }}</label>
+                  <label><span>Odd da arbitragem</span>{{ promotion_extraction_form.protection_odd }}</label>
                 </div>
-                <label><span>Comissão proteção (%)</span>{{ promotion_extraction_form.protection_commission }}</label>
+                <label><span>Comissão arbitragem (%)</span>{{ promotion_extraction_form.protection_commission }}</label>
                 <button class="secondary-button" type="submit">Calcular extração</button>
               </form>
               {% if promotion_extraction_result %}
                 <div class="calculation-preview">
-                  <div><span>Proteção sugerida</span><strong>R$ {{ promotion_extraction_result.protection_stake|floatformat:2 }}</strong></div>
+                  <div><span>Arbitragem sugerida</span><strong>R$ {{ promotion_extraction_result.protection_stake|floatformat:2 }}</strong></div>
                   <div><span>Pior cenário</span><strong>R$ {{ promotion_extraction_result.worst|floatformat:2 }}</strong></div>
                   <div><span>Conversão</span><strong>{{ promotion_extraction_result.conversion|floatformat:2 }}%</strong></div>
                 </div>
@@ -1960,7 +1960,7 @@
                 </article>
               {% empty %}
                 {% if odds_searched %}
-                  <div class="empty-state">Nenhuma proteção encontrada para esses filtros.</div>
+                  <div class="empty-state">Nenhuma arbitragem encontrada para esses filtros.</div>
                 {% else %}
                   <div class="empty-state">Busque odds para ver oportunidades aqui.</div>
                 {% endif %}
@@ -2121,14 +2121,10 @@
                           -
                         {% endif %}
                       </td>
-                      <td>{{ bet.market }}</td>
+                      <td>{{ bet.display_market }}</td>
                       <td>{{ bet.get_entry_type_display }}</td>
                       <td>
-                        {% if bet.strategy == 'Surebet' %}
-                          Proteção
-                        {% else %}
-                          {{ bet.strategy|default:"-" }}
-                        {% endif %}
+                        {{ bet.display_strategy|default:"-" }}
                       </td>
                       <td>{{ bet.odds|floatformat:2 }}</td>
                       <td>R$ {{ bet.stake|floatformat:2 }}</td>
@@ -2142,8 +2138,8 @@
                         <div class="table-actions">
                           <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' bet.pk %}">Editar</a>
                           {% if bet.status == 'open' %}
-                            {% if bet.strategy == 'Surebet' or bet.strategy == 'Proteção' or bet.strategy == 'Extração de freebet' %}
-                              <a class="mini-button won link-button" href="{% url 'dashboard:settle_surebet' bet.pk %}">Finalizar proteção</a>
+                            {% if bet.strategy == 'Surebet' or bet.strategy == 'Proteção' or bet.strategy == 'Arbitragem' or bet.strategy == 'Extração de freebet' %}
+                              <a class="mini-button won link-button" href="{% url 'dashboard:settle_surebet' bet.pk %}">Finalizar arbitragem</a>
                             {% else %}
                               <form method="post" action="{% url 'dashboard:settle_bet' bet.pk 'won' %}">
                                 {% csrf_token %}
@@ -2194,7 +2190,7 @@
                   </div>
                   <div class="report-metrics">
                     <article>
-                      <span>Proteção origem</span>
+                      <span>Arbitragem origem</span>
                       <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
                         R$ {{ freebet.source_result|floatformat:2 }}
                       </strong>
@@ -2230,7 +2226,7 @@
                   </div>
                   <div class="report-metrics">
                     <article>
-                      <span>Proteção origem</span>
+                      <span>Arbitragem origem</span>
                       <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
                         R$ {{ freebet.source_result|floatformat:2 }}
                       </strong>

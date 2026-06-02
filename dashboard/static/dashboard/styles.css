@@ -1119,6 +1119,20 @@ textarea {
   padding: 0 6px;
 }
 
+.freebet-result-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 86px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--green);
+  box-shadow: none;
+}
+
 .surebet-entry-note {
   grid-column: 1 / -1;
 }
@@ -1683,6 +1697,7 @@ canvas {
 
 .progress-track i {
   display: block;
+  width: 0;
   height: 100%;
   border-radius: inherit;
   background: var(--green);
@@ -2824,6 +2839,11 @@ th {
     margin-left: auto;
     min-width: 62px;
     font-size: 0.8rem;
+  }
+
+  .freebet-result-box {
+    width: 100%;
+    min-width: 0;
   }
 
   .odds-metrics {

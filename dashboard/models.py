@@ -170,6 +170,18 @@ class Bet(models.Model):
         return f'{self.game} - {self.market}'
 
     @property
+    def display_market(self):
+        if self.market.startswith('Proteção:'):
+            return self.market.replace('Proteção:', 'Arbitragem:', 1)
+        return self.market
+
+    @property
+    def display_strategy(self):
+        if self.strategy in {'Surebet', 'Proteção'}:
+            return 'Arbitragem'
+        return self.strategy
+
+    @property
     def gross_profit(self):
         return (self.stake * (self.odds - Decimal('1.00'))).quantize(MONEY_PLACES)
 

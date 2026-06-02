@@ -555,6 +555,189 @@ def build_freebet_extract_rows(post_data=None):
     return rows
 
 
+def decimal_to_input(value):
+    if value is None:
+        return ''
+    return f'{value:.2f}'
+
+
+def datetime_to_input(value):
+    if not value:
+        return ''
+    return timezone.localtime(value).strftime('%Y-%m-%dT%H:%M')
+
+
+def surebet_data_from_bet(bet):
+    return {
+        'surebet_entity': str(bet.entity_id or ''),
+        'surebet_sport': bet.sport,
+        'surebet_competition': bet.competition,
+        'surebet_event_date': datetime_to_input(bet.event_date),
+        'surebet_game': bet.game,
+        'surebet_external_event_id': bet.external_event_id,
+        'surebet_external_sport_key': bet.external_sport_key,
+        'surebet_home_team': bet.home_team,
+        'surebet_away_team': bet.away_team,
+        'surebet_general_notes': bet.notes,
+    }
+
+
+def freebet_data_from_bet(bet, source_freebet=None):
+    return {
+        'freebet_source': str(source_freebet.pk if source_freebet else ''),
+        'freebet_sport': bet.sport,
+        'freebet_competition': bet.competition,
+        'freebet_event_date': datetime_to_input(bet.event_date),
+        'freebet_game': bet.game,
+        'freebet_external_event_id': bet.external_event_id,
+        'freebet_external_sport_key': bet.external_sport_key,
+        'freebet_home_team': bet.home_team,
+        'freebet_away_team': bet.away_team,
+        'freebet_general_notes': bet.notes,
+    }
+
+
+def rows_from_surebet_entries(bet, prefix):
+    entries = list(bet.surebet_entries.select_related('bankroll').order_by('id'))
+    rows = []
+    for index, entry in enumerate(entries, start=1):
+        rows.append(
+            {
+                'index': index,
+                'bookmaker': entry.bookmaker,
+                'bankroll_id': str(entry.bankroll_id or ''),
+                'outcome': entry.label,
+                'mode': entry.mode,
+                'odd': decimal_to_input(entry.odds),
+                'stake': decimal_to_input(entry.stake),
+                'net_result': decimal_to_input(entry.net_result),
+                'commission': decimal_to_input(entry.commission),
+                'cashback': decimal_to_input(entry.cashback),
+                'boost': decimal_to_input(entry.boost),
+                'freebet_enabled': '1' if entry.freebet_enabled else '',
+                'freebet_amount': decimal_to_input(entry.freebet_amount) if entry.freebet_amount else '',
+                'freebet_trigger': entry.freebet_trigger,
+                'notes': entry.notes,
+                'optional': index > 2,
+                'readonly': index > 1,
+                'is_source': entry.is_freebet_source,
+            }
+        )
+    while len(rows) < 2:
+        index = len(rows) + 1
+        rows.append(
+            {
+                'index': index,
+                'bookmaker': '',
+                'bankroll_id': '',
+                'outcome': '',
+                'mode': 'back',
+                'odd': '',
+                'stake': '',
+                'net_result': '',
+                'commission': '',
+                'cashback': '',
+                'boost': '',
+                'freebet_enabled': '',
+                'freebet_amount': '',
+                'freebet_trigger': 'lost',
+                'notes': '',
+                'optional': index > 2,
+                'readonly': index > 1,
+                'is_source': prefix == 'freebet' and index == 1,
+            }
+        )
+    if prefix == 'freebet' and rows:
+        rows[0]['is_source'] = True
+        rows[0]['readonly'] = False
+    return rows
+
+
+def calculate_protection_results(outcomes):
+    total_stake = sum(
+        (
+            outcome['liability'] if outcome['mode'] == 'lay' else outcome['stake']
+            for outcome in outcomes
+        ),
+        start=Decimal('0.00'),
+    )
+    outcome_results = [
+        {
+            **outcome,
+            'return': (outcome['stake'] * outcome['payout_multiplier']).quantize(Decimal('0.01')),
+        }
+        for outcome in outcomes
+    ]
+    for outcome in outcome_results:
+        losing_cashback = sum(
+            (
+                other['stake'] * (other['cashback'] / Decimal('100'))
+                for other in outcome_results
+                if other is not outcome and other['mode'] == 'back'
+            ),
+            start=Decimal('0.00'),
+        )
+        scenario_net = outcome['return'] - total_stake
+        outcome['cashback_return'] = losing_cashback.quantize(Decimal('0.01'))
+        calculated_net = (scenario_net + outcome['cashback_return']).quantize(Decimal('0.01'))
+        outcome['net'] = (
+            outcome['manual_net_result']
+            if outcome['manual_net_result'] is not None else calculated_net
+        )
+        outcome['effective_odd_display'] = outcome['effective_odd'].quantize(Decimal('0.01'))
+    return total_stake, outcome_results
+
+
+def calculate_freebet_results(outcomes):
+    cash_exposure = sum(
+        (
+            Decimal('0.00')
+            if outcome['is_freebet_source']
+            else outcome['liability'] if outcome['mode'] == 'lay' else outcome['stake']
+        )
+        for outcome in outcomes
+    )
+    outcome_results = [
+        {
+            **outcome,
+            'return': (outcome['stake'] * outcome['payout_multiplier']).quantize(Decimal('0.01')),
+        }
+        for outcome in outcomes
+    ]
+    for outcome in outcome_results:
+        losing_cashback = sum(
+            (
+                other['stake'] * (other['cashback'] / Decimal('100'))
+                for other in outcome_results
+                if other is not outcome
+                and not other['is_freebet_source']
+                and other['mode'] == 'back'
+            ),
+            start=Decimal('0.00'),
+        )
+        scenario_net = Decimal('0.00')
+        for entry in outcome_results:
+            if entry is outcome:
+                if entry['is_freebet_source']:
+                    scenario_net += entry['return']
+                elif entry['mode'] == 'lay':
+                    scenario_net += entry['return']
+                else:
+                    scenario_net += entry['return'] - entry['stake']
+            elif outcome['is_freebet_source'] and entry['mode'] == 'lay':
+                scenario_net -= entry['liability']
+            elif entry['is_freebet_source']:
+                scenario_net += Decimal('0.00')
+            elif entry['mode'] == 'lay':
+                scenario_net -= entry['liability']
+            else:
+                scenario_net -= entry['stake']
+        outcome['cashback_return'] = losing_cashback.quantize(Decimal('0.01'))
+        outcome['net'] = (scenario_net + outcome['cashback_return']).quantize(Decimal('0.01'))
+        outcome['effective_odd_display'] = outcome['effective_odd'].quantize(Decimal('0.01'))
+    return cash_exposure, outcome_results
+
+
 def build_surebet_payload(post_data):
     outcomes = []
     for index in surebet_indices_from_post(post_data):
@@ -708,7 +891,7 @@ def build_freebet_extract_payload(post_data, source_freebet=None):
                 'bookmaker': bookmaker,
                 'bankroll_id': bankroll_id,
                 'bankroll': None,
-                'label': label or ('Freebet' if index == 1 else f'Proteção {index}'),
+                'label': label or ('Freebet' if index == 1 else f'Arbitragem {index}'),
                 'mode': mode,
                 'odd': odd,
                 'stake': stake,
@@ -1614,7 +1797,7 @@ def index(request):
                             f'{len(odds_opportunities)} oportunidade(s) encontrada(s).',
                         )
                     else:
-                        messages.warning(request, 'Nenhuma proteção encontrada nos snapshots capturados.')
+                        messages.warning(request, 'Nenhuma arbitragem encontrada nos snapshots capturados.')
             context = build_dashboard_context(
                 request,
                 odds_form=odds_form,
@@ -1679,7 +1862,7 @@ def index(request):
             if entity is None:
                 surebet_errors.append('Selecione uma entidade válida.')
             if len(outcomes) < 2:
-                surebet_errors.append('Informe pelo menos dois resultados protegidos.')
+                surebet_errors.append('Informe pelo menos dois resultados de arbitragem.')
             bind_outcome_bankrolls(outcomes, request.user, surebet_errors, entity=entity)
 
             for outcome in outcomes:
@@ -1744,9 +1927,9 @@ def index(request):
 
             best_return = max((outcome['return'] for outcome in outcome_results), default=total_stake)
             effective_odd = (best_return / total_stake).quantize(Decimal('0.01'))
-            market = 'Proteção: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
+            market = 'Arbitragem: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
             protection_lines = [
-                'Proteção cadastrada:',
+                'Arbitragem cadastrada:',
                 f'Responsabilidade total: {format_money(total_stake)}',
             ]
             for outcome in outcome_results:
@@ -1782,7 +1965,7 @@ def index(request):
                 home_team=home_team,
                 away_team=away_team,
                 market=market[:120],
-                strategy='Proteção',
+                strategy='Arbitragem',
                 event_date=event_date,
                 odds=effective_odd,
                 stake=total_stake,
@@ -1813,7 +1996,7 @@ def index(request):
                     freebet_trigger=outcome['freebet_trigger'],
                     notes=outcome['notes'],
                 )
-            messages.success(request, 'Proteção cadastrada com sucesso.')
+            messages.success(request, 'Arbitragem cadastrada com sucesso.')
             return redirect('dashboard:index')
 
         if form_type == 'freebet_extract':
@@ -1845,7 +2028,7 @@ def index(request):
             if not game:
                 extraction_errors.append('Informe o jogo da extração da freebet.')
             if len(outcomes) < 2:
-                extraction_errors.append('Informe a freebet e pelo menos uma proteção.')
+                extraction_errors.append('Informe a freebet e pelo menos uma arbitragem.')
             bind_outcome_bankrolls(outcomes, request.user, extraction_errors)
 
             for outcome in outcomes:
@@ -1946,7 +2129,7 @@ def index(request):
                 )
             market = 'Extração freebet: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
             protection_lines = [
-                'Extração de freebet cadastrada com proteções:',
+                'Extração de freebet cadastrada com arbitragem:',
                 f'Freebet usada: {source_freebet.bookmaker} - {format_money(source_freebet.amount)}',
                 f'Responsabilidade em dinheiro: {format_money(cash_exposure)}',
             ]
@@ -2038,6 +2221,220 @@ def index(request):
 @login_required
 def edit_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
+    complex_strategies = {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}
+    if bet.strategy in complex_strategies:
+        is_freebet_edit = bet.strategy == 'Extração de freebet'
+        current_source_freebet = FreeBet.objects.filter(extraction_bet=bet).first()
+        source_freebets = FreeBet.objects.filter(
+            Q(owner=request.user)
+            | Q(source_bet__bankroll__owner=request.user)
+            | Q(source_bet__entity__owner=request.user)
+            | Q(extraction_bet=bet),
+        ).filter(Q(is_used=False) | Q(extraction_bet=bet)).select_related('source_bet').distinct()
+        errors = []
+
+        if request.method == 'POST':
+            if is_freebet_edit:
+                freebet_id = request.POST.get('freebet_source')
+                source_freebet = None
+                if freebet_id:
+                    source_freebet = source_freebets.filter(pk=freebet_id).first()
+                outcomes = build_freebet_extract_payload(request.POST, source_freebet)
+                game = (request.POST.get('freebet_game') or '').strip()
+                sport = (request.POST.get('freebet_sport') or 'Futebol').strip()
+                competition = (request.POST.get('freebet_competition') or '').strip()
+                event_date = event_date_from_post(request.POST, 'freebet_event_date')
+                notes = (request.POST.get('freebet_general_notes') or '').strip()
+
+                if source_freebet is None:
+                    errors.append('Selecione a freebet usada nessa extração.')
+                if not game:
+                    errors.append('Informe o jogo da extração da freebet.')
+                if len(outcomes) < 2:
+                    errors.append('Informe a freebet e pelo menos uma arbitragem.')
+                bind_outcome_bankrolls(outcomes, request.user, errors)
+                for outcome in outcomes:
+                    if outcome['odd'] is None or outcome['odd'] <= 1:
+                        errors.append(f'A odd de {outcome["label"]} precisa ser maior que 1.00.')
+                    if outcome['stake'] is None or outcome['stake'] <= 0:
+                        errors.append(f'O valor de {outcome["label"]} precisa ser maior que zero.')
+                    for field, label in [('commission', 'comissão'), ('cashback', 'cashback'), ('boost', 'aumento')]:
+                        if outcome[field] < 0 or outcome[field] > 100:
+                            errors.append(f'O campo {label} de {outcome["label"]} precisa ficar entre 0% e 100%.')
+
+                if not errors:
+                    cash_exposure, outcome_results = calculate_freebet_results(outcomes)
+                    best_return = max((outcome['return'] for outcome in outcome_results), default=Decimal('0.00'))
+                    effective_odd = (
+                        (best_return / cash_exposure).quantize(Decimal('0.01'))
+                        if cash_exposure > 0 else Decimal('1.00')
+                    )
+                    entity = bet.entity
+                    if source_freebet and source_freebet.source_bet:
+                        entity = source_freebet.source_bet.entity or (
+                            source_freebet.source_bet.bankroll.entity
+                            if source_freebet.source_bet.bankroll else None
+                        )
+                    if entity is None:
+                        entity = next(
+                            (
+                                outcome['bankroll'].entity
+                                for outcome in outcome_results
+                                if outcome.get('bankroll') and outcome['bankroll'].entity_id
+                            ),
+                            None,
+                        )
+                    with transaction.atomic():
+                        bet.entity = entity
+                        bet.bankroll = None
+                        bet.sport = sport
+                        bet.competition = competition
+                        bet.game = game
+                        bet.external_event_id = (request.POST.get('freebet_external_event_id') or '').strip()
+                        bet.external_sport_key = (request.POST.get('freebet_external_sport_key') or '').strip()
+                        bet.home_team = (request.POST.get('freebet_home_team') or '').strip()
+                        bet.away_team = (request.POST.get('freebet_away_team') or '').strip()
+                        bet.market = ('Extração freebet: ' + ' / '.join(o['label'] for o in outcome_results))[:120]
+                        bet.strategy = 'Extração de freebet'
+                        bet.event_date = event_date
+                        bet.odds = effective_odd
+                        bet.stake = cash_exposure
+                        bet.exchange_commission = Decimal('0.00')
+                        bet.notes = notes
+                        bet.save()
+                        bet.surebet_entries.all().delete()
+                        for outcome in outcome_results:
+                            SureBetEntry.objects.create(
+                                bet=bet,
+                                bankroll=outcome['bankroll'],
+                                bookmaker=outcome['bookmaker'],
+                                label=outcome['label'],
+                                mode=outcome['mode'],
+                                odds=outcome['odd'],
+                                effective_odds=outcome['effective_odd_display'],
+                                stake=outcome['stake'],
+                                liability=outcome['liability'],
+                                commission=outcome['commission'],
+                                cashback=outcome['cashback'],
+                                boost=outcome['boost'],
+                                return_amount=outcome['return'],
+                                cashback_return=outcome['cashback_return'],
+                                net_result=outcome['net'],
+                                is_freebet_source=outcome['is_freebet_source'],
+                                freebet_enabled=outcome['freebet_enabled'],
+                                freebet_amount=outcome['freebet_amount'],
+                                notes=outcome['notes'],
+                            )
+                        if current_source_freebet and current_source_freebet.pk != source_freebet.pk:
+                            current_source_freebet.is_used = False
+                            current_source_freebet.extraction_bet = None
+                            current_source_freebet.save(update_fields=['is_used', 'extraction_bet'])
+                        source_freebet.is_used = True
+                        source_freebet.extraction_bet = bet
+                        source_freebet.save(update_fields=['is_used', 'extraction_bet'])
+                    messages.success(request, 'Extração de freebet atualizada.')
+                    return redirect(f'{reverse("dashboard:index")}#bets')
+                rows = build_freebet_extract_rows(request.POST)
+                data = request.POST
+            else:
+                entity_id = request.POST.get('surebet_entity')
+                entity = Entity.objects.filter(owner=request.user, pk=entity_id).first() if entity_id else None
+                outcomes = build_surebet_payload(request.POST)
+                game = (request.POST.get('surebet_game') or '').strip()
+                sport = (request.POST.get('surebet_sport') or 'Futebol').strip()
+                competition = (request.POST.get('surebet_competition') or '').strip()
+                event_date = event_date_from_post(request.POST, 'surebet_event_date')
+                notes = (request.POST.get('surebet_general_notes') or '').strip()
+
+                if entity is None:
+                    errors.append('Selecione a entidade da arbitragem.')
+                if not game:
+                    errors.append('Informe o jogo da arbitragem.')
+                if len(outcomes) < 2:
+                    errors.append('Informe pelo menos dois resultados de arbitragem.')
+                bind_outcome_bankrolls(outcomes, request.user, errors, entity=entity)
+                for outcome in outcomes:
+                    if outcome['odd'] is None or outcome['odd'] <= 1:
+                        errors.append(f'A odd de {outcome["label"]} precisa ser maior que 1.00.')
+                    if outcome['stake'] is None or outcome['stake'] <= 0:
+                        errors.append(f'O valor de {outcome["label"]} precisa ser maior que zero.')
+                    for field, label in [('commission', 'comissão'), ('cashback', 'cashback'), ('boost', 'aumento')]:
+                        if outcome[field] < 0 or outcome[field] > 100:
+                            errors.append(f'O campo {label} de {outcome["label"]} precisa ficar entre 0% e 100%.')
+                    if outcome['freebet_enabled'] and outcome['freebet_amount'] <= 0:
+                        errors.append(f'Informe o valor da freebet gerada em {outcome["label"]}.')
+
+                if not errors:
+                    total_stake, outcome_results = calculate_protection_results(outcomes)
+                    best_return = max((outcome['return'] for outcome in outcome_results), default=total_stake)
+                    effective_odd = (best_return / total_stake).quantize(Decimal('0.01')) if total_stake > 0 else Decimal('1.00')
+                    with transaction.atomic():
+                        bet.entity = entity
+                        bet.bankroll = None
+                        bet.sport = sport
+                        bet.competition = competition
+                        bet.game = game
+                        bet.external_event_id = (request.POST.get('surebet_external_event_id') or '').strip()
+                        bet.external_sport_key = (request.POST.get('surebet_external_sport_key') or '').strip()
+                        bet.home_team = (request.POST.get('surebet_home_team') or '').strip()
+                        bet.away_team = (request.POST.get('surebet_away_team') or '').strip()
+                        bet.market = ('Arbitragem: ' + ' / '.join(o['label'] for o in outcome_results))[:120]
+                        bet.strategy = 'Arbitragem'
+                        bet.event_date = event_date
+                        bet.odds = effective_odd
+                        bet.stake = total_stake
+                        bet.exchange_commission = Decimal('0.00')
+                        bet.notes = notes
+                        bet.save()
+                        bet.surebet_entries.all().delete()
+                        for outcome in outcome_results:
+                            SureBetEntry.objects.create(
+                                bet=bet,
+                                bankroll=outcome['bankroll'],
+                                bookmaker=outcome['bookmaker'],
+                                label=outcome['label'],
+                                mode=outcome['mode'],
+                                odds=outcome['odd'],
+                                effective_odds=outcome['effective_odd_display'],
+                                stake=outcome['stake'],
+                                liability=outcome['liability'],
+                                commission=outcome['commission'],
+                                cashback=outcome['cashback'],
+                                boost=outcome['boost'],
+                                return_amount=outcome['return'],
+                                cashback_return=outcome['cashback_return'],
+                                net_result=outcome['net'],
+                                freebet_enabled=outcome['freebet_enabled'],
+                                freebet_amount=outcome['freebet_amount'],
+                                freebet_trigger=outcome['freebet_trigger'],
+                                notes=outcome['notes'],
+                            )
+                    messages.success(request, 'Arbitragem atualizada.')
+                    return redirect(f'{reverse("dashboard:index")}#bets')
+                rows = build_surebet_rows(request.POST)
+                data = request.POST
+        else:
+            if is_freebet_edit:
+                data = freebet_data_from_bet(bet, current_source_freebet)
+                rows = rows_from_surebet_entries(bet, 'freebet')
+            else:
+                data = surebet_data_from_bet(bet)
+                rows = rows_from_surebet_entries(bet, 'surebet')
+
+        context = {
+            'bet': bet,
+            'is_freebet_edit': is_freebet_edit,
+            'errors': errors,
+            'entities': Entity.objects.filter(owner=request.user),
+            'bankrolls': Bankroll.objects.filter(owner=request.user).select_related('entity'),
+            'available_freebet_list': source_freebets,
+            'freebet_extract_data': data if is_freebet_edit else {},
+            'freebet_extract_rows': rows if is_freebet_edit else [],
+            'surebet_data': data if not is_freebet_edit else {},
+            'surebet_rows': rows if not is_freebet_edit else [],
+        }
+        return render(request, 'dashboard/complex_bet_form.html', context)
+
     if request.method == 'POST':
         form = BetForm(request.POST, instance=bet, user=request.user)
         if form.is_valid():
@@ -2159,8 +2556,8 @@ def delete_entity(request, pk):
 @login_required
 def settle_bet(request, pk, status):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
-    if bet.strategy in {'Surebet', 'Proteção', 'Extração de freebet'}:
-        messages.error(request, 'Use a finalização da proteção para escolher a casa vencedora.')
+    if bet.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}:
+        messages.error(request, 'Use a finalização da arbitragem para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
     if request.method == 'POST' and status in {Bet.Status.WON, Bet.Status.LOST, Bet.Status.OPEN}:
         bet.status = status
@@ -2176,8 +2573,8 @@ def settle_bet(request, pk, status):
 @login_required
 def cashout_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
-    if bet.strategy in {'Surebet', 'Proteção', 'Extração de freebet'}:
-        messages.error(request, 'Use a finalização da proteção para escolher a casa vencedora.')
+    if bet.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}:
+        messages.error(request, 'Use a finalização da arbitragem para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
 
     if request.method == 'POST':
@@ -2201,7 +2598,7 @@ def settle_surebet(request, pk):
     bet = get_object_or_404(
         user_bets(request.user).prefetch_related('surebet_entries', 'generated_freebets'),
         pk=pk,
-        strategy__in=['Surebet', 'Proteção', 'Extração de freebet'],
+        strategy__in=['Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'],
     )
     entries = bet.surebet_entries.select_related('bankroll').all()
 
@@ -2209,7 +2606,7 @@ def settle_surebet(request, pk):
         entry_id = request.POST.get('winner_entry')
         winner = entries.filter(pk=entry_id).first() if entry_id else None
         if winner is None:
-            messages.error(request, 'Selecione a casa vencedora da proteção.')
+            messages.error(request, 'Selecione a casa vencedora da arbitragem.')
             return render(
                 request,
                 'dashboard/surebet_settle.html',
@@ -2248,7 +2645,7 @@ def settle_surebet(request, pk):
                         defaults={'owner': request.user},
                     )
 
-        messages.success(request, 'Proteção finalizada com o resultado da casa vencedora.')
+        messages.success(request, 'Arbitragem finalizada com o resultado da casa vencedora.')
         return redirect_to_history()
 
     return render(

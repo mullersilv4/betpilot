@@ -337,6 +337,22 @@ textarea {
   color: var(--amber);
 }
 
+.trial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgb(90 167 255 / 34%);
+  border-radius: 8px;
+  background: rgb(90 167 255 / 10%);
+}
+
+.trial-banner strong {
+  display: block;
+  margin-top: 2px;
+}
+
 .insight-strip,
 .metric-grid,
 .workspace-grid,
@@ -1128,6 +1144,7 @@ canvas {
 .automation-list,
 .breakdown-list,
 .bankroll-list,
+.bank-account-list,
 .entity-list {
   display: grid;
   gap: 10px;
@@ -1135,6 +1152,7 @@ canvas {
 }
 
 .automation-list div,
+.bank-account-list div,
 .entity-list div,
 .breakdown-row,
 .analytics-row {
@@ -1194,11 +1212,13 @@ canvas {
 }
 
 .entity-list strong,
+.bank-account-list strong,
 .entity-list span {
   display: block;
 }
 
-.entity-list span {
+.entity-list span,
+.bank-account-list span {
   color: var(--muted);
   font-size: 0.82rem;
 }
@@ -2340,6 +2360,7 @@ th {
   }
 
   .entity-list div,
+  .bank-account-list div,
   .automation-list div,
   .analytics-row,
   .breakdown-row,

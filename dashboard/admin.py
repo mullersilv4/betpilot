@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import Bankroll
 from .models import BankrollTransaction
+from .models import BankAccount
 from .models import Bet
 from .models import BookmakerAlias
 from .models import BookmakerEventLink
@@ -13,6 +14,14 @@ from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
 from .models import SureBetEntry
+from .models import UserAccess
+
+
+@admin.register(UserAccess)
+class UserAccessAdmin(admin.ModelAdmin):
+    list_display = ('user', 'status', 'trial_started_at', 'trial_ends_at', 'subscription_ends_at')
+    list_filter = ('status', 'trial_ends_at', 'subscription_ends_at')
+    search_fields = ('user__username', 'user__email')
 
 
 @admin.register(Entity)
@@ -47,6 +56,13 @@ class BankrollAdmin(admin.ModelAdmin):
         ),
     )
     search_fields = ('owner__username', 'name', 'bookmaker')
+
+
+@admin.register(BankAccount)
+class BankAccountAdmin(admin.ModelAdmin):
+    list_display = ('owner', 'name', 'bank_name', 'account_type', 'agency', 'account_number', 'created_at')
+    list_filter = ('account_type', 'bank_name', 'created_at')
+    search_fields = ('owner__username', 'owner__email', 'name', 'bank_name', 'pix_key')
 
 
 @admin.register(Bet)

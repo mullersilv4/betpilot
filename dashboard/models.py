@@ -6,6 +6,92 @@ from decimal import Decimal
 from datetime import timedelta
 
 MONEY_PLACES = Decimal('0.01')
+TRIAL_DAYS = 7
+
+
+class UserAccess(models.Model):
+    class Status(models.TextChoices):
+        TRIAL = 'trial', 'Teste'
+        ACTIVE = 'active', 'Ativa'
+        EXPIRED = 'expired', 'Expirada'
+        CANCELED = 'canceled', 'Cancelada'
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name='usuário',
+        related_name='access',
+        on_delete=models.CASCADE,
+    )
+    trial_started_at = models.DateTimeField('início do teste', default=timezone.now)
+    trial_ends_at = models.DateTimeField('fim do teste')
+    status = models.CharField(
+        'status',
+        max_length=20,
+        choices=Status.choices,
+        default=Status.TRIAL,
+    )
+    subscription_ends_at = models.DateTimeField('fim da assinatura', null=True, blank=True)
+    created_at = models.DateTimeField('criado em', default=timezone.now)
+    updated_at = models.DateTimeField('atualizado em', auto_now=True)
+
+    class Meta:
+        verbose_name = 'acesso do usuário'
+        verbose_name_plural = 'acessos dos usuários'
+
+    def __str__(self):
+        return f'{self.user} - {self.get_status_display()}'
+
+    @classmethod
+    def create_trial_for(cls, user):
+        started_at = timezone.now()
+        return cls.objects.create(
+            user=user,
+            trial_started_at=started_at,
+            trial_ends_at=started_at + timedelta(days=TRIAL_DAYS),
+            status=cls.Status.TRIAL,
+        )
+
+    @property
+    def is_trial_active(self):
+        return self.status == self.Status.TRIAL and timezone.now() <= self.trial_ends_at
+
+    @property
+    def is_subscription_active(self):
+        return (
+            self.status == self.Status.ACTIVE
+            and (self.subscription_ends_at is None or timezone.now() <= self.subscription_ends_at)
+        )
+
+    @property
+    def has_access(self):
+        return self.is_subscription_active or self.is_trial_active
+
+    @property
+    def days_remaining(self):
+        if self.status != self.Status.TRIAL:
+            return 0
+        remaining = self.trial_ends_at - timezone.now()
+        if remaining.total_seconds() <= 0:
+            return 0
+        return max(1, remaining.days + (1 if remaining.seconds else 0))
+
+    def expire_if_needed(self):
+        if self.status == self.Status.TRIAL and timezone.now() > self.trial_ends_at:
+            self.status = self.Status.EXPIRED
+            self.save(update_fields=['status', 'updated_at'])
+
+
+def ensure_user_access(user):
+    access, _created = UserAccess.objects.get_or_create(
+        user=user,
+        defaults={
+            'trial_started_at': timezone.now(),
+            'trial_ends_at': timezone.now() + timedelta(days=TRIAL_DAYS),
+            'status': UserAccess.Status.TRIAL,
+        },
+    )
+    access.expire_if_needed()
+    return access
 
 
 class Bet(models.Model):
@@ -476,6 +562,14 @@ class BankrollTransaction(models.Model):
         null=True,
         blank=True,
     )
+    bank_account = models.ForeignKey(
+        'BankAccount',
+        verbose_name='conta bancária',
+        related_name='transactions',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
     kind = models.CharField('tipo', max_length=16, choices=Kind.choices)
     amount = models.DecimalField('valor', max_digits=12, decimal_places=2)
     note = models.CharField('observação', max_length=160, blank=True)
@@ -515,6 +609,44 @@ class Entity(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class BankAccount(models.Model):
+    class AccountType(models.TextChoices):
+        CHECKING = 'checking', 'Conta corrente'
+        SAVINGS = 'savings', 'Poupança'
+        PAYMENT = 'payment', 'Conta de pagamento'
+        PIX = 'pix', 'Pix'
+        OTHER = 'other', 'Outra'
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='usuário',
+        related_name='bank_accounts',
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField('apelido', max_length=80)
+    bank_name = models.CharField('banco/instituição', max_length=100)
+    account_type = models.CharField(
+        'tipo',
+        max_length=16,
+        choices=AccountType.choices,
+        default=AccountType.CHECKING,
+    )
+    agency = models.CharField('agência', max_length=20, blank=True)
+    account_number = models.CharField('conta', max_length=40, blank=True)
+    pix_key = models.CharField('chave Pix', max_length=120, blank=True)
+    notes = models.CharField('observação', max_length=160, blank=True)
+    created_at = models.DateTimeField('criada em', default=timezone.now)
+
+    class Meta:
+        ordering = ['bank_name', 'name']
+        unique_together = ('owner', 'name')
+        verbose_name = 'conta bancária'
+        verbose_name_plural = 'contas bancárias'
+
+    def __str__(self):
+        return f'{self.name} - {self.bank_name}'
 
 
 class Bankroll(models.Model):

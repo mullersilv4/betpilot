@@ -29,6 +29,7 @@ from .automation import import_bets_from_csv
 from .automation import import_bets_from_text
 from .forms import BankrollForm
 from .forms import BankrollTransactionForm
+from .forms import BankAccountForm
 from .forms import BetFilterForm
 from .forms import BetForm
 from .forms import EntityForm
@@ -46,6 +47,7 @@ from .forms import SignUpForm
 from .forms import TransferForm
 from .models import BookmakerAlias
 from .models import BookmakerEventLink
+from .models import BankAccount
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
@@ -57,6 +59,8 @@ from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
 from .models import SureBetEntry
+from .models import UserAccess
+from .models import ensure_user_access
 from .odds_api import OddsApiClient
 from .odds_api import OddsApiError
 from .odds_api import OddsPapiClient
@@ -125,6 +129,7 @@ def redirect_to_history():
 
 
 def sales_page(request):
+    user_access = ensure_user_access(request.user) if request.user.is_authenticated else None
     login_form = AuthenticationForm(request, data=request.POST or None)
     if request.method == 'POST' and request.POST.get('form_type') == 'sales_login':
         if login_form.is_valid():
@@ -133,7 +138,7 @@ def sales_page(request):
     elif request.method != 'POST':
         login_form = AuthenticationForm(request)
 
-    return render(request, 'dashboard/sales.html', {'login_form': login_form})
+    return render(request, 'dashboard/sales.html', {'login_form': login_form, 'user_access': user_access})
 
 
 
@@ -240,7 +245,9 @@ def parse_import_lines(raw_text):
 
 
 def build_dashboard_context(request, **forms):
+    user_access = ensure_user_access(request.user)
     entities = Entity.objects.filter(owner=request.user).prefetch_related('bankrolls')
+    bank_accounts = BankAccount.objects.filter(owner=request.user)
     bankrolls = Bankroll.objects.filter(owner=request.user).select_related('entity').prefetch_related('bets', 'transactions')
     all_bets = user_bets(request.user).select_related('bankroll', 'bankroll__entity', 'entity')
     all_bet_list = list(all_bets)
@@ -317,7 +324,7 @@ def build_dashboard_context(request, **forms):
 
     latest_transactions = BankrollTransaction.objects.filter(
         bankroll__owner=request.user
-    ).select_related('bankroll')[:8]
+    ).select_related('bankroll', 'bank_account')[:8]
     regulated_bookmakers = RegulatedBookmaker.objects.filter(owner=request.user).prefetch_related('aliases', 'promotion_pages')
     affiliate_terms = [
         'afiliado',
@@ -351,6 +358,7 @@ def build_dashboard_context(request, **forms):
 
     return {
         'bankroll_form': forms.get('bankroll_form') or BankrollForm(user=request.user),
+        'bank_account_form': forms.get('bank_account_form') or BankAccountForm(),
         'entity_form': forms.get('entity_form') or EntityForm(user=request.user),
         'form': forms.get('bet_form') or BetForm(user=request.user),
         'transaction_form': forms.get('transaction_form') or BankrollTransactionForm(user=request.user),
@@ -388,11 +396,13 @@ def build_dashboard_context(request, **forms):
             'source_bet__bankroll',
         ),
         'bankrolls': bankrolls,
+        'bank_accounts': bank_accounts,
         'entities': entities,
         'bets': bets[:30],
         'latest_transactions': latest_transactions,
         'monthly_goals': MonthlyGoal.objects.filter(entity__owner=request.user).select_related('entity')[:12],
         'dashboard_filter': dashboard_filter,
+        'user_access': user_access,
         'metrics': {
             'total_stake': total_stake,
             'total_registered_stake': total_registered_stake,
@@ -1377,6 +1387,17 @@ def index(request):
             context = build_dashboard_context(request, transaction_form=transaction_form)
             return render(request, 'dashboard/index.html', context)
 
+        if form_type == 'bank_account':
+            bank_account_form = BankAccountForm(request.POST)
+            if bank_account_form.is_valid():
+                bank_account = bank_account_form.save(commit=False)
+                bank_account.owner = request.user
+                bank_account.save()
+                messages.success(request, 'Conta bancária cadastrada com sucesso.')
+                return redirect('dashboard:index')
+            context = build_dashboard_context(request, bank_account_form=bank_account_form)
+            return render(request, 'dashboard/index.html', context)
+
         if form_type == 'transfer':
             transfer_form = TransferForm(request.POST, user=request.user)
             if transfer_form.is_valid():
@@ -2246,6 +2267,7 @@ def signup(request):
         form = SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
+            UserAccess.create_trial_for(user)
             login(request, user)
             messages.success(request, 'Conta criada com sucesso.')
             return redirect('dashboard:index')

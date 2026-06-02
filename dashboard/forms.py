@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
+from .models import BankAccount
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
@@ -233,6 +234,7 @@ class BankrollTransactionForm(forms.ModelForm):
         self.original_signed_amount = self.instance.signed_amount if self.instance.pk else 0
         if user is not None:
             self.fields['bankroll'].queryset = Bankroll.objects.filter(owner=user)
+            self.fields['bank_account'].queryset = BankAccount.objects.filter(owner=user)
         self.fields['kind'].choices = [
             (BankrollTransaction.Kind.DEPOSIT, 'Deposito'),
             (BankrollTransaction.Kind.WITHDRAW, 'Saque'),
@@ -243,10 +245,11 @@ class BankrollTransactionForm(forms.ModelForm):
 
     class Meta:
         model = BankrollTransaction
-        fields = ['bankroll', 'kind', 'amount', 'note']
+        fields = ['bankroll', 'kind', 'bank_account', 'amount', 'note']
         widgets = {
             'bankroll': forms.Select(),
             'kind': forms.Select(),
+            'bank_account': forms.Select(),
             'amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01'}),
             'note': forms.TextInput(
                 attrs={
@@ -260,7 +263,14 @@ class BankrollTransactionForm(forms.ModelForm):
         cleaned_data = super().clean()
         bankroll = cleaned_data.get('bankroll')
         kind = cleaned_data.get('kind')
+        bank_account = cleaned_data.get('bank_account')
         amount = cleaned_data.get('amount')
+
+        if kind in {BankrollTransaction.Kind.DEPOSIT, BankrollTransaction.Kind.WITHDRAW} and not bank_account:
+            self.add_error(
+                'bank_account',
+                'Informe a conta bancária usada no depósito ou saque.',
+            )
 
         if (
             bankroll
@@ -293,6 +303,21 @@ class BankrollTransactionForm(forms.ModelForm):
             self.save_m2m()
 
         return transaction
+
+
+class BankAccountForm(forms.ModelForm):
+    class Meta:
+        model = BankAccount
+        fields = ['name', 'bank_name', 'account_type', 'agency', 'account_number', 'pix_key', 'notes']
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'Ex: Nubank principal', 'autocomplete': 'off'}),
+            'bank_name': forms.TextInput(attrs={'placeholder': 'Ex: Nubank, Itaú, Banco Inter', 'autocomplete': 'off'}),
+            'account_type': forms.Select(),
+            'agency': forms.TextInput(attrs={'placeholder': 'Opcional', 'autocomplete': 'off'}),
+            'account_number': forms.TextInput(attrs={'placeholder': 'Opcional', 'autocomplete': 'off'}),
+            'pix_key': forms.TextInput(attrs={'placeholder': 'CPF, email, telefone ou chave aleatória', 'autocomplete': 'off'}),
+            'notes': forms.TextInput(attrs={'placeholder': 'Observação opcional', 'autocomplete': 'off'}),
+        }
 
 
 class TransferForm(forms.Form):

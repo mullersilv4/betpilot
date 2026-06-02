@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freebetar | Dashboard de Apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260531-6" />
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260531-9" />
   </head>
   <body>
     <div class="app-shell">
@@ -28,7 +28,7 @@
         <nav class="nav-list">
           <a class="active" href="#dashboard">Dashboard</a>
           <a href="#new-bet">Nova aposta</a>
-          <a href="#bankroll">Bancas</a>
+          <a href="#bankroll">Financeiro</a>
           <a href="#bets">Histórico</a>
           <a href="#goals">Metas</a>
         </nav>
@@ -54,6 +54,16 @@
               <div class="message {{ message.tags }}">{{ message }}</div>
             {% endfor %}
           </div>
+        {% endif %}
+
+        {% if user_access.status == 'trial' %}
+          <section class="trial-banner" data-screen="dashboard" aria-label="Status do teste gratuito">
+            <div>
+              <p class="eyebrow">Teste gratuito</p>
+              <strong>{{ user_access.days_remaining }} dia(s) restantes no Freebetar</strong>
+            </div>
+            <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:sales' %}#planos">Ver planos</a>
+          </section>
         {% endif %}
 
         <section id="dashboard" class="dashboard-filter-bar" data-screen="dashboard" aria-label="Filtros do dashboard">
@@ -230,7 +240,7 @@
           <article class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Bancas</p>
+                <p class="eyebrow">Financeiro</p>
                 <h2>Cadastrar banca</h2>
               </div>
             </div>
@@ -273,7 +283,7 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Controle</p>
-                <h2>Resumo por banca</h2>
+                <h2>Resumo financeiro</h2>
               </div>
               <label class="entity-filter">
                 <span>Entidade</span>
@@ -316,7 +326,7 @@
                   </div>
                 </article>
               {% empty %}
-                <div class="empty-state">Cadastre sua primeira banca para comecar.</div>
+                <div class="empty-state">Cadastre sua primeira conta para comecar.</div>
               {% endfor %}
             </div>
           </article>
@@ -345,6 +355,82 @@
             <article class="panel">
               <div class="panel-header">
                 <div>
+                  <p class="eyebrow">Conta bancária</p>
+                  <h2>Cadastrar conta de banco</h2>
+                </div>
+              </div>
+
+              <form class="bet-form" method="post" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="bank_account" />
+
+                {% if bank_account_form.non_field_errors %}
+                  <div class="form-errors">{{ bank_account_form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="form-row">
+                  <label>
+                    <span>Apelido</span>
+                    {{ bank_account_form.name }}
+                    {{ bank_account_form.name.errors }}
+                  </label>
+                  <label>
+                    <span>Banco ou instituição</span>
+                    {{ bank_account_form.bank_name }}
+                    {{ bank_account_form.bank_name.errors }}
+                  </label>
+                </div>
+
+                <div class="form-row">
+                  <label>
+                    <span>Tipo</span>
+                    {{ bank_account_form.account_type }}
+                    {{ bank_account_form.account_type.errors }}
+                  </label>
+                  <label>
+                    <span>Chave Pix</span>
+                    {{ bank_account_form.pix_key }}
+                    {{ bank_account_form.pix_key.errors }}
+                  </label>
+                </div>
+
+                <div class="form-row">
+                  <label>
+                    <span>Agência</span>
+                    {{ bank_account_form.agency }}
+                    {{ bank_account_form.agency.errors }}
+                  </label>
+                  <label>
+                    <span>Conta</span>
+                    {{ bank_account_form.account_number }}
+                    {{ bank_account_form.account_number.errors }}
+                  </label>
+                </div>
+
+                <label>
+                  <span>Observação</span>
+                  {{ bank_account_form.notes }}
+                  {{ bank_account_form.notes.errors }}
+                </label>
+
+                <button class="primary-button" type="submit">Salvar conta bancária</button>
+              </form>
+
+              <div class="bank-account-list">
+                {% for bank_account in bank_accounts %}
+                  <div>
+                    <strong>{{ bank_account.name }}</strong>
+                    <span>{{ bank_account.bank_name }} - {{ bank_account.get_account_type_display }}</span>
+                  </div>
+                {% empty %}
+                  <div class="empty-state">Cadastre uma conta bancária para registrar depósitos e saques.</div>
+                {% endfor %}
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div>
                   <p class="eyebrow">Financeiro</p>
                   <h2>Depositos, saques e ajustes</h2>
                 </div>
@@ -367,6 +453,12 @@
                     {{ transaction_form.kind.errors }}
                   </label>
                 </div>
+
+                <label>
+                  <span>Conta bancária</span>
+                  {{ transaction_form.bank_account }}
+                  {{ transaction_form.bank_account.errors }}
+                </label>
 
                 <label>
                   <span>Valor</span>
@@ -440,7 +532,12 @@
               <div class="automation-list collapsible-panel" id="transactionsList" hidden>
                 {% for transaction in latest_transactions %}
                   <div class="transaction-row">
-                    <span>{{ transaction.bankroll.name }} - {{ transaction.get_kind_display }}</span>
+                    <span>
+                      {{ transaction.bankroll.name }} - {{ transaction.get_kind_display }}
+                      {% if transaction.bank_account %}
+                        - {{ transaction.bank_account.name }}
+                      {% endif %}
+                    </span>
                     <div class="transaction-meta">
                       <strong>R$ {{ transaction.signed_amount|floatformat:2 }}</strong>
                       <div class="transaction-actions">
@@ -2054,11 +2151,11 @@
         <section class="bankroll-band" data-screen="analytics">
           <div>
             <p class="eyebrow">Controle</p>
-            <h2>Suas bancas e resultados em um so lugar.</h2>
+            <h2>Seu financeiro e resultados em um so lugar.</h2>
           </div>
           <div class="risk-grid">
             <article>
-              <span>Bancas</span>
+              <span>Financeiro</span>
               <strong>Saldos atualizados</strong>
             </article>
             <article>
@@ -2078,6 +2175,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    <script src="{% static 'dashboard/app.js' %}?v=20260531-2"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260531-9"></script>
   </body>
 </html>

@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freebetar | Dashboard de Apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260531-9" />
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260602-8" />
   </head>
   <body>
     <div class="app-shell">
@@ -67,26 +67,82 @@
         {% endif %}
 
         <section id="dashboard" class="dashboard-filter-bar" data-screen="dashboard" aria-label="Filtros do dashboard">
-          <form method="get" action="#dashboard">
-            <label>
-              <span>Mês</span>
-              <select name="dashboard_month">
-                {% for value, label in dashboard_filter.month_choices %}
-                  <option value="{{ value }}" {% if value == dashboard_filter.month %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              <span>Ano</span>
-              <select name="dashboard_year">
-                {% for year in dashboard_filter.year_choices %}
-                  <option value="{{ year }}" {% if year == dashboard_filter.year %}selected{% endif %}>{{ year }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <button class="ghost-button compact" type="submit">Aplicar</button>
-            <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#dashboard">Atual</a>
-          </form>
+          <div class="dashboard-filter-inner">
+            <form method="get" action="#dashboard">
+              <label>
+                <span>Mês</span>
+                <select name="dashboard_month">
+                  {% for value, label in dashboard_filter.month_choices %}
+                    <option value="{{ value }}" {% if value == dashboard_filter.month %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                <span>Ano</span>
+                <select name="dashboard_year">
+                  {% for year in dashboard_filter.year_choices %}
+                    <option value="{{ year }}" {% if year == dashboard_filter.year %}selected{% endif %}>{{ year }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <button class="ghost-button compact" type="submit">Aplicar</button>
+              <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#dashboard">Atual</a>
+            </form>
+
+            <article class="primary-bank-card" aria-label="Conta bancária principal" data-balance-card>
+              <div class="primary-bank-info">
+                <span>Conta principal</span>
+                {% if bank_account_summaries %}
+                  <strong data-bank-account-name>
+                    {% for item in bank_account_summaries %}
+                      {% if item.is_primary %}{{ item.account.name }}{% endif %}
+                    {% endfor %}
+                  </strong>
+                  {% if bank_account_summaries|length > 1 %}
+                    <select class="primary-bank-select" aria-label="Selecionar conta bancária" data-bank-account-select>
+                      {% for item in bank_account_summaries %}
+                        <option
+                          value="{{ item.account.id }}"
+                          data-name="{{ item.account.name }}"
+                          data-balance="R$ {{ item.balance|floatformat:2 }}"
+                          data-bank="{{ item.account.bank_name }} - {{ item.account.get_account_type_display }}"
+                          {% if item.is_primary %}selected{% endif %}
+                        >
+                          {{ item.account.name }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  {% endif %}
+                  <small data-bank-account-meta>
+                    {% for item in bank_account_summaries %}
+                      {% if item.is_primary %}{{ item.account.bank_name }} - {{ item.account.get_account_type_display }}{% endif %}
+                    {% endfor %}
+                  </small>
+                  {% if bank_account_summaries|length > 1 %}
+                    <span class="primary-bank-arrow" aria-hidden="true">⌄</span>
+                  {% endif %}
+                {% else %}
+                  <strong>Nenhuma conta</strong>
+                  <small>cadastre em Financeiro</small>
+                {% endif %}
+              </div>
+              <div class="primary-bank-balance">
+                <button class="icon-button balance-toggle" type="button" aria-label="Ocultar saldo" aria-pressed="false" data-balance-toggle>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+                <strong data-balance-value>
+                  {% for item in bank_account_summaries %}
+                    {% if item.is_primary %}R$ {{ item.balance|floatformat:2 }}{% endif %}
+                  {% empty %}
+                    R$ 0,00
+                  {% endfor %}
+                </strong>
+              </div>
+            </article>
+          </div>
         </section>
 
         <section class="metric-grid" data-screen="dashboard" aria-label="Métricas principais">
@@ -684,7 +740,7 @@
 
             <div class="bet-mode-tabs" role="tablist" aria-label="Tipo de aposta">
               <button class="bet-mode-tab is-active" type="button" data-bet-mode-button="simple">Aposta simples</button>
-              <button class="bet-mode-tab" type="button" data-bet-mode-button="surebet">Surebet</button>
+              <button class="bet-mode-tab" type="button" data-bet-mode-button="surebet">Proteção</button>
               <button class="bet-mode-tab" type="button" data-bet-mode-button="freebet-extract">Extrair freebet</button>
             </div>
 
@@ -970,7 +1026,7 @@
                 {% endfor %}
               </template>
 
-              <button class="ghost-button compact surebet-add-button" type="button" id="addSurebetEntry">+ Adicionar entrada</button>
+              <button class="ghost-button compact surebet-add-button" type="button" id="addProtectionEntry">+ Adicionar entrada</button>
 
               <div class="calculation-preview surebet-preview" aria-live="polite">
                 <div>
@@ -1021,7 +1077,7 @@
                 <textarea name="surebet_notes" rows="3" placeholder="Casas usadas, ordem das entradas, limites ou qualquer detalhe importante...">{{ surebet_data.surebet_notes }}</textarea>
               </label>
 
-              <button class="primary-button" type="submit">Salvar surebet</button>
+              <button class="primary-button" type="submit">Salvar proteção</button>
             </form>
 
             <form class="bet-form compact-bet-form manual-freebet-form bet-mode-panel" data-bet-mode-panel="freebet-extract" method="post" novalidate>
@@ -1160,7 +1216,7 @@
                       </div>
                       <label>
                         <span class="sr-only">Valor {{ row.index }}</span>
-                        <input type="number" name="freebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly or row.is_source %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.is_source %}Valor da freebet{% elif row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly or row.is_source %}readonly{% endif %} />
+                        <input type="number" name="freebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.is_source %}Valor da freebet{% elif row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly %}readonly{% endif %} />
                         <output class="surebet-liability" data-freebet-liability="{{ row.index }}"></output>
                       </label>
                       <label>
@@ -1904,7 +1960,7 @@
                 </article>
               {% empty %}
                 {% if odds_searched %}
-                  <div class="empty-state">Nenhuma surebet encontrada para esses filtros.</div>
+                  <div class="empty-state">Nenhuma proteção encontrada para esses filtros.</div>
                 {% else %}
                   <div class="empty-state">Busque odds para ver oportunidades aqui.</div>
                 {% endif %}
@@ -1973,8 +2029,8 @@
           </article>
         </section>
 
-        <section id="bets" class="workspace-grid lower" data-screen="bets">
-          <article class="panel table-panel">
+        <section id="bets" class="workspace-grid lower history-layout" data-screen="bets">
+          <article class="panel table-panel history-main-panel">
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Histórico</p>
@@ -2067,7 +2123,13 @@
                       </td>
                       <td>{{ bet.market }}</td>
                       <td>{{ bet.get_entry_type_display }}</td>
-                      <td>{{ bet.strategy|default:"-" }}</td>
+                      <td>
+                        {% if bet.strategy == 'Surebet' %}
+                          Proteção
+                        {% else %}
+                          {{ bet.strategy|default:"-" }}
+                        {% endif %}
+                      </td>
                       <td>{{ bet.odds|floatformat:2 }}</td>
                       <td>R$ {{ bet.stake|floatformat:2 }}</td>
                       <td>R$ {{ bet.commission_amount|floatformat:2 }}</td>
@@ -2080,7 +2142,7 @@
                         <div class="table-actions">
                           <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' bet.pk %}">Editar</a>
                           {% if bet.status == 'open' %}
-                            {% if bet.strategy == 'Surebet' or bet.strategy == 'Extração de freebet' %}
+                            {% if bet.strategy == 'Surebet' or bet.strategy == 'Proteção' or bet.strategy == 'Extração de freebet' %}
                               <a class="mini-button won link-button" href="{% url 'dashboard:settle_surebet' bet.pk %}">Finalizar proteção</a>
                             {% else %}
                               <form method="post" action="{% url 'dashboard:settle_bet' bet.pk 'won' %}">
@@ -2114,6 +2176,92 @@
               </table>
             </div>
           </article>
+
+          <article class="panel freebet-pending-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Ciclo de freebets</p>
+                <h2>Pendentes de extração</h2>
+              </div>
+            </div>
+
+            <div class="freebet-cycle-list compact-cycle-list">
+              {% for freebet in pending_freebet_cycles %}
+                <article class="freebet-cycle-card compact-cycle-card">
+                  <div class="goal-title">
+                    <strong>{{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}</strong>
+                    <span>{{ freebet.cycle_status }}</span>
+                  </div>
+                  <div class="report-metrics">
+                    <article>
+                      <span>Proteção origem</span>
+                      <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ freebet.source_result|floatformat:2 }}
+                      </strong>
+                    </article>
+                    <article>
+                      <span>Resultado parcial</span>
+                      <strong class="{% if freebet.cycle_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ freebet.cycle_result|floatformat:2 }}
+                      </strong>
+                    </article>
+                  </div>
+                  <div class="cycle-links">
+                    {% if freebet.source_bet %}
+                      <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.source_bet.pk %}">Ver origem</a>
+                    {% endif %}
+                    <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}?freebet_source={{ freebet.id }}#new-bet">Extrair freebet</a>
+                  </div>
+                </article>
+              {% empty %}
+                <div class="empty-state">Nenhuma freebet pendente de extração.</div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <details class="panel settings-disclosure extraction-history-panel">
+            <summary>Histórico de extração</summary>
+            <div class="freebet-cycle-list compact-cycle-list">
+              {% for freebet in freebet_extraction_history %}
+                <article class="freebet-cycle-card compact-cycle-card">
+                  <div class="goal-title">
+                    <strong>{{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}</strong>
+                    <span>{{ freebet.cycle_status }}</span>
+                  </div>
+                  <div class="report-metrics">
+                    <article>
+                      <span>Proteção origem</span>
+                      <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ freebet.source_result|floatformat:2 }}
+                      </strong>
+                    </article>
+                    <article>
+                      <span>Extração</span>
+                      <strong class="{% if freebet.extraction_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ freebet.extraction_result|floatformat:2 }}
+                      </strong>
+                    </article>
+                    <article>
+                      <span>Resultado do ciclo</span>
+                      <strong class="{% if freebet.cycle_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ freebet.cycle_result|floatformat:2 }}
+                      </strong>
+                    </article>
+                  </div>
+                  <div class="cycle-links">
+                    {% if freebet.source_bet %}
+                      <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.source_bet.pk %}">Ver origem</a>
+                    {% endif %}
+                    {% if freebet.extraction_bet %}
+                      <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.extraction_bet.pk %}">Ver extração</a>
+                    {% endif %}
+                  </div>
+                </article>
+              {% empty %}
+                <div class="empty-state">Nenhuma extração finalizada ainda.</div>
+              {% endfor %}
+            </div>
+          </details>
 
           <article class="panel">
             <div class="panel-header">
@@ -2175,6 +2323,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    <script src="{% static 'dashboard/app.js' %}?v=20260531-9"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260602-7"></script>
   </body>
 </html>

@@ -223,6 +223,14 @@ class FreeBet(models.Model):
         null=True,
         blank=True,
     )
+    extraction_bet = models.OneToOneField(
+        Bet,
+        verbose_name='aposta de extração',
+        related_name='extracted_freebet',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     bookmaker = models.CharField('casa de aposta', max_length=80)
     amount = models.DecimalField('valor', max_digits=10, decimal_places=2)
     is_used = models.BooleanField('utilizada', default=False)
@@ -235,6 +243,26 @@ class FreeBet(models.Model):
 
     def __str__(self):
         return f'{self.bookmaker} - R$ {self.amount}'
+
+    @property
+    def source_result(self):
+        return self.source_bet.net_result if self.source_bet else Decimal('0.00')
+
+    @property
+    def extraction_result(self):
+        return self.extraction_bet.net_result if self.extraction_bet else Decimal('0.00')
+
+    @property
+    def cycle_result(self):
+        return (self.source_result + self.extraction_result).quantize(MONEY_PLACES)
+
+    @property
+    def cycle_status(self):
+        if self.extraction_bet is None:
+            return 'Aguardando extração'
+        if self.extraction_bet.status == Bet.Status.OPEN:
+            return 'Extração aberta'
+        return 'Ciclo fechado'
 
 
 class RegulatedBookmaker(models.Model):

@@ -276,6 +276,20 @@ def build_dashboard_context(request, **forms):
         | Q(source_bet__entity__owner=request.user),
         is_used=False,
     ).distinct()
+    freebet_cycles_base = FreeBet.objects.filter(
+        source_bet__isnull=False,
+    ).filter(
+        Q(source_bet__bankroll__owner=request.user)
+        | Q(source_bet__entity__owner=request.user)
+        | Q(owner=request.user)
+    ).select_related('source_bet', 'extraction_bet')
+    pending_freebet_cycles = freebet_cycles_base.filter(
+        is_used=False,
+        extraction_bet__isnull=True,
+    )[:4]
+    freebet_extraction_history = freebet_cycles_base.filter(
+        Q(is_used=True) | Q(extraction_bet__isnull=False)
+    )[:12]
     available_freebet_total = available_freebets.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     total_initial_balance = sum(
         (bankroll.initial_balance for bankroll in bankrolls),
@@ -325,6 +339,28 @@ def build_dashboard_context(request, **forms):
     latest_transactions = BankrollTransaction.objects.filter(
         bankroll__owner=request.user
     ).select_related('bankroll', 'bank_account')[:8]
+    primary_bank_account = bank_accounts.filter(name__icontains='principal').first() or bank_accounts.first()
+    bank_account_summaries = []
+    for bank_account in bank_accounts:
+        account_transactions = BankrollTransaction.objects.filter(
+            bank_account=bank_account,
+            bankroll__owner=request.user,
+            kind__in=[
+                BankrollTransaction.Kind.DEPOSIT,
+                BankrollTransaction.Kind.WITHDRAW,
+            ],
+        )
+        account_balance = sum(
+            (transaction.signed_amount * Decimal('-1') for transaction in account_transactions),
+            start=Decimal('0.00'),
+        )
+        bank_account_summaries.append(
+            {
+                'account': bank_account,
+                'balance': account_balance,
+                'is_primary': primary_bank_account and bank_account.pk == primary_bank_account.pk,
+            }
+        )
     regulated_bookmakers = RegulatedBookmaker.objects.filter(owner=request.user).prefetch_related('aliases', 'promotion_pages')
     affiliate_terms = [
         'afiliado',
@@ -395,8 +431,12 @@ def build_dashboard_context(request, **forms):
             'source_bet__entity',
             'source_bet__bankroll',
         ),
+        'pending_freebet_cycles': pending_freebet_cycles,
+        'freebet_extraction_history': freebet_extraction_history,
         'bankrolls': bankrolls,
         'bank_accounts': bank_accounts,
+        'primary_bank_account': primary_bank_account,
+        'bank_account_summaries': bank_account_summaries,
         'entities': entities,
         'bets': bets[:30],
         'latest_transactions': latest_transactions,
@@ -639,7 +679,7 @@ def build_freebet_extract_payload(post_data, source_freebet=None):
         cashback = cashback or Decimal('0.00')
         boost = boost or Decimal('0.00')
         freebet_amount = freebet_amount or Decimal('0.00')
-        if index == 1 and source_amount > 0:
+        if index == 1 and source_amount > 0 and not stake:
             stake = source_amount
         effective_odd = odd * (Decimal('1.00') + boost / Decimal('100')) if odd else None
         payout_multiplier = None
@@ -1574,7 +1614,7 @@ def index(request):
                             f'{len(odds_opportunities)} oportunidade(s) encontrada(s).',
                         )
                     else:
-                        messages.warning(request, 'Nenhuma surebet encontrada nos snapshots capturados.')
+                        messages.warning(request, 'Nenhuma proteção encontrada nos snapshots capturados.')
             context = build_dashboard_context(
                 request,
                 odds_form=odds_form,
@@ -1704,9 +1744,9 @@ def index(request):
 
             best_return = max((outcome['return'] for outcome in outcome_results), default=total_stake)
             effective_odd = (best_return / total_stake).quantize(Decimal('0.01'))
-            market = 'Surebet: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
+            market = 'Proteção: ' + ' / '.join(outcome['label'] for outcome in outcome_results)
             protection_lines = [
-                'Surebet cadastrada com proteções:',
+                'Proteção cadastrada:',
                 f'Responsabilidade total: {format_money(total_stake)}',
             ]
             for outcome in outcome_results:
@@ -1742,7 +1782,7 @@ def index(request):
                 home_team=home_team,
                 away_team=away_team,
                 market=market[:120],
-                strategy='Surebet',
+                strategy='Proteção',
                 event_date=event_date,
                 odds=effective_odd,
                 stake=total_stake,
@@ -1773,7 +1813,7 @@ def index(request):
                     freebet_trigger=outcome['freebet_trigger'],
                     notes=outcome['notes'],
                 )
-            messages.success(request, 'Surebet cadastrada com sucesso.')
+            messages.success(request, 'Proteção cadastrada com sucesso.')
             return redirect('dashboard:index')
 
         if form_type == 'freebet_extract':
@@ -1978,7 +2018,8 @@ def index(request):
                         ),
                     )
                 source_freebet.is_used = True
-                source_freebet.save(update_fields=['is_used'])
+                source_freebet.extraction_bet = bet
+                source_freebet.save(update_fields=['is_used', 'extraction_bet'])
 
             messages.success(request, 'Extração de freebet cadastrada com sucesso.')
             return redirect('dashboard:index')
@@ -2118,8 +2159,8 @@ def delete_entity(request, pk):
 @login_required
 def settle_bet(request, pk, status):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
-    if bet.strategy in {'Surebet', 'Extração de freebet'}:
-        messages.error(request, 'Use a finalização da surebet para escolher a casa vencedora.')
+    if bet.strategy in {'Surebet', 'Proteção', 'Extração de freebet'}:
+        messages.error(request, 'Use a finalização da proteção para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
     if request.method == 'POST' and status in {Bet.Status.WON, Bet.Status.LOST, Bet.Status.OPEN}:
         bet.status = status
@@ -2135,8 +2176,8 @@ def settle_bet(request, pk, status):
 @login_required
 def cashout_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
-    if bet.strategy in {'Surebet', 'Extração de freebet'}:
-        messages.error(request, 'Use a finalização da surebet para escolher a casa vencedora.')
+    if bet.strategy in {'Surebet', 'Proteção', 'Extração de freebet'}:
+        messages.error(request, 'Use a finalização da proteção para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
 
     if request.method == 'POST':
@@ -2160,7 +2201,7 @@ def settle_surebet(request, pk):
     bet = get_object_or_404(
         user_bets(request.user).prefetch_related('surebet_entries', 'generated_freebets'),
         pk=pk,
-        strategy__in=['Surebet', 'Extração de freebet'],
+        strategy__in=['Surebet', 'Proteção', 'Extração de freebet'],
     )
     entries = bet.surebet_entries.select_related('bankroll').all()
 
@@ -2168,7 +2209,7 @@ def settle_surebet(request, pk):
         entry_id = request.POST.get('winner_entry')
         winner = entries.filter(pk=entry_id).first() if entry_id else None
         if winner is None:
-            messages.error(request, 'Selecione a casa vencedora da surebet.')
+            messages.error(request, 'Selecione a casa vencedora da proteção.')
             return render(
                 request,
                 'dashboard/surebet_settle.html',
@@ -2207,7 +2248,7 @@ def settle_surebet(request, pk):
                         defaults={'owner': request.user},
                     )
 
-        messages.success(request, 'Surebet finalizada com o resultado da casa vencedora.')
+        messages.success(request, 'Proteção finalizada com o resultado da casa vencedora.')
         return redirect_to_history()
 
     return render(

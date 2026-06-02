@@ -345,6 +345,57 @@ function setBetMode(mode) {
   });
 }
 
+function setupBalanceVisibility() {
+  const card = document.querySelector("[data-balance-card]");
+  const button = document.querySelector("[data-balance-toggle]");
+  const value = document.querySelector("[data-balance-value]");
+  const select = document.querySelector("[data-bank-account-select]");
+  const meta = document.querySelector("[data-bank-account-meta]");
+  const accountName = document.querySelector("[data-bank-account-name]");
+  if (!card || !button || !value) return;
+
+  const hiddenValue = "R$ --,--";
+  let visibleValue = value.textContent.trim();
+
+  function applyHiddenState(isHidden) {
+    card.classList.toggle("is-balance-hidden", isHidden);
+    value.textContent = isHidden ? hiddenValue : visibleValue;
+    button.setAttribute("aria-pressed", String(isHidden));
+    button.setAttribute("aria-label", isHidden ? "Mostrar saldo" : "Ocultar saldo");
+  }
+
+  function selectAccount(accountId) {
+    if (!select) return;
+    const option = [...select.options].find((candidate) => candidate.value === accountId)
+      || select.selectedOptions[0];
+    if (!option) return;
+
+    select.value = option.value;
+    visibleValue = option.dataset.balance || "R$ 0,00";
+    if (accountName) accountName.textContent = option.dataset.name || option.textContent.trim();
+    if (meta) meta.textContent = option.dataset.bank || "";
+    localStorage.setItem("freebetarBankAccountId", option.value);
+    applyHiddenState(card.classList.contains("is-balance-hidden"));
+  }
+
+  applyHiddenState(localStorage.getItem("freebetarBalanceHidden") === "1");
+  if (select) {
+    selectAccount(localStorage.getItem("freebetarBankAccountId") || select.value);
+    select.addEventListener("change", () => selectAccount(select.value));
+  }
+
+  button.addEventListener("click", () => {
+    const nextState = !card.classList.contains("is-balance-hidden");
+    localStorage.setItem("freebetarBalanceHidden", nextState ? "1" : "0");
+    applyHiddenState(nextState);
+  });
+}
+
+function localDatetimeInputValue(date = new Date()) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
 function readNumber(input) {
   return Number.parseFloat((input?.value || "0").replace(",", ".")) || 0;
 }
@@ -933,10 +984,40 @@ function updateSelectedFreebetFields() {
   const selected = select.options[select.selectedIndex];
   const amount = selected?.dataset.amount || "";
   const bookmaker = selected?.dataset.bookmaker || "";
+  const sourceChanged = select.dataset.currentSource !== select.value;
   const stakeInput = document.querySelector('[name="freebet_stake_1"]');
-  if (stakeInput && amount) stakeInput.value = Number.parseFloat(amount).toFixed(2);
+  if (stakeInput && amount && (sourceChanged || !stakeInput.value)) {
+    stakeInput.value = Number.parseFloat(amount).toFixed(2);
+  }
   const bookmakerInput = document.querySelector('[name="freebet_bookmaker_1"]');
   if (bookmakerInput && bookmaker && !bookmakerInput.value) bookmakerInput.value = bookmaker;
+  select.dataset.currentSource = select.value;
+}
+
+function prepareFreebetExtractionFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const freebetSource = params.get("freebet_source");
+  if (!freebetSource) return;
+
+  const select = document.querySelector("[data-freebet-source]");
+  if (select && [...select.options].some((option) => option.value === freebetSource)) {
+    select.value = freebetSource;
+    select.dataset.currentSource = "";
+  }
+
+  const dateInput = document.querySelector('[name="freebet_event_date"]');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = localDatetimeInputValue();
+  }
+
+  setBetMode("freebet-extract");
+  updateFreebetExtractionPreview();
+  requestAnimationFrame(() => {
+    document.querySelector(".freebet-extraction-form")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
 }
 
 function freebetSourceMultiplier(effectiveOdd, commission) {
@@ -1169,7 +1250,7 @@ function createFreebetEntry(index) {
   return group;
 }
 
-document.querySelector("#addSurebetEntry")?.addEventListener("click", () => {
+document.querySelector("#addProtectionEntry")?.addEventListener("click", () => {
   const entries = document.querySelector("#surebetEntries");
   const countInput = document.querySelector("#surebetEntryCount");
   if (!entries || !countInput) return;
@@ -1285,11 +1366,13 @@ updateBetPreview();
 updateSurebetPreview();
 updateFreebetExtractionPreview();
 setupMobileSidebar();
+setupBalanceVisibility();
 setupCollapsiblePanels();
 enhanceResponsiveTables();
 setupEventAutocomplete();
 setupEventOddsLookup();
 activateScreen();
+prepareFreebetExtractionFromUrl();
 drawChart();
 drawBarChart();
 

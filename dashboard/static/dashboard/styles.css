@@ -415,6 +415,13 @@ textarea {
   background: var(--surface);
 }
 
+.dashboard-filter-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .dashboard-filter-bar form {
   display: flex;
   align-items: end;
@@ -446,6 +453,97 @@ textarea {
 
 .dashboard-filter-bar .ghost-button {
   min-height: 32px;
+}
+
+.primary-bank-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 300px;
+  gap: 16px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.primary-bank-info {
+  min-width: 0;
+  padding-right: 18px;
+}
+
+.primary-bank-card span,
+.primary-bank-card small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.primary-bank-card strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.primary-bank-select {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 2;
+  width: 28px;
+  height: 24px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  opacity: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.primary-bank-select:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.primary-bank-arrow {
+  position: absolute;
+  top: 3px;
+  right: 11px;
+  color: var(--cyan);
+  font-size: 1.18rem;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.primary-bank-select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.primary-bank-balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.primary-bank-balance .icon-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.primary-bank-card.is-balance-hidden .primary-bank-balance strong {
+  color: var(--muted);
 }
 
 .metric-card {
@@ -500,6 +598,16 @@ textarea {
 
 .workspace-grid.lower {
   grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
+}
+
+.history-layout {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.55fr);
+}
+
+.history-main-panel,
+.freebet-pending-panel {
+  grid-column: 1 / -1;
 }
 
 .compact-grid {
@@ -1239,6 +1347,66 @@ canvas {
   margin-top: 14px;
 }
 
+.freebet-cycle-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.compact-cycle-list {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.freebet-cycle-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.compact-cycle-card {
+  gap: 10px;
+  padding: 12px;
+}
+
+.compact-cycle-card .report-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.extraction-history-panel {
+  justify-self: start;
+  padding: 0;
+}
+
+.extraction-history-panel[open] {
+  justify-self: stretch;
+}
+
+.extraction-history-panel summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.extraction-history-panel .freebet-cycle-list {
+  padding: 0 16px 16px;
+}
+
+.cycle-links {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cycle-links .link-button {
+  width: auto;
+}
+
 .odds-opportunity-list {
   display: grid;
   gap: 12px;
@@ -1905,6 +2073,18 @@ td strong {
   margin-top: 14px;
 }
 
+.history-main-panel .table-wrap {
+  max-height: 58vh;
+  overflow: auto;
+}
+
+.history-main-panel th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
 table {
   width: 100%;
   min-width: 1540px;
@@ -2265,12 +2445,26 @@ th {
     padding: 10px;
   }
 
+  .dashboard-filter-inner {
+    display: grid;
+    gap: 10px;
+  }
+
   .dashboard-filter-bar form,
   .dashboard-filter-bar label,
   .dashboard-filter-bar select,
   .dashboard-filter-bar button,
-  .dashboard-filter-bar a {
+  .dashboard-filter-bar a,
+  .primary-bank-card {
     width: 100%;
+  }
+
+  .primary-bank-card {
+    min-width: 0;
+  }
+
+  .primary-bank-select {
+    max-width: 100%;
   }
 
   .metric-card {

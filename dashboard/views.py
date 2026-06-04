@@ -122,10 +122,63 @@ ODDSPAPI_BRAZIL_BOOKMAKERS = [
 
 EVENT_SOURCE_THE_ODDS_API = 'the_odds_api'
 EVENT_SOURCE_ODDSPAPI = 'oddspapi'
+PROTECTION_STRATEGIES = {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}
 
 
 def redirect_to_history():
     return redirect(f'{reverse("dashboard:index")}#bets')
+
+
+def is_protection_bet(bet):
+    return bet.strategy in PROTECTION_STRATEGIES
+
+
+def apply_manual_protection_winner(bet, entries, winner, user):
+    with transaction.atomic():
+        entries.update(is_winner=False)
+        winner.is_winner = True
+        winner.save(update_fields=['is_winner'])
+        bet.actual_net_result = winner.net_result
+        bet.status = Bet.Status.WON if winner.net_result >= 0 else Bet.Status.LOST
+        bet.exact_score = f'{winner.bookmaker} - {winner.label}'[:40]
+        bet.save(update_fields=['actual_net_result', 'status', 'exact_score'])
+        create_protection_balance_movements(bet, entries, winner)
+
+        for entry in entries:
+            if not entry.freebet_enabled or entry.freebet_amount <= 0:
+                continue
+            should_create_freebet = (
+                entry.freebet_trigger == SureBetEntry.FreeBetTrigger.ANY
+                or (
+                    entry.freebet_trigger == SureBetEntry.FreeBetTrigger.WON
+                    and entry.pk == winner.pk
+                )
+                or (
+                    entry.freebet_trigger == SureBetEntry.FreeBetTrigger.LOST
+                    and entry.pk != winner.pk
+                )
+            )
+            if should_create_freebet:
+                FreeBet.objects.get_or_create(
+                    source_bet=bet,
+                    bookmaker=entry.bookmaker,
+                    amount=entry.freebet_amount,
+                    defaults={'owner': user},
+                )
+
+
+def selected_winner_signature(bet, entry_id):
+    winner = bet.surebet_entries.filter(pk=entry_id).first() if entry_id else None
+    if winner is None:
+        return None
+    return winner.bookmaker, winner.label
+
+
+def find_winner_by_signature(entries, signature):
+    if signature is None:
+        return None
+    bookmaker, label = signature
+    return entries.filter(bookmaker=bookmaker, label=label).first() or entries.filter(label=label).first()
 
 
 def sales_page(request):
@@ -2221,8 +2274,7 @@ def index(request):
 @login_required
 def edit_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
-    complex_strategies = {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}
-    if bet.strategy in complex_strategies:
+    if is_protection_bet(bet):
         is_freebet_edit = bet.strategy == 'Extração de freebet'
         current_source_freebet = FreeBet.objects.filter(extraction_bet=bet).first()
         source_freebets = FreeBet.objects.filter(
@@ -2234,6 +2286,7 @@ def edit_bet(request, pk):
         errors = []
 
         if request.method == 'POST':
+            winner_signature = selected_winner_signature(bet, request.POST.get('winner_entry'))
             if is_freebet_edit:
                 freebet_id = request.POST.get('freebet_source')
                 source_freebet = None
@@ -2332,6 +2385,17 @@ def edit_bet(request, pk):
                         source_freebet.is_used = True
                         source_freebet.extraction_bet = bet
                         source_freebet.save(update_fields=['is_used', 'extraction_bet'])
+                        winner = find_winner_by_signature(
+                            bet.surebet_entries.select_related('bankroll').all(),
+                            winner_signature,
+                        )
+                        if winner:
+                            apply_manual_protection_winner(
+                                bet,
+                                bet.surebet_entries.select_related('bankroll').all(),
+                                winner,
+                                request.user,
+                            )
                     messages.success(request, 'Extração de freebet atualizada.')
                     return redirect(f'{reverse("dashboard:index")}#bets')
                 rows = build_freebet_extract_rows(request.POST)
@@ -2409,6 +2473,17 @@ def edit_bet(request, pk):
                                 freebet_trigger=outcome['freebet_trigger'],
                                 notes=outcome['notes'],
                             )
+                        winner = find_winner_by_signature(
+                            bet.surebet_entries.select_related('bankroll').all(),
+                            winner_signature,
+                        )
+                        if winner:
+                            apply_manual_protection_winner(
+                                bet,
+                                bet.surebet_entries.select_related('bankroll').all(),
+                                winner,
+                                request.user,
+                            )
                     messages.success(request, 'Arbitragem atualizada.')
                     return redirect(f'{reverse("dashboard:index")}#bets')
                 rows = build_surebet_rows(request.POST)
@@ -2432,6 +2507,7 @@ def edit_bet(request, pk):
             'freebet_extract_rows': rows if is_freebet_edit else [],
             'surebet_data': data if not is_freebet_edit else {},
             'surebet_rows': rows if not is_freebet_edit else [],
+            'entries': bet.surebet_entries.select_related('bankroll').all(),
         }
         return render(request, 'dashboard/complex_bet_form.html', context)
 
@@ -2556,7 +2632,7 @@ def delete_entity(request, pk):
 @login_required
 def settle_bet(request, pk, status):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
-    if bet.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}:
+    if is_protection_bet(bet):
         messages.error(request, 'Use a finalização da arbitragem para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
     if request.method == 'POST' and status in {Bet.Status.WON, Bet.Status.LOST, Bet.Status.OPEN}:
@@ -2573,7 +2649,7 @@ def settle_bet(request, pk, status):
 @login_required
 def cashout_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
-    if bet.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}:
+    if is_protection_bet(bet):
         messages.error(request, 'Use a finalização da arbitragem para escolher a casa vencedora.')
         return redirect('dashboard:settle_surebet', pk=bet.pk)
 
@@ -2598,7 +2674,7 @@ def settle_surebet(request, pk):
     bet = get_object_or_404(
         user_bets(request.user).prefetch_related('surebet_entries', 'generated_freebets'),
         pk=pk,
-        strategy__in=['Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'],
+        strategy__in=PROTECTION_STRATEGIES,
     )
     entries = bet.surebet_entries.select_related('bankroll').all()
 
@@ -2613,37 +2689,7 @@ def settle_surebet(request, pk):
                 {'bet': bet, 'entries': entries},
             )
 
-        with transaction.atomic():
-            entries.update(is_winner=False)
-            winner.is_winner = True
-            winner.save(update_fields=['is_winner'])
-            bet.actual_net_result = winner.net_result
-            bet.status = Bet.Status.WON if winner.net_result >= 0 else Bet.Status.LOST
-            bet.exact_score = f'{winner.bookmaker} - {winner.label}'[:40]
-            bet.save(update_fields=['actual_net_result', 'status', 'exact_score'])
-            create_protection_balance_movements(bet, entries, winner)
-
-            for entry in entries:
-                if not entry.freebet_enabled or entry.freebet_amount <= 0:
-                    continue
-                should_create_freebet = (
-                    entry.freebet_trigger == SureBetEntry.FreeBetTrigger.ANY
-                    or (
-                        entry.freebet_trigger == SureBetEntry.FreeBetTrigger.WON
-                        and entry.pk == winner.pk
-                    )
-                    or (
-                        entry.freebet_trigger == SureBetEntry.FreeBetTrigger.LOST
-                        and entry.pk != winner.pk
-                    )
-                )
-                if should_create_freebet:
-                    FreeBet.objects.get_or_create(
-                        source_bet=bet,
-                        bookmaker=entry.bookmaker,
-                        amount=entry.freebet_amount,
-                        defaults={'owner': request.user},
-                    )
+        apply_manual_protection_winner(bet, entries, winner, request.user)
 
         messages.success(request, 'Arbitragem finalizada com o resultado da casa vencedora.')
         return redirect_to_history()

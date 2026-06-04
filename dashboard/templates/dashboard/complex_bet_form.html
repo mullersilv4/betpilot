@@ -154,6 +154,35 @@
               <textarea name="freebet_general_notes" rows="3">{{ freebet_extract_data.freebet_general_notes }}</textarea>
             </label>
 
+            <section class="form-section">
+              <div class="section-heading">
+                <h2>Casa vencedora</h2>
+                <p class="muted-copy">Escolha a entrada vencedora para atualizar o resultado da extração.</p>
+              </div>
+              <div class="settle-surebet-list">
+                {% for entry in entries %}
+                  <label class="settle-surebet-option">
+                    <input type="radio" name="winner_entry" value="{{ entry.id }}" {% if entry.is_winner %}checked{% endif %} />
+                    <div>
+                      <strong>{{ entry.bookmaker }}</strong>
+                      <span>{{ entry.label }} | odd {{ entry.effective_odds|floatformat:2 }} | entrada R$ {{ entry.stake|floatformat:2 }}</span>
+                    </div>
+                    <div>
+                      <span>Retorno R$ {{ entry.return_amount|floatformat:2 }}</span>
+                      <strong class="{% if entry.net_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ entry.net_result|floatformat:2 }}
+                      </strong>
+                    </div>
+                    {% if entry.freebet_enabled %}
+                      <span class="risk-badge">Freebet R$ {{ entry.freebet_amount|floatformat:2 }}</span>
+                    {% endif %}
+                  </label>
+                {% empty %}
+                  <div class="empty-state">Esta extração ainda não tem entradas estruturadas para finalizar.</div>
+                {% endfor %}
+              </div>
+            </section>
+
             <button class="primary-button" type="submit">Salvar alterações</button>
           </form>
         {% else %}
@@ -287,6 +316,35 @@
               <span>Observações</span>
               <textarea name="surebet_general_notes" rows="3">{{ surebet_data.surebet_general_notes }}</textarea>
             </label>
+
+            <section class="form-section">
+              <div class="section-heading">
+                <h2>Casa vencedora</h2>
+                <p class="muted-copy">Escolha a entrada vencedora para atualizar o resultado da arbitragem.</p>
+              </div>
+              <div class="settle-surebet-list">
+                {% for entry in entries %}
+                  <label class="settle-surebet-option">
+                    <input type="radio" name="winner_entry" value="{{ entry.id }}" {% if entry.is_winner %}checked{% endif %} />
+                    <div>
+                      <strong>{{ entry.bookmaker }}</strong>
+                      <span>{{ entry.label }} | odd {{ entry.effective_odds|floatformat:2 }} | entrada R$ {{ entry.stake|floatformat:2 }}</span>
+                    </div>
+                    <div>
+                      <span>Retorno R$ {{ entry.return_amount|floatformat:2 }}</span>
+                      <strong class="{% if entry.net_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ entry.net_result|floatformat:2 }}
+                      </strong>
+                    </div>
+                    {% if entry.freebet_enabled %}
+                      <span class="risk-badge">Freebet R$ {{ entry.freebet_amount|floatformat:2 }}</span>
+                    {% endif %}
+                  </label>
+                {% empty %}
+                  <div class="empty-state">Esta arbitragem ainda não tem entradas estruturadas para finalizar.</div>
+                {% endfor %}
+              </div>
+            </section>
 
             <button class="primary-button" type="submit">Salvar alterações</button>
           </form>

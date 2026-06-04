@@ -99,12 +99,45 @@
               {{ form.exchange_commission }}
               {{ form.exchange_commission.errors }}
             </label>
-            <label>
-              <span>Resultado</span>
-              {{ form.status }}
-              {{ form.status.errors }}
-            </label>
+            {% if form.status %}
+              <label>
+                <span>Resultado</span>
+                {{ form.status }}
+                {{ form.status.errors }}
+              </label>
+            {% endif %}
           </div>
+
+          {% if is_protection_bet %}
+            <section class="form-section">
+              <div class="section-heading">
+                <h2>Casa vencedora</h2>
+                <p class="muted-copy">Escolha a entrada vencedora para atualizar o resultado da proteção.</p>
+              </div>
+              <div class="settle-surebet-list">
+                {% for entry in entries %}
+                  <label class="settle-surebet-option">
+                    <input type="radio" name="winner_entry" value="{{ entry.id }}" {% if entry.is_winner %}checked{% endif %} />
+                    <div>
+                      <strong>{{ entry.bookmaker }}</strong>
+                      <span>{{ entry.label }} | odd {{ entry.effective_odds|floatformat:2 }} | entrada R$ {{ entry.stake|floatformat:2 }}</span>
+                    </div>
+                    <div>
+                      <span>Retorno R$ {{ entry.return_amount|floatformat:2 }}</span>
+                      <strong class="{% if entry.net_result >= 0 %}positive{% else %}negative{% endif %}">
+                        R$ {{ entry.net_result|floatformat:2 }}
+                      </strong>
+                    </div>
+                    {% if entry.freebet_enabled %}
+                      <span class="risk-badge">Freebet R$ {{ entry.freebet_amount|floatformat:2 }}</span>
+                    {% endif %}
+                  </label>
+                {% empty %}
+                  <div class="empty-state">Esta proteção ainda não tem entradas estruturadas para finalizar.</div>
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
 
           <label>
             <span>Observações</span>

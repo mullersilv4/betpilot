@@ -670,6 +670,26 @@ textarea {
   margin-top: 18px;
 }
 
+.bet-form .form-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.bet-form .section-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.bet-form .section-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.bet-form .section-heading p {
+  margin: 0;
+}
+
 .bet-mode-tabs {
   display: inline-flex;
   gap: 6px;

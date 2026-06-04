@@ -859,6 +859,103 @@ class AutomaticSettlementTests(TestCase):
 
 
 class ProtectionBalanceMovementTests(TestCase):
+    def test_edit_surebet_can_change_winning_entry(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        entity = Entity.objects.create(owner=user, name='Operacao')
+        bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Conta principal',
+            bookmaker='Bet365',
+            initial_balance=Decimal('1000.00'),
+        )
+        second_bankroll = Bankroll.objects.create(
+            owner=user,
+            entity=entity,
+            name='Conta Pinnacle',
+            bookmaker='Pinnacle',
+            initial_balance=Decimal('1000.00'),
+        )
+        bet = Bet.objects.create(
+            bankroll=bankroll,
+            game='Palmeiras x Flamengo',
+            market='Proteção: Palmeiras / Flamengo',
+            strategy='Surebet',
+            odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+            status=Bet.Status.OPEN,
+        )
+        first_entry = SureBetEntry.objects.create(
+            bet=bet,
+            bankroll=bankroll,
+            bookmaker='Bet365',
+            label='Palmeiras',
+            odds=Decimal('2.00'),
+            effective_odds=Decimal('2.00'),
+            stake=Decimal('100.00'),
+            return_amount=Decimal('200.00'),
+            net_result=Decimal('10.00'),
+            is_winner=True,
+        )
+        second_entry = SureBetEntry.objects.create(
+            bet=bet,
+            bankroll=second_bankroll,
+            bookmaker='Pinnacle',
+            label='Flamengo',
+            odds=Decimal('2.20'),
+            effective_odds=Decimal('2.20'),
+            stake=Decimal('90.00'),
+            return_amount=Decimal('198.00'),
+            net_result=Decimal('8.00'),
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(reverse('dashboard:edit_bet', args=[bet.pk]))
+        self.assertContains(response, 'Casa vencedora')
+        self.assertNotContains(response, 'name="status"')
+
+        response = self.client.post(
+            reverse('dashboard:edit_bet', args=[bet.pk]),
+            {
+                'surebet_entity': str(entity.pk),
+                'surebet_sport': 'Futebol',
+                'surebet_game': 'Palmeiras x Flamengo',
+                'surebet_entry_count': '2',
+                'surebet_bankroll_1': str(bankroll.pk),
+                'surebet_bookmaker_1': 'Bet365',
+                'surebet_outcome_1': 'Palmeiras',
+                'surebet_mode_1': 'back',
+                'surebet_stake_1': '100.00',
+                'surebet_odd_1': '2.00',
+                'surebet_commission_1': '0',
+                'surebet_cashback_1': '0',
+                'surebet_boost_1': '0',
+                'surebet_net_1': '10.00',
+                'surebet_bankroll_2': str(second_bankroll.pk),
+                'surebet_bookmaker_2': 'Pinnacle',
+                'surebet_outcome_2': 'Flamengo',
+                'surebet_mode_2': 'back',
+                'surebet_stake_2': '90.00',
+                'surebet_odd_2': '2.20',
+                'surebet_commission_2': '0',
+                'surebet_cashback_2': '0',
+                'surebet_boost_2': '0',
+                'surebet_net_2': '8.00',
+                'winner_entry': str(second_entry.pk),
+                'surebet_general_notes': '',
+            },
+        )
+
+        bet.refresh_from_db()
+        first_entry = bet.surebet_entries.get(label='Palmeiras')
+        second_entry = bet.surebet_entries.get(label='Flamengo')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(first_entry.is_winner)
+        self.assertTrue(second_entry.is_winner)
+        self.assertEqual(bet.status, Bet.Status.WON)
+        self.assertEqual(bet.actual_net_result, Decimal('8.00'))
+        self.assertEqual(bet.exact_score, 'Conta Pinnacle - Flamengo')
+
     def test_surebet_uses_registered_bankrolls_and_moves_each_balance(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')
         entity = Entity.objects.create(owner=user, name='Operacao')

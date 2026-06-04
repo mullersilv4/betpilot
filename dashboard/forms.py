@@ -98,10 +98,13 @@ class SignUpForm(UserCreationForm):
 class BetForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        show_status = kwargs.pop('show_status', True)
         super().__init__(*args, **kwargs)
         if user is not None:
             self.fields['bankroll'].queryset = Bankroll.objects.filter(owner=user)
         self.fields['game'].required = False
+        if not show_status:
+            self.fields.pop('status', None)
         if self.instance and self.instance.event_date:
             self.initial['event_date'] = self.instance.event_date.strftime('%Y-%m-%dT%H:%M')
 

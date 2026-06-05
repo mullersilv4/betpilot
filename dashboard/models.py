@@ -182,6 +182,10 @@ class Bet(models.Model):
         return self.strategy
 
     @property
+    def is_protection(self):
+        return self.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}
+
+    @property
     def gross_profit(self):
         return (self.stake * (self.odds - Decimal('1.00'))).quantize(MONEY_PLACES)
 
@@ -200,6 +204,17 @@ class Bet(models.Model):
     @property
     def potential_return(self):
         return (self.stake + self.potential_profit).quantize(MONEY_PLACES)
+
+    @property
+    def structured_potential_return(self):
+        if not self.is_protection:
+            return self.potential_return
+        entries = list(self.surebet_entries.all())
+        if not entries:
+            return Decimal('0.00')
+        return max((entry.net_result for entry in entries), default=Decimal('0.00')).quantize(
+            MONEY_PLACES
+        )
 
     @property
     def net_result(self):
@@ -667,6 +682,12 @@ class BankAccount(models.Model):
     )
     name = models.CharField('apelido', max_length=80)
     bank_name = models.CharField('banco/instituição', max_length=100)
+    initial_balance = models.DecimalField(
+        'saldo inicial',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
     account_type = models.CharField(
         'tipo',
         max_length=16,
@@ -687,6 +708,25 @@ class BankAccount(models.Model):
 
     def __str__(self):
         return f'{self.name} - {self.bank_name}'
+
+    @property
+    def transaction_total(self):
+        return sum(
+            (
+                transaction.signed_amount * Decimal('-1')
+                for transaction in self.transactions.filter(
+                    kind__in=[
+                        BankrollTransaction.Kind.DEPOSIT,
+                        BankrollTransaction.Kind.WITHDRAW,
+                    ]
+                )
+            ),
+            start=Decimal('0.00'),
+        )
+
+    @property
+    def current_balance(self):
+        return (self.initial_balance + self.transaction_total).quantize(MONEY_PLACES)
 
 
 class Bankroll(models.Model):

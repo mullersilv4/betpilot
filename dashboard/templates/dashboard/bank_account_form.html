@@ -1,0 +1,86 @@
+<!doctype html>
+{% load static %}
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editar conta bancária | Freebetar</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260602-1" />
+  </head>
+  <body>
+    <main class="standalone-page">
+      <article class="panel standalone-card">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Conta bancária</p>
+            <h1>Editar {{ bank_account.name }}</h1>
+          </div>
+          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#transactions">Voltar</a>
+        </div>
+
+        <form class="bet-form" method="post" novalidate>
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="form-errors">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="form-row">
+            <label>
+              <span>Apelido</span>
+              {{ form.name }}
+              {{ form.name.errors }}
+            </label>
+            <label>
+              <span>Banco ou instituição</span>
+              {{ form.bank_name }}
+              {{ form.bank_name.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Tipo</span>
+              {{ form.account_type }}
+              {{ form.account_type.errors }}
+            </label>
+            <label>
+              <span>Saldo inicial</span>
+              {{ form.initial_balance }}
+              {{ form.initial_balance.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Chave Pix</span>
+              {{ form.pix_key }}
+              {{ form.pix_key.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              <span>Agência</span>
+              {{ form.agency }}
+              {{ form.agency.errors }}
+            </label>
+            <label>
+              <span>Conta</span>
+              {{ form.account_number }}
+              {{ form.account_number.errors }}
+            </label>
+          </div>
+
+          <label>
+            <span>Observação</span>
+            {{ form.notes }}
+            {{ form.notes.errors }}
+          </label>
+
+          <button class="primary-button" type="submit">Salvar conta bancária</button>
+        </form>
+      </article>
+    </main>
+  </body>
+</html>

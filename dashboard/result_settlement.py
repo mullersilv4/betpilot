@@ -220,7 +220,8 @@ def create_protection_balance_movements(bet, entries, winner):
         if entry.bankroll_id
     ]
     total_movement = sum((amount for _entry, amount in entry_amounts), start=Decimal('0.00'))
-    manual_delta = (winner.net_result - total_movement).quantize(Decimal('0.01'))
+    target_result = bet.actual_net_result if bet.actual_net_result is not None else winner.net_result
+    manual_delta = (target_result - total_movement).quantize(Decimal('0.01'))
     for entry in entries:
         if not entry.bankroll_id:
             continue

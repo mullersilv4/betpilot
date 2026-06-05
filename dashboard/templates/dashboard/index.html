@@ -242,106 +242,98 @@
           </div>
         </section>
 
-        <section id="bankroll" class="workspace-grid compact-grid" data-screen="bankroll">
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Entidades</p>
-                <h2>Cadastrar entidade</h2>
-              </div>
-            </div>
-
-            <form class="bet-form" method="post" novalidate>
-              {% csrf_token %}
-              <input type="hidden" name="form_type" value="entity" />
-
-              {% if entity_form.non_field_errors %}
-                <div class="form-errors">{{ entity_form.non_field_errors }}</div>
-              {% endif %}
-
-              <div class="form-row">
-                <label>
-                  <span>Nome da entidade</span>
-                  {{ entity_form.name }}
-                  {{ entity_form.name.errors }}
-                </label>
-                <label>
-                  <span>Observação</span>
-                  {{ entity_form.notes }}
-                  {{ entity_form.notes.errors }}
-                </label>
-              </div>
-
-              <button class="primary-button" type="submit">Salvar entidade</button>
-            </form>
-
-            <div class="entity-list">
-              {% for entity in entities %}
+        <section id="bankroll" class="finance-workspace" data-screen="bankroll">
+          <div class="finance-summary-grid">
+            <article class="panel finance-balance-panel">
+              <div class="panel-header">
                 <div>
-                  <div>
-                    <strong>{{ entity.name }}</strong>
-                    <span>{{ entity.notes|default:"Sem observação" }}</span>
-                  </div>
-                  <form method="post" action="{% url 'dashboard:delete_entity' entity.pk %}" onsubmit="return confirm('Excluir esta entidade? Bancas e apostas vinculadas também serão excluídas.');">
-                    {% csrf_token %}
-                    <button class="mini-button danger" type="submit">Excluir</button>
-                  </form>
+                  <p class="eyebrow">Financeiro</p>
+                  <h2>Gestão de saldos</h2>
                 </div>
-              {% empty %}
-                <div class="empty-state">Cadastre uma entidade para vincular suas bancas.</div>
-              {% endfor %}
-            </div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Financeiro</p>
-                <h2>Cadastrar banca</h2>
               </div>
-            </div>
+              <div class="finance-metric-row">
+                <div class="finance-metric-card">
+                  <span>Disponível</span>
+                  <strong>R$ {{ metrics.total_available_balance|floatformat:2 }}</strong>
+                </div>
+                <div class="finance-metric-card warning">
+                  <span>Aberto</span>
+                  <strong>R$ {{ metrics.total_open_exposure|floatformat:2 }}</strong>
+                </div>
+                <div class="finance-metric-card positive">
+                  <span>Total</span>
+                  <strong>R$ {{ metrics.total_current_balance|floatformat:2 }}</strong>
+                </div>
+              </div>
+            </article>
 
-            <form class="bet-form" method="post" novalidate>
-              {% csrf_token %}
-              <input type="hidden" name="form_type" value="bankroll" />
+            <article class="panel finance-balance-panel finance-create-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Atalhos</p>
+                  <h2>Cadastrar</h2>
+                </div>
+              </div>
+              <div class="finance-create-grid">
+                <form class="bet-form compact-finance-form finance-create-card" method="post" novalidate>
+                  {% csrf_token %}
+                  <input type="hidden" name="form_type" value="entity" />
+                  <div class="finance-create-card-head">
+                    <strong>Nova entidade</strong>
+                    <span>Cliente, projeto ou operador</span>
+                  </div>
+                  <label>
+                    <span>Nome</span>
+                    {{ entity_form.name }}
+                    {{ entity_form.name.errors }}
+                  </label>
+                  <input type="hidden" name="notes" value="" />
+                  <button class="ghost-button compact" type="submit">Salvar entidade</button>
+                </form>
 
-              {% if bankroll_form.non_field_errors %}
-                <div class="form-errors">{{ bankroll_form.non_field_errors }}</div>
-              {% endif %}
+                <form class="bet-form compact-finance-form finance-create-card" method="post" novalidate>
+                  {% csrf_token %}
+                  <input type="hidden" name="form_type" value="bankroll" />
+                  <div class="finance-create-card-head">
+                    <strong>Nova casa</strong>
+                    <span>Saldo inicial vinculado a uma entidade</span>
+                  </div>
+                  <div class="form-row">
+                    <label>
+                      <span>Entidade</span>
+                      {{ bankroll_form.entity }}
+                      {{ bankroll_form.entity.errors }}
+                    </label>
+                    <label>
+                      <span>Casa</span>
+                      {{ bankroll_form.bookmaker }}
+                      {{ bankroll_form.bookmaker.errors }}
+                    </label>
+                  </div>
+                  <div class="form-row finance-create-row">
+                    <label>
+                      <span>Saldo inicial</span>
+                      {{ bankroll_form.initial_balance }}
+                      {{ bankroll_form.initial_balance.errors }}
+                    </label>
+                    <button class="primary-button" type="submit">Cadastrar saldo</button>
+                  </div>
+                </form>
+              </div>
+            </article>
+          </div>
 
-              <label>
-                <span>Entidade</span>
-                {{ bankroll_form.entity }}
-                {{ bankroll_form.entity.errors }}
+          <article class="panel finance-ledger-panel">
+            <div class="finance-toolbar">
+              <label class="finance-search">
+                <span class="sr-only">Buscar casa</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <input id="bankrollSearch" type="search" placeholder="Buscar por nome ou casa de aposta..." autocomplete="off" />
               </label>
-
-              <div class="form-row">
-                <label>
-                  <span>Casa ou exchange</span>
-                  {{ bankroll_form.bookmaker }}
-                  {{ bankroll_form.bookmaker.errors }}
-                </label>
-              </div>
-
-              <div class="form-row">
-                <label>
-                  <span>Saldo inicial</span>
-                  {{ bankroll_form.initial_balance }}
-                  {{ bankroll_form.initial_balance.errors }}
-                </label>
-              </div>
-
-              <button class="primary-button" type="submit">Salvar banca</button>
-            </form>
-          </article>
-
-          <article class="panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Controle</p>
-                <h2>Resumo financeiro</h2>
-              </div>
-              <label class="entity-filter">
+              <label class="entity-filter compact-filter">
                 <span>Entidade</span>
                 <select id="bankrollEntityFilter" aria-label="Filtrar bancas por entidade">
                   <option value="">Todas</option>
@@ -352,37 +344,77 @@
               </label>
             </div>
 
-            <div class="bankroll-list">
+            <div class="bankroll-list finance-card-grid">
               {% for bankroll in bankrolls %}
-                <article class="bankroll-card" data-entity-id="{{ bankroll.entity_id|default:'' }}">
-                  <div>
-                    <strong><a href="{% url 'dashboard:bankroll_detail' bankroll.pk %}">{{ bankroll.entity.name|default:bankroll.name }}</a></strong>
-                    <span>{{ bankroll.bookmaker|default:"Sem casa definida" }}</span>
-                  </div>
-                  <dl>
+                <article
+                  class="bankroll-card finance-balance-card"
+                  data-entity-id="{{ bankroll.entity_id|default:'' }}"
+                  data-search-text="{{ bankroll.entity.name|default:bankroll.name }} {{ bankroll.bookmaker|default:'' }}"
+                >
+                  <header class="finance-card-header">
+                    <h3>
+                      <a href="{% url 'dashboard:bankroll_detail' bankroll.pk %}">{{ bankroll.entity.name|default:bankroll.name }}</a>
+                      <span>{{ bankroll.bookmaker|default:"Sem casa definida"|upper }}</span>
+                    </h3>
+                    <a class="icon-button" href="{% url 'dashboard:edit_bankroll' bankroll.pk %}" aria-label="Editar banca" title="Editar">
+                      <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </a>
+                  </header>
+
+                  <dl class="finance-card-values">
                     <div>
-                      <dt>Saldo atual</dt>
-                      <dd>R$ {{ bankroll.current_balance|floatformat:2 }}</dd>
-                    </div>
-                    <div>
-                      <dt>Disponível</dt>
+                      <dt>Valor disponível</dt>
                       <dd>R$ {{ bankroll.available_balance|floatformat:2 }}</dd>
                     </div>
                     <div>
-                      <dt>Exposição</dt>
+                      <dt>Valor aberto</dt>
                       <dd>R$ {{ bankroll.open_exposure|floatformat:2 }}</dd>
                     </div>
                   </dl>
-                  <div class="bankroll-actions">
-                    <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bankroll' bankroll.pk %}">Editar</a>
-                    <form method="post" action="{% url 'dashboard:delete_bankroll' bankroll.pk %}" onsubmit="return confirm('Excluir esta banca? Esta ação não pode ser desfeita.');">
-                      {% csrf_token %}
-                      <button class="mini-button danger" type="submit">Excluir</button>
-                    </form>
+
+                  <div class="finance-card-total">
+                    <span>Valor total</span>
+                    <strong class="{% if bankroll.current_balance > 0 %}positive{% endif %}">
+                      R$ {{ bankroll.current_balance|floatformat:2 }}
+                    </strong>
                   </div>
+
+                  <form class="finance-card-form" method="post" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="transaction" />
+                    <input type="hidden" name="bankroll" value="{{ bankroll.pk }}" />
+                    <input type="hidden" name="kind" value="deposit" data-finance-kind />
+                    <div class="finance-action-row" role="group" aria-label="Tipo de movimentação">
+                      <button class="finance-action is-active" type="button" data-finance-action="deposit">+ Depósito</button>
+                      <button class="finance-action" type="button" data-finance-action="withdraw">- Saque</button>
+                      <button class="finance-action" type="button" data-finance-action="adjustment">Reajuste</button>
+                    </div>
+                    <div class="finance-inline-fields">
+                      <label>
+                        <span>Valor</span>
+                        <input type="number" name="amount" step="0.01" min="0.01" placeholder="0,00" required />
+                      </label>
+                      <label>
+                        <span>Conta</span>
+                        <select name="bank_account">
+                          <option value="">Conta</option>
+                          {% for bank_account in bank_accounts %}
+                            <option value="{{ bank_account.pk }}">{{ bank_account.name }}</option>
+                          {% endfor %}
+                        </select>
+                      </label>
+                    </div>
+                    <div class="finance-submit-row">
+                      <input type="text" name="note" maxlength="160" placeholder="Observação rápida" autocomplete="off" />
+                      <button class="primary-button compact-finance-submit" type="submit">Aplicar</button>
+                    </div>
+                  </form>
                 </article>
               {% empty %}
-                <div class="empty-state">Cadastre sua primeira conta para comecar.</div>
+                <div class="empty-state">Cadastre sua primeira casa para começar.</div>
               {% endfor %}
             </div>
           </article>
@@ -444,22 +476,9 @@
                     {{ bank_account_form.account_type.errors }}
                   </label>
                   <label>
-                    <span>Chave Pix</span>
-                    {{ bank_account_form.pix_key }}
-                    {{ bank_account_form.pix_key.errors }}
-                  </label>
-                </div>
-
-                <div class="form-row">
-                  <label>
-                    <span>Agência</span>
-                    {{ bank_account_form.agency }}
-                    {{ bank_account_form.agency.errors }}
-                  </label>
-                  <label>
-                    <span>Conta</span>
-                    {{ bank_account_form.account_number }}
-                    {{ bank_account_form.account_number.errors }}
+                    <span>Saldo inicial</span>
+                    {{ bank_account_form.initial_balance }}
+                    {{ bank_account_form.initial_balance.errors }}
                   </label>
                 </div>
 
@@ -474,62 +493,17 @@
 
               <div class="bank-account-list">
                 {% for bank_account in bank_accounts %}
-                  <div>
-                    <strong>{{ bank_account.name }}</strong>
-                    <span>{{ bank_account.bank_name }} - {{ bank_account.get_account_type_display }}</span>
+                  <div class="bank-account-item">
+                    <div class="bank-account-meta">
+                      <strong>{{ bank_account.name }}</strong>
+                      <span>{{ bank_account.bank_name }} - {{ bank_account.get_account_type_display }} | Saldo R$ {{ bank_account.current_balance|floatformat:2 }}</span>
+                    </div>
+                    <a class="mini-button link-button" href="{% url 'dashboard:edit_bank_account' bank_account.pk %}">Editar</a>
                   </div>
                 {% empty %}
                   <div class="empty-state">Cadastre uma conta bancária para registrar depósitos e saques.</div>
                 {% endfor %}
               </div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-header">
-                <div>
-                  <p class="eyebrow">Financeiro</p>
-                  <h2>Depositos, saques e ajustes</h2>
-                </div>
-              </div>
-
-              <form class="bet-form" method="post" novalidate>
-                {% csrf_token %}
-                <input type="hidden" name="form_type" value="transaction" />
-
-                <div class="form-row">
-                  <label>
-                    <span>Banca</span>
-                    {{ transaction_form.bankroll }}
-                    {{ transaction_form.bankroll.errors }}
-                  </label>
-
-                  <label>
-                    <span>Tipo</span>
-                    {{ transaction_form.kind }}
-                    {{ transaction_form.kind.errors }}
-                  </label>
-                </div>
-
-                <label>
-                  <span>Conta bancária</span>
-                  {{ transaction_form.bank_account }}
-                  {{ transaction_form.bank_account.errors }}
-                </label>
-
-                <label>
-                  <span>Valor</span>
-                  {{ transaction_form.amount }}
-                  {{ transaction_form.amount.errors }}
-                </label>
-
-                <label>
-                  <span>Observação</span>
-                  {{ transaction_form.note }}
-                  {{ transaction_form.note.errors }}
-                </label>
-
-                <button class="primary-button" type="submit">Registrar movimentação</button>
-              </form>
             </article>
 
             <article class="panel">
@@ -2130,7 +2104,7 @@
                       <td>R$ {{ bet.stake|floatformat:2 }}</td>
                       <td>R$ {{ bet.commission_amount|floatformat:2 }}</td>
                       <td><span class="pill {{ bet.status }}">{{ bet.get_status_display }}</span></td>
-                      <td>R$ {{ bet.potential_return|floatformat:2 }}</td>
+                      <td>R$ {{ bet.structured_potential_return|floatformat:2 }}</td>
                       <td class="{% if bet.net_result >= 0 %}positive{% else %}negative{% endif %}">
                         <strong>R$ {{ bet.net_result|floatformat:2 }}</strong>
                       </td>

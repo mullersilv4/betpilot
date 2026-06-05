@@ -1343,9 +1343,43 @@ document.querySelector(".freebet-extraction-form")?.addEventListener("click", (e
 
 document.querySelector("#bankrollEntityFilter")?.addEventListener("change", (event) => {
   const selectedEntity = event.target.value;
+  const searchTerm = (document.querySelector("#bankrollSearch")?.value || "").trim().toLowerCase();
   document.querySelectorAll(".bankroll-card[data-entity-id]").forEach((card) => {
-    const shouldShow = !selectedEntity || card.dataset.entityId === selectedEntity;
+    const matchesEntity = !selectedEntity || card.dataset.entityId === selectedEntity;
+    const matchesSearch = !searchTerm || (card.dataset.searchText || "").toLowerCase().includes(searchTerm);
+    const shouldShow = matchesEntity && matchesSearch;
     card.classList.toggle("is-filtered-out", !shouldShow);
+  });
+});
+
+document.querySelector("#bankrollSearch")?.addEventListener("input", (event) => {
+  const searchTerm = event.target.value.trim().toLowerCase();
+  const selectedEntity = document.querySelector("#bankrollEntityFilter")?.value || "";
+  document.querySelectorAll(".bankroll-card[data-entity-id]").forEach((card) => {
+    const matchesEntity = !selectedEntity || card.dataset.entityId === selectedEntity;
+    const matchesSearch = !searchTerm || (card.dataset.searchText || "").toLowerCase().includes(searchTerm);
+    card.classList.toggle("is-filtered-out", !(matchesEntity && matchesSearch));
+  });
+});
+
+document.querySelectorAll(".finance-card-form").forEach((form) => {
+  const kindInput = form.querySelector("[data-finance-kind]");
+  const bankAccount = form.querySelector('[name="bank_account"]');
+  const setKind = (kind, shouldFocus = false) => {
+    if (kindInput) kindInput.value = kind;
+    form.querySelectorAll("[data-finance-action]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.financeAction === kind);
+    });
+    if (bankAccount) {
+      bankAccount.required = kind !== "adjustment";
+      bankAccount.disabled = kind === "adjustment";
+      if (kind === "adjustment") bankAccount.value = "";
+    }
+    if (shouldFocus) form.querySelector('[name="amount"]')?.focus();
+  };
+  setKind(kindInput?.value || "deposit");
+  form.querySelectorAll("[data-finance-action]").forEach((button) => {
+    button.addEventListener("click", () => setKind(button.dataset.financeAction, true));
   });
 });
 

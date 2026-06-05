@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
@@ -309,18 +311,35 @@ class BankrollTransactionForm(forms.ModelForm):
 
 
 class BankAccountForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['initial_balance'].required = False
+
     class Meta:
         model = BankAccount
-        fields = ['name', 'bank_name', 'account_type', 'agency', 'account_number', 'pix_key', 'notes']
+        fields = [
+            'name',
+            'bank_name',
+            'initial_balance',
+            'account_type',
+            'agency',
+            'account_number',
+            'pix_key',
+            'notes',
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Ex: Nubank principal', 'autocomplete': 'off'}),
             'bank_name': forms.TextInput(attrs={'placeholder': 'Ex: Nubank, Itaú, Banco Inter', 'autocomplete': 'off'}),
+            'initial_balance': forms.NumberInput(attrs={'step': '0.01'}),
             'account_type': forms.Select(),
             'agency': forms.TextInput(attrs={'placeholder': 'Opcional', 'autocomplete': 'off'}),
             'account_number': forms.TextInput(attrs={'placeholder': 'Opcional', 'autocomplete': 'off'}),
             'pix_key': forms.TextInput(attrs={'placeholder': 'CPF, email, telefone ou chave aleatória', 'autocomplete': 'off'}),
             'notes': forms.TextInput(attrs={'placeholder': 'Observação opcional', 'autocomplete': 'off'}),
         }
+
+    def clean_initial_balance(self):
+        return self.cleaned_data.get('initial_balance') or Decimal('0.00')
 
 
 class TransferForm(forms.Form):

@@ -20,6 +20,7 @@ from .forms import BetForm
 from .forms import PromotionForm
 from .forms import TransferForm
 from .models import Bankroll
+from .models import BankAccount
 from .models import BankrollTransaction
 from .models import Bet
 from .models import BookmakerAlias
@@ -1152,6 +1153,84 @@ class AuthenticationTests(TestCase):
 
         self.assertContains(response, 'Minha banca')
         self.assertNotIn('Banca escondida', content)
+
+    def test_user_can_edit_own_bank_account(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        bank_account = BankAccount.objects.create(
+            owner=user,
+            name='Nubank antigo',
+            bank_name='Nubank',
+            account_type=BankAccount.AccountType.PAYMENT,
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(reverse('dashboard:edit_bank_account', args=[bank_account.pk]))
+        self.assertContains(response, 'Editar Nubank antigo')
+
+        response = self.client.post(
+            reverse('dashboard:edit_bank_account', args=[bank_account.pk]),
+            {
+                'name': 'Nubank principal',
+                'bank_name': 'Nu Pagamentos',
+                'initial_balance': '2500.00',
+                'account_type': BankAccount.AccountType.PAYMENT,
+                'agency': '0001',
+                'account_number': '12345-6',
+                'pix_key': 'owner@example.com',
+                'notes': 'Conta principal',
+            },
+        )
+
+        bank_account.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(bank_account.name, 'Nubank principal')
+        self.assertEqual(bank_account.bank_name, 'Nu Pagamentos')
+        self.assertEqual(bank_account.initial_balance, Decimal('2500.00'))
+        self.assertEqual(bank_account.pix_key, 'owner@example.com')
+
+    def test_bank_account_current_balance_uses_initial_balance_and_transactions(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        bankroll = Bankroll.objects.create(
+            owner=user,
+            name='Banca',
+            initial_balance=Decimal('1000.00'),
+        )
+        bank_account = BankAccount.objects.create(
+            owner=user,
+            name='Conta',
+            bank_name='Banco',
+            initial_balance=Decimal('500.00'),
+            account_type=BankAccount.AccountType.CHECKING,
+        )
+        BankrollTransaction.objects.create(
+            bankroll=bankroll,
+            bank_account=bank_account,
+            kind=BankrollTransaction.Kind.DEPOSIT,
+            amount=Decimal('100.00'),
+        )
+        BankrollTransaction.objects.create(
+            bankroll=bankroll,
+            bank_account=bank_account,
+            kind=BankrollTransaction.Kind.WITHDRAW,
+            amount=Decimal('50.00'),
+        )
+
+        self.assertEqual(bank_account.current_balance, Decimal('450.00'))
+
+    def test_user_cannot_edit_other_user_bank_account(self):
+        user = User.objects.create_user(username='owner', password='StrongPass123!')
+        other = User.objects.create_user(username='other', password='StrongPass123!')
+        bank_account = BankAccount.objects.create(
+            owner=other,
+            name='Conta escondida',
+            bank_name='Banco X',
+            account_type=BankAccount.AccountType.CHECKING,
+        )
+
+        self.client.login(username='owner', password='StrongPass123!')
+        response = self.client.get(reverse('dashboard:edit_bank_account', args=[bank_account.pk]))
+
+        self.assertEqual(response.status_code, 404)
 
     def test_surebet_is_linked_to_entity_without_bankroll(self):
         user = User.objects.create_user(username='owner', password='StrongPass123!')

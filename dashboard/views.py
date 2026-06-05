@@ -133,13 +133,22 @@ def is_protection_bet(bet):
     return bet.strategy in PROTECTION_STRATEGIES
 
 
+def protection_winner_net_result(bet, entries, winner):
+    if bet.strategy == 'Extração de freebet':
+        return sum(
+            (entry.settlement_result_for(winner) for entry in entries),
+            start=Decimal('0.00'),
+        ).quantize(Decimal('0.01'))
+    return winner.net_result
+
+
 def apply_manual_protection_winner(bet, entries, winner, user):
     with transaction.atomic():
         entries.update(is_winner=False)
         winner.is_winner = True
         winner.save(update_fields=['is_winner'])
-        bet.actual_net_result = winner.net_result
-        bet.status = Bet.Status.WON if winner.net_result >= 0 else Bet.Status.LOST
+        bet.actual_net_result = protection_winner_net_result(bet, entries, winner)
+        bet.status = Bet.Status.WON if bet.actual_net_result >= 0 else Bet.Status.LOST
         bet.exact_score = f'{winner.bookmaker} - {winner.label}'[:40]
         bet.save(update_fields=['actual_net_result', 'status', 'exact_score'])
         create_protection_balance_movements(bet, entries, winner)
@@ -356,6 +365,10 @@ def build_dashboard_context(request, **forms):
         (bankroll.available_balance for bankroll in bankrolls),
         start=Decimal('0.00'),
     )
+    total_open_exposure = sum(
+        (bankroll.open_exposure for bankroll in bankrolls),
+        start=Decimal('0.00'),
+    )
     roi = (net_profit / total_stake * 100) if total_stake else Decimal('0.00')
     win_rate = (won_bets / len(settled_bets) * 100) if settled_bets else 0
 
@@ -395,22 +408,10 @@ def build_dashboard_context(request, **forms):
     primary_bank_account = bank_accounts.filter(name__icontains='principal').first() or bank_accounts.first()
     bank_account_summaries = []
     for bank_account in bank_accounts:
-        account_transactions = BankrollTransaction.objects.filter(
-            bank_account=bank_account,
-            bankroll__owner=request.user,
-            kind__in=[
-                BankrollTransaction.Kind.DEPOSIT,
-                BankrollTransaction.Kind.WITHDRAW,
-            ],
-        )
-        account_balance = sum(
-            (transaction.signed_amount * Decimal('-1') for transaction in account_transactions),
-            start=Decimal('0.00'),
-        )
         bank_account_summaries.append(
             {
                 'account': bank_account,
-                'balance': account_balance,
+                'balance': bank_account.current_balance,
                 'is_primary': primary_bank_account and bank_account.pk == primary_bank_account.pk,
             }
         )
@@ -506,8 +507,9 @@ def build_dashboard_context(request, **forms):
             'open_bet_count': open_bet_count,
             'bet_count': all_bets.count(),
             'total_initial_balance': total_initial_balance,
-            'total_current_balance': total_current_balance,
-            'total_available_balance': total_available_balance,
+        'total_current_balance': total_current_balance,
+        'total_available_balance': total_available_balance,
+        'total_open_exposure': total_open_exposure,
             'available_freebets': available_freebet_total,
         },
         'market_stats': market_stats[:5],
@@ -774,7 +776,7 @@ def calculate_freebet_results(outcomes):
                 if entry['is_freebet_source']:
                     scenario_net += entry['return']
                 elif entry['mode'] == 'lay':
-                    scenario_net += entry['return']
+                    scenario_net += entry['return'] - entry['liability']
                 else:
                     scenario_net += entry['return'] - entry['stake']
             elif outcome['is_freebet_source'] and entry['mode'] == 'lay':
@@ -2104,53 +2106,7 @@ def index(request):
                     )
 
             if not extraction_errors:
-                cash_exposure = sum(
-                    (
-                        Decimal('0.00')
-                        if outcome['is_freebet_source']
-                        else outcome['liability'] if outcome['mode'] == 'lay' else outcome['stake']
-                    )
-                    for outcome in outcomes
-                )
-                outcome_results = []
-                for outcome in outcomes:
-                    if outcome['is_freebet_source']:
-                        return_amount = (outcome['stake'] * outcome['payout_multiplier']).quantize(Decimal('0.01'))
-                    else:
-                        return_amount = (outcome['stake'] * outcome['payout_multiplier']).quantize(Decimal('0.01'))
-                    outcome_results.append({**outcome, 'return': return_amount})
-
-                for outcome in outcome_results:
-                    losing_cashback = sum(
-                        (
-                            other['stake'] * (other['cashback'] / Decimal('100'))
-                            for other in outcome_results
-                            if other is not outcome
-                            and not other['is_freebet_source']
-                            and other['mode'] == 'back'
-                        ),
-                        start=Decimal('0.00'),
-                    )
-                    scenario_net = Decimal('0.00')
-                    for entry in outcome_results:
-                        if entry is outcome:
-                            if entry['is_freebet_source']:
-                                scenario_net += entry['return']
-                            elif entry['mode'] == 'lay':
-                                scenario_net += entry['return']
-                            else:
-                                scenario_net += entry['return'] - entry['stake']
-                        elif outcome['is_freebet_source'] and entry['mode'] == 'lay':
-                            scenario_net -= entry['liability']
-                        elif entry['is_freebet_source']:
-                            scenario_net += Decimal('0.00')
-                        elif entry['mode'] == 'lay':
-                            scenario_net -= entry['liability']
-                        else:
-                            scenario_net -= entry['stake']
-                    outcome['cashback_return'] = losing_cashback.quantize(Decimal('0.01'))
-                    outcome['net'] = (scenario_net + outcome['cashback_return']).quantize(Decimal('0.01'))
-                    outcome['effective_odd_display'] = outcome['effective_odd'].quantize(Decimal('0.01'))
+                cash_exposure, outcome_results = calculate_freebet_results(outcomes)
 
             if extraction_errors:
                 context = build_dashboard_context(
@@ -2541,6 +2497,28 @@ def edit_bankroll(request, pk):
         {
             'form': form,
             'bankroll': bankroll,
+        },
+    )
+
+
+@login_required
+def edit_bank_account(request, pk):
+    bank_account = get_object_or_404(BankAccount, pk=pk, owner=request.user)
+    if request.method == 'POST':
+        form = BankAccountForm(request.POST, instance=bank_account)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Conta bancária atualizada.')
+            return redirect('dashboard:index')
+    else:
+        form = BankAccountForm(instance=bank_account)
+
+    return render(
+        request,
+        'dashboard/bank_account_form.html',
+        {
+            'form': form,
+            'bank_account': bank_account,
         },
     )
 

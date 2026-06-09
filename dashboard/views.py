@@ -96,6 +96,13 @@ MONTH_CHOICES = [
     (12, 'Dezembro'),
 ]
 
+DASHBOARD_BET_TYPE_CHOICES = [
+    ('all', 'Todas'),
+    ('simple', 'Apostas simples'),
+    ('arbitrage', 'Arbitragem'),
+    ('freebet_extraction', 'Extração de freebet'),
+]
+
 ODDS_CACHE_TIMEOUT = 60 * 15
 EVENT_SEARCH_CACHE_TIMEOUT = 60 * 20
 
@@ -135,6 +142,14 @@ def redirect_to_history():
 
 def is_protection_bet(bet):
     return bet.strategy in PROTECTION_STRATEGIES
+
+
+def dashboard_bet_type(bet):
+    if bet.strategy == 'Extração de freebet':
+        return 'freebet_extraction'
+    if is_protection_bet(bet):
+        return 'arbitrage'
+    return 'simple'
 
 
 def protection_winner_net_result(bet, entries, winner):
@@ -286,9 +301,16 @@ def dashboard_period(request, bets):
         else timezone.datetime(year, month + 1, 1, tzinfo=timezone.get_current_timezone())
     )
 
+    bet_type = request.GET.get('dashboard_bet_type') or 'all'
+    valid_bet_types = {value for value, _label in DASHBOARD_BET_TYPE_CHOICES}
+    if bet_type not in valid_bet_types:
+        bet_type = 'all'
+
     return {
         'year': year,
         'month': month,
+        'bet_type': bet_type,
+        'bet_type_choices': DASHBOARD_BET_TYPE_CHOICES,
         'reference_date': reference_date,
         'next_month': next_month,
         'month_choices': MONTH_CHOICES,
@@ -319,9 +341,15 @@ def build_dashboard_context(request, **forms):
     all_bets = user_bets(request.user).select_related('bankroll', 'bankroll__entity', 'entity')
     all_bet_list = list(all_bets)
     dashboard_filter = dashboard_period(request, all_bet_list)
-    dashboard_bets = [
+    filtered_all_bet_list = [
         bet
         for bet in all_bet_list
+        if dashboard_filter['bet_type'] == 'all'
+        or dashboard_bet_type(bet) == dashboard_filter['bet_type']
+    ]
+    dashboard_bets = [
+        bet
+        for bet in filtered_all_bet_list
         if dashboard_filter['reference_date'] <= timezone.localtime(bet.created_at) < dashboard_filter['next_month']
     ]
     filter_form = forms.get('filter_form') or BetFilterForm(request.GET or None, user=request.user)
@@ -329,7 +357,7 @@ def build_dashboard_context(request, **forms):
 
     settled_bets = [bet for bet in dashboard_bets if bet.status != Bet.Status.OPEN]
     total_stake = sum((bet.stake for bet in dashboard_bets), start=Decimal('0.00'))
-    total_registered_stake = sum((bet.stake for bet in all_bet_list), start=Decimal('0.00'))
+    total_registered_stake = sum((bet.stake for bet in filtered_all_bet_list), start=Decimal('0.00'))
     net_profit = sum((bet.net_result for bet in dashboard_bets), start=Decimal('0.00'))
     won_bets = sum(1 for bet in dashboard_bets if bet.status == Bet.Status.WON)
     open_exposure = sum(
@@ -378,8 +406,8 @@ def build_dashboard_context(request, **forms):
     win_rate = (won_bets / len(settled_bets) * 100) if settled_bets else 0
 
     market_stats = []
-    for market in sorted({bet.market for bet in all_bets}):
-        market_bets = [bet for bet in all_bets if bet.market == market]
+    for market in sorted({bet.market for bet in filtered_all_bet_list}):
+        market_bets = [bet for bet in filtered_all_bet_list if bet.market == market]
         market_stake = sum((bet.stake for bet in market_bets), start=Decimal('0.00'))
         market_profit = sum((bet.net_result for bet in market_bets), start=Decimal('0.00'))
         market_roi = (market_profit / market_stake * 100) if market_stake else 0
@@ -397,6 +425,10 @@ def build_dashboard_context(request, **forms):
             bet.net_result
             for bet in all_bet_list
             if bet.status != Bet.Status.OPEN
+            and (
+                dashboard_filter['bet_type'] == 'all'
+                or dashboard_bet_type(bet) == dashboard_filter['bet_type']
+            )
             and timezone.localtime(bet.created_at) < dashboard_filter['reference_date']
         ),
         start=Decimal('0.00'),
@@ -515,7 +547,7 @@ def build_dashboard_context(request, **forms):
             'win_rate': win_rate,
             'open_exposure': open_exposure,
             'open_bet_count': open_bet_count,
-            'bet_count': all_bets.count(),
+            'bet_count': len(filtered_all_bet_list),
             'total_initial_balance': total_initial_balance,
         'total_current_balance': total_current_balance,
         'total_available_balance': total_available_balance,

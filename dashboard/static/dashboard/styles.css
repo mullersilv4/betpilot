@@ -4349,7 +4349,8 @@ th {
 }
 
 .sales-plan-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 560px);
+  justify-content: center;
 }
 
 .sales-plan-grid article {
@@ -4456,13 +4457,63 @@ th {
   }
 
   .sales-real-dashboard {
-    overflow-x: auto;
+    overflow: hidden;
+    padding: 10px;
   }
 
-  .real-filter-bar,
+  .real-filter-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .real-filter-bar label {
+    min-width: 0;
+  }
+
+  .real-filter-bar button {
+    width: 100%;
+  }
+
   .real-dashboard-grid,
   .real-metric-grid {
-    min-width: 760px;
+    min-width: 0;
+  }
+
+  .real-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .real-dashboard-grid {
+    gap: 12px;
+  }
+
+  .real-calendar-panel {
+    overflow: hidden;
+  }
+
+  .real-calendar-grid {
+    gap: 4px;
+  }
+
+  .real-calendar-grid div {
+    min-height: 46px;
+    gap: 2px;
+    padding: 5px;
+  }
+
+  .real-calendar-grid small {
+    display: none;
+  }
+
+  .real-line-chart,
+  .real-bar-chart {
+    min-height: 150px;
+  }
+
+  .real-line-chart svg,
+  .real-bar-chart svg {
+    min-height: 150px;
   }
 
   .sales-screen-card.is-wide {
@@ -4494,6 +4545,62 @@ th {
 
   .real-panel {
     padding: 10px;
+  }
+
+  .real-panel-header {
+    display: grid;
+    gap: 8px;
+  }
+
+  .real-panel-header > div:last-child {
+    justify-items: start;
+    white-space: normal;
+  }
+
+  .real-filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .real-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .real-metric-grid article {
+    min-height: 58px;
+  }
+
+  .real-calendar-weekdays {
+    gap: 3px;
+    font-size: 0.58rem;
+  }
+
+  .real-calendar-grid {
+    gap: 3px;
+  }
+
+  .real-calendar-grid div {
+    min-height: 34px;
+    padding: 4px 2px;
+    border-radius: 6px;
+    justify-items: center;
+  }
+
+  .real-calendar-grid span {
+    font-size: 0.58rem;
+  }
+
+  .real-calendar-grid strong {
+    font-size: 0.68rem;
+  }
+
+  .real-line-chart,
+  .real-bar-chart {
+    min-height: 120px;
+  }
+
+  .real-line-chart svg,
+  .real-bar-chart svg {
+    min-height: 120px;
   }
 
   .sales-screen-card {

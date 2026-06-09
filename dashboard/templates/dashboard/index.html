@@ -132,6 +132,14 @@
                   {% endfor %}
                 </select>
               </label>
+              <label>
+                <span>Tipo de aposta</span>
+                <select name="dashboard_bet_type">
+                  {% for value, label in dashboard_filter.bet_type_choices %}
+                    <option value="{{ value }}" {% if value == dashboard_filter.bet_type %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
               <button class="ghost-button compact" type="submit">Aplicar</button>
               <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#dashboard">Atual</a>
             </form>

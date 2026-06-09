@@ -14,6 +14,7 @@ from .models import BookmakerAlias
 from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
+from .models import UserPreference
 
 
 class EntityForm(forms.ModelForm):
@@ -44,6 +45,16 @@ class EntityForm(forms.ModelForm):
         if self.user and Entity.objects.filter(owner=self.user, name__iexact=name).exists():
             raise forms.ValidationError('Você já cadastrou uma entidade com esse nome.')
         return name
+
+
+class UserPreferenceForm(forms.ModelForm):
+    class Meta:
+        model = UserPreference
+        fields = ['language', 'currency']
+        widgets = {
+            'language': forms.Select(),
+            'currency': forms.Select(),
+        }
 
 
 class BankrollForm(forms.ModelForm):

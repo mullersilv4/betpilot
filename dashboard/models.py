@@ -81,6 +81,61 @@ class UserAccess(models.Model):
             self.save(update_fields=['status', 'updated_at'])
 
 
+class UserPreference(models.Model):
+    class Language(models.TextChoices):
+        PORTUGUESE = 'pt-BR', 'Português'
+        SPANISH = 'es', 'Español'
+        ENGLISH = 'en', 'English'
+
+    class Currency(models.TextChoices):
+        BRL = 'BRL', 'Real brasileiro'
+        USD = 'USD', 'Dólar'
+        EUR = 'EUR', 'Euro'
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name='usuário',
+        related_name='preference',
+        on_delete=models.CASCADE,
+    )
+    language = models.CharField(
+        'idioma',
+        max_length=8,
+        choices=Language.choices,
+        default=Language.PORTUGUESE,
+    )
+    currency = models.CharField(
+        'moeda',
+        max_length=3,
+        choices=Currency.choices,
+        default=Currency.BRL,
+    )
+    updated_at = models.DateTimeField('atualizado em', auto_now=True)
+
+    class Meta:
+        verbose_name = 'preferência do usuário'
+        verbose_name_plural = 'preferências dos usuários'
+
+    def __str__(self):
+        return f'{self.user} - {self.language} / {self.currency}'
+
+    @property
+    def currency_symbol(self):
+        return {
+            self.Currency.BRL: 'R$',
+            self.Currency.USD: '$',
+            self.Currency.EUR: '€',
+        }.get(self.currency, 'R$')
+
+    @property
+    def currency_locale(self):
+        return {
+            self.Currency.BRL: 'pt-BR',
+            self.Currency.USD: 'en-US',
+            self.Currency.EUR: 'de-DE',
+        }.get(self.currency, 'pt-BR')
+
+
 def ensure_user_access(user):
     access, _created = UserAccess.objects.get_or_create(
         user=user,
@@ -92,6 +147,11 @@ def ensure_user_access(user):
     )
     access.expire_if_needed()
     return access
+
+
+def ensure_user_preference(user):
+    preference, _created = UserPreference.objects.get_or_create(user=user)
+    return preference
 
 
 class Bet(models.Model):

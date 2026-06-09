@@ -1,13 +1,18 @@
 <!doctype html>
 {% load static l10n %}
-<html lang="pt-BR">
+<html lang="{{ user_preference.language|default:'pt-BR' }}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freebetar | Dashboard de Apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260602-8" />
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260609-1" />
   </head>
-  <body>
+  <body
+    data-language="{{ user_preference.language|default:'pt-BR' }}"
+    data-currency-code="{{ currency_code|default:'BRL' }}"
+    data-currency-locale="{{ currency_locale|default:'pt-BR' }}"
+    data-currency-symbol="{{ currency_symbol|default:'R$' }}"
+  >
     <div class="app-shell">
       <button class="mobile-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar">
         <span></span>
@@ -31,6 +36,7 @@
           <a href="#new-bet">Nova aposta</a>
           <a href="#bets">Histórico</a>
           <a href="#goals">Metas</a>
+          <a href="#settings">Configurações</a>
         </nav>
 
         <div class="side-panel">
@@ -65,6 +71,47 @@
             <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:sales' %}#planos">Ver planos</a>
           </section>
         {% endif %}
+
+        <section id="settings" class="single-grid settings-workspace" data-screen="settings">
+          <article class="panel settings-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Configurações</p>
+                <h2>Preferências da conta</h2>
+              </div>
+            </div>
+
+            <form class="bet-form settings-form" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="preferences" />
+              <div class="settings-grid">
+                <label>
+                  <span>Idioma</span>
+                  {{ preference_form.language }}
+                  {{ preference_form.language.errors }}
+                </label>
+                <label>
+                  <span>Moeda</span>
+                  {{ preference_form.currency }}
+                  {{ preference_form.currency.errors }}
+                </label>
+              </div>
+              <div class="settings-preview">
+                <div>
+                  <span>Moeda atual</span>
+                  <strong>{{ user_preference.currency }}</strong>
+                </div>
+                <div>
+                  <span>Símbolo</span>
+                  <strong>{{ currency_symbol }}</strong>
+                </div>
+              </div>
+              <div class="settings-actions">
+                <button class="primary-button" type="submit">Salvar configurações</button>
+              </div>
+            </form>
+          </article>
+        </section>
 
         <section id="dashboard" class="dashboard-filter-bar" data-screen="dashboard" aria-label="Filtros do dashboard">
           <div class="dashboard-filter-inner">

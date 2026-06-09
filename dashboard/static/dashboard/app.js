@@ -1,14 +1,382 @@
 function formatCurrency(value) {
-  return value.toLocaleString("pt-BR", {
+  const currency = document.body.dataset.currencyCode || "BRL";
+  const locale = document.body.dataset.currencyLocale || "pt-BR";
+  return value.toLocaleString(locale, {
     style: "currency",
-    currency: "BRL",
+    currency,
   });
+}
+
+const UI_TRANSLATIONS = {
+  es: {
+    "Gestão inteligente": "Gestión inteligente",
+    Dashboard: "Panel",
+    Financeiro: "Finanzas",
+    "Nova aposta": "Nueva apuesta",
+    Histórico: "Historial",
+    Metas: "Metas",
+    Configurações: "Configuración",
+    "Conta ativa": "Cuenta activa",
+    "Trocar senha": "Cambiar contraseña",
+    Sair: "Salir",
+    "Teste gratuito": "Prueba gratis",
+    "Ver planos": "Ver planes",
+    "Mês": "Mes",
+    "Ano": "Año",
+    "Aplicar": "Aplicar",
+    "Atual": "Actual",
+    "Conta principal": "Cuenta principal",
+    "Selecionar conta bancária": "Seleccionar cuenta bancaria",
+    "Nenhuma conta": "Ninguna cuenta",
+    "cadastre em Financeiro": "regístrala en Finanzas",
+    "Ocultar saldo": "Ocultar saldo",
+    "Mostrar saldo": "Mostrar saldo",
+    "Saldo total": "Saldo total",
+    "disponível": "disponible",
+    "Apostas abertas": "Apuestas abiertas",
+    "exposição": "exposición",
+    "Total apostado": "Total apostado",
+    "apostas feitas": "apuestas realizadas",
+    "Lucro líquido": "Ganancia neta",
+    "resultado fechado": "resultado cerrado",
+    "apostas registradas": "apuestas registradas",
+    "Freebets": "Freebets",
+    "bonus pendentes": "bonos pendientes",
+    "Calendário": "Calendario",
+    "Resultado diário de": "Resultado diario de",
+    "aposta(s) fechada(s)": "apuesta(s) cerrada(s)",
+    "aposta(s)": "apuesta(s)",
+    "Gestão de saldos": "Gestión de saldos",
+    "Disponível": "Disponible",
+    "Aberto": "Abierto",
+    "Total": "Total",
+    "Atalhos": "Accesos rápidos",
+    "Cadastrar": "Registrar",
+    "Nova entidade": "Nueva entidad",
+    "Cliente, projeto ou operador": "Cliente, proyecto u operador",
+    "Nome": "Nombre",
+    "Salvar entidade": "Guardar entidad",
+    "Nova casa": "Nueva casa",
+    "Saldo inicial vinculado a uma entidade": "Saldo inicial vinculado a una entidad",
+    "Entidade": "Entidad",
+    "Casa": "Casa",
+    "Saldo inicial": "Saldo inicial",
+    "Cadastrar saldo": "Registrar saldo",
+    "Buscar casa": "Buscar casa",
+    "Buscar por nome ou casa de aposta...": "Buscar por nombre o casa de apuestas...",
+    "Filtrar bancas por entidade": "Filtrar bancas por entidad",
+    "Todas": "Todas",
+    "Editar banca": "Editar banca",
+    "Editar": "Editar",
+    "Valor disponível": "Valor disponible",
+    "Valor aberto": "Valor abierto",
+    "Valor total": "Valor total",
+    "+ Depósito": "+ Depósito",
+    "- Saque": "- Retiro",
+    "Reajuste": "Ajuste",
+    "Valor": "Valor",
+    "Conta": "Cuenta",
+    "Observação rápida": "Observación rápida",
+    "Aplicar": "Aplicar",
+    "Cadastre sua primeira casa para começar.": "Registra tu primera casa para empezar.",
+    "Movimentações": "Movimientos",
+    "Financeiro e transferências": "Finanzas y transferencias",
+    "Gerenciar movimentações": "Gestionar movimientos",
+    "Configurações": "Configuración",
+    "Preferências da conta": "Preferencias de la cuenta",
+    "Idioma": "Idioma",
+    "Moeda": "Moneda",
+    "Moeda atual": "Moneda actual",
+    "Símbolo": "Símbolo",
+    "Salvar configurações": "Guardar configuración",
+    "Configurações salvas com sucesso.": "Configuración guardada correctamente.",
+    "Português": "Portugués",
+    "Español": "Español",
+    "English": "Inglés",
+    "Espanhol": "Español",
+    "Inglês": "Inglés",
+    "Real brasileiro": "Real brasileño",
+    "Dólar": "Dólar",
+    "Euro": "Euro",
+    "Estratégia": "Estrategia",
+    "Resultado": "Resultado",
+    "Odd": "Cuota",
+    "Stake": "Stake",
+    "Comissão": "Comisión",
+    "Status": "Estado",
+    "Retorno possível": "Retorno posible",
+    "Lucro": "Ganancia",
+    "Ações": "Acciones",
+    "Mercado": "Mercado",
+    "Tipo": "Tipo",
+    "Pre-live": "Pre-live",
+    "Ao vivo": "En vivo",
+    "Ganha": "Ganada",
+    "Perdida": "Perdida",
+    "Aberta": "Abierta",
+    "Excluir": "Eliminar",
+    "Observações": "Observaciones",
+    "Respons.": "Respons.",
+    "Retorno": "Retorno",
+    "Cashback": "Cashback",
+    "Ganha / Perde": "Gana / Pierde",
+    "Responsabilidade": "Responsabilidad",
+    "Retorno por resultado": "Retorno por resultado",
+    "Melhor cenário": "Mejor escenario",
+    "Pior cenário": "Peor escenario",
+    "Dinheiro usado": "Dinero usado",
+    "Valor extraído alvo": "Valor extraído objetivo",
+    "Conversão": "Conversión",
+    "Lucro estimado": "Ganancia estimada",
+    "Buscando jogos...": "Buscando partidos...",
+    "Nenhum jogo encontrado. Você pode continuar digitando manualmente.": "No se encontró ningún partido. Puedes seguir escribiendo manualmente.",
+    "Nenhuma odd disponível para esse jogo com os filtros atuais.": "No hay cuotas disponibles para ese partido con los filtros actuales.",
+    "Escolha um jogo da lista antes de carregar as odds.": "Elige un partido de la lista antes de cargar las cuotas.",
+    "Carregando odds por casa...": "Cargando cuotas por casa...",
+    "Não foi possível carregar as odds.": "No fue posible cargar las cuotas.",
+    "Não foi possível carregar as odds agora.": "No fue posible cargar las cuotas ahora.",
+    "Selecione a casa": "Selecciona la casa",
+  },
+  en: {
+    "Gestão inteligente": "Smart management",
+    Dashboard: "Dashboard",
+    Financeiro: "Finance",
+    "Nova aposta": "New bet",
+    Histórico: "History",
+    Metas: "Goals",
+    Configurações: "Settings",
+    "Conta ativa": "Active account",
+    "Trocar senha": "Change password",
+    Sair: "Log out",
+    "Teste gratuito": "Free trial",
+    "Ver planos": "View plans",
+    "Mês": "Month",
+    "Ano": "Year",
+    "Aplicar": "Apply",
+    "Atual": "Current",
+    "Conta principal": "Primary account",
+    "Selecionar conta bancária": "Select bank account",
+    "Nenhuma conta": "No account",
+    "cadastre em Financeiro": "add it in Finance",
+    "Ocultar saldo": "Hide balance",
+    "Mostrar saldo": "Show balance",
+    "Saldo total": "Total balance",
+    "disponível": "available",
+    "Apostas abertas": "Open bets",
+    "exposição": "exposure",
+    "Total apostado": "Total staked",
+    "apostas feitas": "bets placed",
+    "Lucro líquido": "Net profit",
+    "resultado fechado": "settled result",
+    "apostas registradas": "registered bets",
+    "Freebets": "Freebets",
+    "bonus pendentes": "pending bonuses",
+    "Calendário": "Calendar",
+    "Resultado diário de": "Daily result for",
+    "aposta(s) fechada(s)": "settled bet(s)",
+    "aposta(s)": "bet(s)",
+    "Gestão de saldos": "Balance management",
+    "Disponível": "Available",
+    "Aberto": "Open",
+    "Total": "Total",
+    "Atalhos": "Shortcuts",
+    "Cadastrar": "Add",
+    "Nova entidade": "New entity",
+    "Cliente, projeto ou operador": "Client, project or operator",
+    "Nome": "Name",
+    "Salvar entidade": "Save entity",
+    "Nova casa": "New bookmaker",
+    "Saldo inicial vinculado a uma entidade": "Initial balance linked to an entity",
+    "Entidade": "Entity",
+    "Casa": "Bookmaker",
+    "Saldo inicial": "Initial balance",
+    "Cadastrar saldo": "Add balance",
+    "Buscar casa": "Search bookmaker",
+    "Buscar por nome ou casa de aposta...": "Search by name or bookmaker...",
+    "Filtrar bancas por entidade": "Filter bankrolls by entity",
+    "Todas": "All",
+    "Editar banca": "Edit bankroll",
+    "Editar": "Edit",
+    "Valor disponível": "Available value",
+    "Valor aberto": "Open value",
+    "Valor total": "Total value",
+    "+ Depósito": "+ Deposit",
+    "- Saque": "- Withdraw",
+    "Reajuste": "Adjustment",
+    "Valor": "Amount",
+    "Conta": "Account",
+    "Observação rápida": "Quick note",
+    "Cadastre sua primeira casa para começar.": "Add your first bookmaker to get started.",
+    "Movimentações": "Transactions",
+    "Financeiro e transferências": "Finance and transfers",
+    "Gerenciar movimentações": "Manage transactions",
+    "Preferências da conta": "Account preferences",
+    "Idioma": "Language",
+    "Moeda": "Currency",
+    "Moeda atual": "Current currency",
+    "Símbolo": "Symbol",
+    "Salvar configurações": "Save settings",
+    "Configurações salvas com sucesso.": "Settings saved successfully.",
+    "Português": "Portuguese",
+    "Español": "Spanish",
+    "English": "English",
+    "Espanhol": "Spanish",
+    "Inglês": "English",
+    "Real brasileiro": "Brazilian real",
+    "Dólar": "Dollar",
+    "Euro": "Euro",
+    "Estratégia": "Strategy",
+    "Resultado": "Result",
+    "Odd": "Odds",
+    "Stake": "Stake",
+    "Comissão": "Commission",
+    "Status": "Status",
+    "Retorno possível": "Possible return",
+    "Lucro": "Profit",
+    "Ações": "Actions",
+    "Mercado": "Market",
+    "Tipo": "Type",
+    "Pre-live": "Pre-live",
+    "Ao vivo": "Live",
+    "Ganha": "Won",
+    "Perdida": "Lost",
+    "Aberta": "Open",
+    "Excluir": "Delete",
+    "Observações": "Notes",
+    "Respons.": "Liability",
+    "Retorno": "Return",
+    "Cashback": "Cashback",
+    "Ganha / Perde": "Win / Lose",
+    "Responsabilidade": "Liability",
+    "Retorno por resultado": "Return per outcome",
+    "Melhor cenário": "Best case",
+    "Pior cenário": "Worst case",
+    "Dinheiro usado": "Cash used",
+    "Valor extraído alvo": "Target extracted value",
+    "Conversão": "Conversion",
+    "Lucro estimado": "Estimated profit",
+    "Buscando jogos...": "Searching games...",
+    "Nenhum jogo encontrado. Você pode continuar digitando manualmente.": "No game found. You can keep typing manually.",
+    "Nenhuma odd disponível para esse jogo com os filtros atuais.": "No odds available for this game with the current filters.",
+    "Escolha um jogo da lista antes de carregar as odds.": "Choose a game from the list before loading odds.",
+    "Carregando odds por casa...": "Loading odds by bookmaker...",
+    "Não foi possível carregar as odds.": "Could not load odds.",
+    "Não foi possível carregar as odds agora.": "Could not load odds right now.",
+    "Selecione a casa": "Select bookmaker",
+  },
+};
+
+function translateTextValue(value, translations) {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  if (translations[trimmed]) {
+    return value.replace(trimmed, translations[trimmed]);
+  }
+  return value
+    .replace(/\bdisponível\b/g, translations["disponível"] || "disponível")
+    .replace(/\bexposição\b/g, translations["exposição"] || "exposição")
+    .replace(/\bapostas feitas\b/g, translations["apostas feitas"] || "apostas feitas")
+    .replace(/\bapostas registradas\b/g, translations["apostas registradas"] || "apostas registradas")
+    .replace(/\baposta\(s\)\b/g, translations["aposta(s)"] || "aposta(s)")
+    .replace(/\bResultado diário de\b/g, translations["Resultado diário de"] || "Resultado diário de");
+}
+
+function translateInterface(root = document.body) {
+  const language = document.body.dataset.language || "pt-BR";
+  const translations = UI_TRANSLATIONS[language];
+  if (!translations || !root) return;
+
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent || ["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    },
+  );
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+  textNodes.forEach((node) => {
+    node.nodeValue = translateTextValue(node.nodeValue, translations);
+  });
+
+  root.querySelectorAll?.("[placeholder], [aria-label], [title], option, input[type='submit']").forEach((element) => {
+    ["placeholder", "aria-label", "title"].forEach((attribute) => {
+      const value = element.getAttribute(attribute);
+      if (value) element.setAttribute(attribute, translateTextValue(value, translations));
+    });
+    if (element.tagName === "OPTION" || element.type === "submit") {
+      element.textContent = translateTextValue(element.textContent, translations);
+      if (element.value && translations[element.value]) element.value = translations[element.value];
+    }
+  });
+}
+
+function setupInterfaceTranslationObserver() {
+  const language = document.body.dataset.language || "pt-BR";
+  if (!UI_TRANSLATIONS[language]) return;
+
+  let translating = false;
+  const observer = new MutationObserver((mutations) => {
+    if (translating) return;
+    translating = true;
+    window.requestAnimationFrame(() => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) translateInterface(node);
+          if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
+            translateInterface(node.parentElement);
+          }
+        });
+      });
+      translating = false;
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function formatPlainAmount(value) {
   return value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  });
+}
+
+function parseBrazilianCurrencyAmount(value) {
+  return Number.parseFloat(value.replace(/\./g, "").replace(",", "."));
+}
+
+function applyUserCurrencyPreference() {
+  const currency = document.body.dataset.currencyCode || "BRL";
+  if (currency === "BRL") return;
+
+  const replaceCurrencyText = (text) =>
+    text.replace(/R\$\s*(-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2})/g, (_match, amount) =>
+      formatCurrency(parseBrazilianCurrencyAmount(amount)),
+    ).replace(/R\$\s*--,--/g, `${document.body.dataset.currencySymbol || "$"} --`);
+
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        return node.nodeValue.includes("R$") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    },
+  );
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    node.nodeValue = replaceCurrencyText(node.nodeValue);
+  });
+
+  document.querySelectorAll("[data-balance]").forEach((element) => {
+    element.dataset.balance = replaceCurrencyText(element.dataset.balance || "");
   });
 }
 
@@ -233,7 +601,7 @@ function activateScreen() {
     overview: "dashboard",
     calendar: "dashboard",
   };
-  const publicScreens = new Set(["dashboard", "new-bet", "bankroll", "bets", "goals"]);
+  const publicScreens = new Set(["dashboard", "new-bet", "bankroll", "bets", "goals", "settings"]);
   const requestedScreen = window.location.hash.replace("#", "") || "dashboard";
   const activeScreen = screenAliases[requestedScreen] || requestedScreen;
   const availableScreens = [...document.querySelectorAll("[data-screen]")].map(
@@ -354,7 +722,7 @@ function setupBalanceVisibility() {
   const accountName = document.querySelector("[data-bank-account-name]");
   if (!card || !button || !value) return;
 
-  const hiddenValue = "R$ --,--";
+  const hiddenValue = `${document.body.dataset.currencySymbol || "R$"} --`;
   let visibleValue = value.textContent.trim();
 
   function applyHiddenState(isHidden) {
@@ -1371,7 +1739,7 @@ document.querySelectorAll(".finance-card-form").forEach((form) => {
       button.classList.toggle("is-active", button.dataset.financeAction === kind);
     });
     if (bankAccount) {
-      bankAccount.required = kind !== "adjustment";
+      bankAccount.required = false;
       bankAccount.disabled = kind === "adjustment";
       if (kind === "adjustment") bankAccount.value = "";
     }
@@ -1399,6 +1767,9 @@ if (document.querySelector('[data-bet-mode-panel="freebet-extract"] .form-errors
 updateBetPreview();
 updateSurebetPreview();
 updateFreebetExtractionPreview();
+applyUserCurrencyPreference();
+translateInterface();
+setupInterfaceTranslationObserver();
 setupMobileSidebar();
 setupBalanceVisibility();
 setupCollapsiblePanels();

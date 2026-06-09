@@ -47,6 +47,7 @@ from .forms import RegulatedBookmakerForm
 from .forms import RegulatedImportForm
 from .forms import SignUpForm
 from .forms import TransferForm
+from .forms import UserPreferenceForm
 from .models import BookmakerAlias
 from .models import BookmakerEventLink
 from .models import BankAccount
@@ -63,6 +64,7 @@ from .models import RegulatedBookmaker
 from .models import SureBetEntry
 from .models import UserAccess
 from .models import ensure_user_access
+from .models import ensure_user_preference
 from .odds_api import OddsApiClient
 from .odds_api import OddsApiError
 from .odds_api import OddsPapiClient
@@ -310,6 +312,7 @@ def parse_import_lines(raw_text):
 
 def build_dashboard_context(request, **forms):
     user_access = ensure_user_access(request.user)
+    user_preference = ensure_user_preference(request.user)
     entities = Entity.objects.filter(owner=request.user).prefetch_related('bankrolls')
     bank_accounts = BankAccount.objects.filter(owner=request.user)
     bankrolls = Bankroll.objects.filter(owner=request.user).select_related('entity').prefetch_related('bets', 'transactions')
@@ -455,6 +458,7 @@ def build_dashboard_context(request, **forms):
         'form': forms.get('bet_form') or BetForm(user=request.user),
         'transaction_form': forms.get('transaction_form') or BankrollTransactionForm(user=request.user),
         'transfer_form': forms.get('transfer_form') or TransferForm(user=request.user),
+        'preference_form': forms.get('preference_form') or UserPreferenceForm(instance=user_preference),
         'filter_form': filter_form,
         'import_form': forms.get('import_form') or ImportTextForm(),
         'event_odds_form': forms.get('event_odds_form') or EventOddsForm(prefix='event_odds'),
@@ -499,6 +503,10 @@ def build_dashboard_context(request, **forms):
         'monthly_goals': MonthlyGoal.objects.filter(entity__owner=request.user).select_related('entity')[:12],
         'dashboard_filter': dashboard_filter,
         'user_access': user_access,
+        'user_preference': user_preference,
+        'currency_code': user_preference.currency,
+        'currency_symbol': user_preference.currency_symbol,
+        'currency_locale': user_preference.currency_locale,
         'metrics': {
             'total_stake': total_stake,
             'total_registered_stake': total_registered_stake,
@@ -1641,6 +1649,16 @@ def event_odds(request):
 def index(request):
     if request.method == 'POST':
         form_type = request.POST.get('form_type')
+
+        if form_type == 'preferences':
+            preference = ensure_user_preference(request.user)
+            preference_form = UserPreferenceForm(request.POST, instance=preference)
+            if preference_form.is_valid():
+                preference_form.save()
+                messages.success(request, 'Configurações salvas com sucesso.')
+                return redirect(f'{reverse("dashboard:index")}#settings')
+            context = build_dashboard_context(request, preference_form=preference_form)
+            return render(request, 'dashboard/index.html', context)
 
         if form_type == 'bankroll':
             bankroll_form = BankrollForm(request.POST, user=request.user)

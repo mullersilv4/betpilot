@@ -28,9 +28,13 @@
         {% if request.user.is_authenticated and user_access.has_access %}
           <a class="ghost-button link-button" href="{% url 'dashboard:index' %}">Abrir dashboard</a>
         {% elif request.user.is_authenticated %}
+          <form method="post" action="{% url 'dashboard:logout' %}">
+            {% csrf_token %}
+            <button class="ghost-button" type="submit">Sair e entrar</button>
+          </form>
           <a class="primary-button link-button" href="#planos">Contratar agora</a>
         {% else %}
-          <a class="ghost-button link-button" href="#acesso">Entrar</a>
+          <a class="ghost-button link-button" href="{% url 'dashboard:login' %}">Entrar</a>
           <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
           <aside id="acesso" class="sales-login-panel" aria-label="Acesso ao Freebetar">
             <p class="eyebrow">Área do cliente</p>
@@ -116,10 +120,14 @@
             {% if request.user.is_authenticated and user_access.has_access %}
               <a class="primary-button link-button" href="{% url 'dashboard:index' %}">Abrir dashboard</a>
             {% elif request.user.is_authenticated %}
+              <form method="post" action="{% url 'dashboard:logout' %}">
+                {% csrf_token %}
+                <button class="ghost-button" type="submit">Sair e entrar</button>
+              </form>
               <a class="primary-button link-button" href="#planos">Contratar agora</a>
             {% else %}
               <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
-              <a class="secondary-button link-button" href="#acesso">Já sou usuário</a>
+              <a class="secondary-button link-button" href="{% url 'dashboard:login' %}">Já sou usuário</a>
             {% endif %}
           </div>
         </div>
@@ -387,7 +395,7 @@
             <h3>Pro</h3>
             <strong>Em breve</strong>
             <p>Recursos avançados de promoções, automações, odds e leitura de oportunidades.</p>
-            <a class="ghost-button link-button" href="#acesso">Acessar minha conta</a>
+            <a class="ghost-button link-button" href="{% url 'dashboard:login' %}">Acessar minha conta</a>
           </article>
         </div>
       </section>

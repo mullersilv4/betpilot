@@ -821,10 +821,22 @@ class Bankroll(models.Model):
 
     @property
     def open_exposure(self):
-        return sum(
-            (bet.stake for bet in self.bets.filter(status=Bet.Status.OPEN)),
+        direct_bet_exposure = sum(
+            (
+                bet.stake
+                for bet in self.bets.filter(status=Bet.Status.OPEN)
+                if not bet.is_protection
+            ),
             start=Decimal('0.00'),
         )
+        structured_bet_exposure = sum(
+            (
+                entry.exposure
+                for entry in self.surebet_entries.filter(bet__status=Bet.Status.OPEN)
+            ),
+            start=Decimal('0.00'),
+        )
+        return (direct_bet_exposure + structured_bet_exposure).quantize(MONEY_PLACES)
 
     @property
     def current_balance(self):

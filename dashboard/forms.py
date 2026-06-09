@@ -108,7 +108,8 @@ class BetForm(forms.ModelForm):
         if not show_status:
             self.fields.pop('status', None)
         if self.instance and self.instance.event_date:
-            self.initial['event_date'] = self.instance.event_date.strftime('%Y-%m-%dT%H:%M')
+            self.initial['event_date'] = self.instance.event_date.strftime('%Y-%m-%d')
+        self.fields['event_date'].input_formats = ['%Y-%m-%d']
 
     class Meta:
         model = Bet
@@ -169,7 +170,7 @@ class BetForm(forms.ModelForm):
                     'autocomplete': 'off',
                 }
             ),
-            'event_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'event_date': forms.DateInput(attrs={'type': 'date'}),
             'entry_type': forms.Select(),
             'odds': forms.NumberInput(attrs={'step': '0.01', 'min': '1.01'}),
             'stake': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01'}),
@@ -270,12 +271,6 @@ class BankrollTransactionForm(forms.ModelForm):
         kind = cleaned_data.get('kind')
         bank_account = cleaned_data.get('bank_account')
         amount = cleaned_data.get('amount')
-
-        if kind in {BankrollTransaction.Kind.DEPOSIT, BankrollTransaction.Kind.WITHDRAW} and not bank_account:
-            self.add_error(
-                'bank_account',
-                'Informe a conta bancária usada no depósito ou saque.',
-            )
 
         if (
             bankroll

@@ -391,9 +391,9 @@ function setupBalanceVisibility() {
   });
 }
 
-function localDatetimeInputValue(date = new Date()) {
+function localDateInputValue(date = new Date()) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
+  return localDate.toISOString().slice(0, 10);
 }
 
 function readNumber(input) {
@@ -507,7 +507,7 @@ function setupSingleEventAutocomplete(container) {
       competitionInput.value = option.dataset.competition;
     }
     if (eventDateInput && option.dataset.eventDate) {
-      eventDateInput.value = option.dataset.eventDate;
+      eventDateInput.value = option.dataset.eventDate.slice(0, 10);
     }
     if (eventIdInput) eventIdInput.value = option.dataset.eventId || "";
     if (sportKeyInput) sportKeyInput.value = option.dataset.sportKey || "";
@@ -1007,7 +1007,7 @@ function prepareFreebetExtractionFromUrl() {
 
   const dateInput = document.querySelector('[name="freebet_event_date"]');
   if (dateInput && !dateInput.value) {
-    dateInput.value = localDatetimeInputValue();
+    dateInput.value = localDateInputValue();
   }
 
   setBetMode("freebet-extract");

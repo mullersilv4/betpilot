@@ -1,5 +1,6 @@
 from decimal import Decimal
 from decimal import InvalidOperation
+from datetime import datetime
 from datetime import timedelta
 import os
 
@@ -14,6 +15,7 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.cache import never_cache
@@ -619,7 +621,7 @@ def decimal_to_input(value):
 def datetime_to_input(value):
     if not value:
         return ''
-    return timezone.localtime(value).strftime('%Y-%m-%dT%H:%M')
+    return timezone.localtime(value).strftime('%Y-%m-%d')
 
 
 def surebet_data_from_bet(bet):
@@ -974,6 +976,12 @@ def event_date_from_post(post_data, field_name):
     raw_value = (post_data.get(field_name) or '').strip()
     if not raw_value:
         return None
+    parsed_date = parse_date(raw_value)
+    if parsed_date is not None:
+        return timezone.make_aware(
+            datetime.combine(parsed_date, datetime.min.time()),
+            timezone.get_current_timezone(),
+        )
     parsed = parse_datetime(raw_value)
     if parsed is None:
         parsed = parse_datetime(f'{raw_value}:00')

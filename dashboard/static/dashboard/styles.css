@@ -3493,6 +3493,11 @@ th {
   position: relative;
 }
 
+.sales-nav-actions form,
+.sales-hero-actions form {
+  margin: 0;
+}
+
 .sales-hero {
   position: relative;
   min-height: 92vh;

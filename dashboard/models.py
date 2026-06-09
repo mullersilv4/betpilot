@@ -277,6 +277,15 @@ class Bet(models.Model):
         )
 
     @property
+    def display_odds(self):
+        if not self.is_protection:
+            return f'{self.odds:.2f}'
+        entries = list(self.surebet_entries.all())
+        if not entries:
+            return '-'
+        return ' | '.join(f'{entry.odds:.2f}' for entry in entries)
+
+    @property
     def net_result(self):
         if self.status != self.Status.OPEN and self.actual_net_result is not None:
             return self.actual_net_result

@@ -2121,17 +2121,12 @@
                   <tr>
                     <th>Evento</th>
                     <th>Esporte</th>
-                    <th>Competição</th>
-                    <th>Origem</th>
-                    <th>Mercado</th>
-                    <th>Tipo</th>
                     <th>Estratégia</th>
                     <th>Odd</th>
                     <th>Stake</th>
-                    <th>Comissão</th>
                     <th>Status</th>
                     <th>Retorno possível</th>
-                    <th>Lucro</th>
+                    <th>Lucro / Perda</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -2140,24 +2135,11 @@
                     <tr>
                       <td><strong>{{ bet.game }}</strong></td>
                       <td>{{ bet.sport|default:"-" }}</td>
-                      <td>{{ bet.competition|default:"-" }}</td>
-                      <td>
-                        {% if bet.bankroll %}
-                          {{ bet.bankroll.name }}
-                        {% elif bet.entity %}
-                          {{ bet.entity.name }}
-                        {% else %}
-                          -
-                        {% endif %}
-                      </td>
-                      <td>{{ bet.display_market }}</td>
-                      <td>{{ bet.get_entry_type_display }}</td>
                       <td>
                         {{ bet.display_strategy|default:"-" }}
                       </td>
-                      <td>{{ bet.odds|floatformat:2 }}</td>
+                      <td>{{ bet.display_odds }}</td>
                       <td>R$ {{ bet.stake|floatformat:2 }}</td>
-                      <td>R$ {{ bet.commission_amount|floatformat:2 }}</td>
                       <td><span class="pill {{ bet.status }}">{{ bet.get_status_display }}</span></td>
                       <td>R$ {{ bet.structured_potential_return|floatformat:2 }}</td>
                       <td class="{% if bet.net_result >= 0 %}positive{% else %}negative{% endif %}">
@@ -2194,7 +2176,7 @@
                     </tr>
                   {% empty %}
                     <tr>
-                      <td colspan="14" class="empty-state">Nenhuma aposta cadastrada ainda.</td>
+                      <td colspan="9" class="empty-state">Nenhuma aposta cadastrada ainda.</td>
                     </tr>
                   {% endfor %}
                 </tbody>

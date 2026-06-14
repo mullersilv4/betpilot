@@ -977,7 +977,12 @@ def build_freebet_extract_payload(post_data, source_freebet=None):
                 )
         if index == 1 and stake and stake > 0 and payout_multiplier and payout_multiplier > 0:
             target_return = (stake * payout_multiplier).quantize(Decimal('0.01'))
-        elif target_return and payout_multiplier and payout_multiplier > 0:
+        elif (
+            target_return
+            and payout_multiplier
+            and payout_multiplier > 0
+            and (not stake or stake == 0)
+        ):
             stake = (target_return / payout_multiplier).quantize(Decimal('0.01'))
         liability = Decimal('0.00')
         if mode == 'lay' and effective_odd and stake:

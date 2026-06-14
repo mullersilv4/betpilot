@@ -1408,6 +1408,9 @@ function freebetExposure(row) {
 function updateFreebetExtractionPreview() {
   updateSelectedFreebetFields();
 
+  const activeStakeInput = document.activeElement?.classList?.contains("surebet-stake")
+    ? document.activeElement
+    : null;
   const firstOdd = readNumber(document.querySelector('[name="freebet_odd_1"]'));
   const firstStake = readNumber(document.querySelector('[name="freebet_stake_1"]'));
   const firstCommission = readNumber(document.querySelector('[name="freebet_commission_1"]'));
@@ -1426,7 +1429,11 @@ function updateFreebetExtractionPreview() {
     const mode = readFreebetMode(index);
     const effectiveOdd = odd * (1 + boost / 100);
     const multiplier = surebetTargetMultiplier(mode, effectiveOdd, commission);
-    if (stakeInput) {
+    if (
+      stakeInput &&
+      stakeInput !== activeStakeInput &&
+      stakeInput.dataset.manualStake !== "true"
+    ) {
       stakeInput.value = targetReturn > 0 && multiplier > 0 ? (targetReturn / multiplier).toFixed(2) : "";
     }
   });
@@ -1542,7 +1549,6 @@ function updateFreebetExtractionPreview() {
         <div class="surebet-result-row">
           <span>${escapeHtml(row.bookmaker)}</span>
           <span>${row.isFreebetSource ? "Freebet" : row.mode === "lay" ? "Lay" : "Back"}</span>
-          <span>${row.effectiveOdd.toFixed(2)}</span>
           <span>${formatCurrency(freebetExposure(row))}</span>
           <span>${formatCurrency(row.returnAmount)}</span>
           <span>${formatCurrency(row.cashbackReturn)}</span>
@@ -1594,7 +1600,7 @@ function createFreebetEntry(index) {
       </div>
       <label>
         <span class="sr-only">Valor ${index}</span>
-        <input type="number" name="freebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly />
+        <input type="number" name="freebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado ou manual" />
         <output class="surebet-liability" data-freebet-liability="${index}"></output>
       </label>
       <label>
@@ -1700,7 +1706,12 @@ document.querySelector(".surebet-form")?.addEventListener("click", (event) => {
   }
 });
 
-document.querySelector(".freebet-extraction-form")?.addEventListener("input", updateFreebetExtractionPreview);
+document.querySelector(".freebet-extraction-form")?.addEventListener("input", (event) => {
+  if (event.target.classList.contains("surebet-stake")) {
+    event.target.dataset.manualStake = "true";
+  }
+  updateFreebetExtractionPreview();
+});
 document.querySelector(".freebet-extraction-form")?.addEventListener("change", updateFreebetExtractionPreview);
 document.querySelector(".freebet-extraction-form")?.addEventListener("click", (event) => {
   const modeToggle = event.target.closest(".surebet-mode-toggle");

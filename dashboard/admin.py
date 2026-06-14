@@ -86,9 +86,9 @@ class BetAdmin(admin.ModelAdmin):
 
 @admin.register(FreeBet)
 class FreeBetAdmin(admin.ModelAdmin):
-    list_display = ('bookmaker', 'amount', 'is_used', 'source_bet', 'created_at')
+    list_display = ('bookmaker', 'amount', 'is_used', 'source_bet', 'extraction_bet', 'simple_bet', 'created_at')
     list_filter = ('is_used', 'bookmaker', 'created_at')
-    search_fields = ('bookmaker', 'source_bet__game')
+    search_fields = ('bookmaker', 'source_bet__game', 'extraction_bet__game', 'simple_bet__game')
 
 
 @admin.register(RegulatedBookmaker)

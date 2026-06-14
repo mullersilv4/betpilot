@@ -1492,6 +1492,15 @@ canvas {
   flex-wrap: wrap;
 }
 
+.cycle-links form {
+  margin: 0;
+}
+
+.danger-link {
+  border-color: rgb(240 111 101 / 35%);
+  color: var(--red);
+}
+
 .cycle-links .link-button {
   width: auto;
 }

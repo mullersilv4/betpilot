@@ -198,7 +198,12 @@ def resolve_surebet_from_event(bet, event):
 
 def apply_settlement(bet, decision):
     bet.status = decision.status
-    bet.actual_net_result = bet.potential_profit if decision.status == Bet.Status.WON else -bet.stake
+    if decision.status == Bet.Status.WON:
+        bet.actual_net_result = bet.potential_profit
+    elif bet.uses_simple_freebet:
+        bet.actual_net_result = Decimal('0.00')
+    else:
+        bet.actual_net_result = -bet.stake
     note = f'Fechada automaticamente. {decision.reason}.'
     bet.notes = f'{bet.notes}\n{note}'.strip() if bet.notes else note
     bet.save(update_fields=['status', 'actual_net_result', 'notes'])

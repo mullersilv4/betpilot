@@ -3,12 +3,14 @@ from decimal import Decimal
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 from .models import BankAccount
 from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
+from .models import FreeBet
 from .models import MonthlyGoal
 from .models import BookmakerAlias
 from .models import Promotion
@@ -109,12 +111,41 @@ class SignUpForm(UserCreationForm):
 
 
 class BetForm(forms.ModelForm):
+    freebet_source = forms.ModelChoiceField(
+        label='Usar freebet',
+        queryset=FreeBet.objects.none(),
+        required=False,
+        empty_label='Não usar freebet',
+        widget=forms.Select(attrs={'data-simple-freebet-select': 'true'}),
+    )
+
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         show_status = kwargs.pop('show_status', True)
         super().__init__(*args, **kwargs)
         if user is not None:
             self.fields['bankroll'].queryset = Bankroll.objects.filter(owner=user)
+            freebet_filter = (
+                Q(owner=user)
+                | Q(source_bet__bankroll__owner=user)
+                | Q(source_bet__entity__owner=user)
+            )
+            current_freebet = None
+            if self.instance and self.instance.pk:
+                try:
+                    current_freebet = self.instance.simple_freebet
+                except FreeBet.DoesNotExist:
+                    current_freebet = None
+            available_filter = Q(is_used=False)
+            if current_freebet is not None:
+                available_filter |= Q(pk=current_freebet.pk)
+                self.initial['freebet_source'] = current_freebet.pk
+            self.fields['freebet_source'].queryset = (
+                FreeBet.objects.filter(freebet_filter)
+                .filter(available_filter)
+                .select_related('source_bet', 'simple_bet')
+                .distinct()
+            )
         self.fields['game'].required = False
         if not show_status:
             self.fields.pop('status', None)
@@ -137,6 +168,7 @@ class BetForm(forms.ModelForm):
             'strategy',
             'event_date',
             'entry_type',
+            'freebet_source',
             'odds',
             'stake',
             'exchange_commission',
@@ -213,6 +245,11 @@ class BetForm(forms.ModelForm):
         cleaned_data = super().clean()
         bankroll = cleaned_data.get('bankroll')
         stake = cleaned_data.get('stake')
+        freebet_source = cleaned_data.get('freebet_source')
+
+        if freebet_source:
+            cleaned_data['stake'] = freebet_source.amount
+            stake = freebet_source.amount
 
         available_balance = bankroll.available_balance if bankroll else 0
         if (
@@ -220,10 +257,11 @@ class BetForm(forms.ModelForm):
             and self.instance.pk
             and self.instance.bankroll_id == bankroll.id
             and self.instance.status == Bet.Status.OPEN
+            and not self.instance.uses_simple_freebet
         ):
             available_balance += self.instance.stake
 
-        if bankroll and stake and stake > available_balance:
+        if bankroll and stake and not freebet_source and stake > available_balance:
             self.add_error(
                 'stake',
                 'O valor da aposta não pode ser maior que o saldo disponível da banca.',

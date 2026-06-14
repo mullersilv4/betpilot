@@ -67,6 +67,7 @@ urlpatterns = [
     path('apostas/<int:pk>/cashout/', views.cashout_bet, name='cashout_bet'),
     path('apostas/<int:pk>/status/<str:status>/', views.settle_bet, name='settle_bet'),
     path('apostas/<int:pk>/excluir/', views.delete_bet, name='delete_bet'),
+    path('freebets/<int:pk>/excluir/', views.delete_freebet, name='delete_freebet'),
     path('bancas/<int:pk>/', views.bankroll_detail, name='bankroll_detail'),
     path('bancas/<int:pk>/editar/', views.edit_bankroll, name='edit_bankroll'),
     path('bancas/<int:pk>/excluir/', views.delete_bankroll, name='delete_bankroll'),

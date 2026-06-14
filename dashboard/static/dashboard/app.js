@@ -697,15 +697,25 @@ function enhanceResponsiveTables() {
 
 function updateBetPreview() {
   const odds = Number.parseFloat(document.querySelector("#id_odds")?.value || 0);
-  const stake = Number.parseFloat(document.querySelector("#id_stake")?.value || 0);
+  const stakeInput = document.querySelector("#id_stake");
+  const stake = Number.parseFloat(stakeInput?.value || 0);
+  const freebetSelect = document.querySelector("[data-simple-freebet-select]");
+  const selectedFreebet = freebetSelect?.selectedOptions?.[0];
+  const freebetAmount = Number.parseFloat(selectedFreebet?.dataset.amount || 0);
+  const usesFreebet = Boolean(freebetSelect?.value && freebetAmount > 0);
   const commissionPercentage = Number.parseFloat(
     document.querySelector("#id_exchange_commission")?.value || 0,
   );
 
-  const grossProfit = odds > 1 && stake > 0 ? stake * (odds - 1) : 0;
+  if (usesFreebet && stakeInput && document.activeElement !== stakeInput) {
+    stakeInput.value = freebetAmount.toFixed(2);
+  }
+
+  const effectiveStake = usesFreebet ? freebetAmount : stake;
+  const grossProfit = odds > 1 && effectiveStake > 0 ? effectiveStake * (odds - 1) : 0;
   const commission = grossProfit * (commissionPercentage / 100);
   const netProfit = grossProfit - commission;
-  const totalReturn = stake + netProfit;
+  const totalReturn = usesFreebet ? netProfit : effectiveStake + netProfit;
 
   document.querySelector("#previewProfit").textContent = formatCurrency(netProfit);
   document.querySelector("#previewCommission").textContent = formatCurrency(commission);
@@ -1778,7 +1788,7 @@ if (document.querySelector('[data-bet-mode-panel="freebet-extract"] .form-errors
   setBetMode("freebet-extract");
 }
 
-["#id_bankroll", "#id_odds", "#id_stake", "#id_exchange_commission"].forEach((selector) => {
+["#id_bankroll", "#id_odds", "#id_stake", "#id_exchange_commission", "[data-simple-freebet-select]"].forEach((selector) => {
   document.querySelector(selector)?.addEventListener("input", updateBetPreview);
   document.querySelector(selector)?.addEventListener("change", updateBetPreview);
 });

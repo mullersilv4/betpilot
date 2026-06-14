@@ -1,5 +1,5 @@
 <!doctype html>
-{% load static %}
+{% load static l10n %}
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -92,6 +92,24 @@
               {{ form.odds.errors }}
             </label>
           </div>
+
+          <label>
+            <span>Usar freebet cadastrada</span>
+            <select name="{{ form.freebet_source.html_name }}" id="{{ form.freebet_source.id_for_label }}" data-simple-freebet-select>
+              <option value="">Não usar freebet</option>
+              {% for freebet in form.freebet_source.field.queryset %}
+                <option
+                  value="{{ freebet.pk }}"
+                  data-amount="{{ freebet.amount|unlocalize }}"
+                  {% if form.freebet_source.value|stringformat:"s" == freebet.pk|stringformat:"s" %}selected{% endif %}
+                >
+                  {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
+                </option>
+              {% endfor %}
+            </select>
+            {{ form.freebet_source.errors }}
+            <small class="field-hint">Ao usar freebet, o retorno considera apenas o lucro da odd e uma perda fica em R$ 0,00.</small>
+          </label>
 
           <div class="form-row">
             <label>

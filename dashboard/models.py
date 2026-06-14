@@ -246,6 +246,17 @@ class Bet(models.Model):
         return self.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}
 
     @property
+    def simple_freebet_amount(self):
+        try:
+            return self.simple_freebet.amount
+        except FreeBet.DoesNotExist:
+            return Decimal('0.00')
+
+    @property
+    def uses_simple_freebet(self):
+        return self.simple_freebet_amount > 0
+
+    @property
     def gross_profit(self):
         return (self.stake * (self.odds - Decimal('1.00'))).quantize(MONEY_PLACES)
 
@@ -263,6 +274,8 @@ class Bet(models.Model):
 
     @property
     def potential_return(self):
+        if self.uses_simple_freebet:
+            return self.potential_profit
         return (self.stake + self.potential_profit).quantize(MONEY_PLACES)
 
     @property
@@ -292,6 +305,8 @@ class Bet(models.Model):
         if self.status == self.Status.WON:
             return self.potential_profit
         if self.status == self.Status.LOST:
+            if self.uses_simple_freebet:
+                return Decimal('0.00')
             return self.stake * Decimal('-1')
         return Decimal('0.00')
 
@@ -327,6 +342,14 @@ class FreeBet(models.Model):
         null=True,
         blank=True,
     )
+    simple_bet = models.OneToOneField(
+        Bet,
+        verbose_name='aposta simples',
+        related_name='simple_freebet',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     bookmaker = models.CharField('casa de aposta', max_length=80)
     amount = models.DecimalField('valor', max_digits=10, decimal_places=2)
     is_used = models.BooleanField('utilizada', default=False)
@@ -349,11 +372,19 @@ class FreeBet(models.Model):
         return self.extraction_bet.net_result if self.extraction_bet else Decimal('0.00')
 
     @property
+    def simple_result(self):
+        return self.simple_bet.net_result if self.simple_bet else Decimal('0.00')
+
+    @property
     def cycle_result(self):
-        return (self.source_result + self.extraction_result).quantize(MONEY_PLACES)
+        return (self.source_result + self.extraction_result + self.simple_result).quantize(MONEY_PLACES)
 
     @property
     def cycle_status(self):
+        if self.simple_bet is not None:
+            if self.simple_bet.status == Bet.Status.OPEN:
+                return 'Aposta simples aberta'
+            return 'Freebet usada em aposta simples'
         if self.extraction_bet is None:
             return 'Aguardando extração'
         if self.extraction_bet.status == Bet.Status.OPEN:
@@ -894,7 +925,7 @@ class Bankroll(models.Model):
             (
                 bet.stake
                 for bet in self.bets.filter(status=Bet.Status.OPEN)
-                if not bet.is_protection
+                if not bet.is_protection and not bet.uses_simple_freebet
             ),
             start=Decimal('0.00'),
         )

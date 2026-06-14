@@ -860,6 +860,24 @@
               </div>
 
               <label>
+                <span>Usar freebet cadastrada</span>
+                <select name="{{ form.freebet_source.html_name }}" id="{{ form.freebet_source.id_for_label }}" data-simple-freebet-select>
+                  <option value="">Não usar freebet</option>
+                  {% for freebet in form.freebet_source.field.queryset %}
+                    <option
+                      value="{{ freebet.pk }}"
+                      data-amount="{{ freebet.amount|unlocalize }}"
+                      {% if form.freebet_source.value|stringformat:"s" == freebet.pk|stringformat:"s" %}selected{% endif %}
+                    >
+                      {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
+                    </option>
+                  {% endfor %}
+                </select>
+                {{ form.freebet_source.errors }}
+                <small class="field-hint">Use quando a casa deu uma freebet e voce quer fazer uma aposta simples sem protecao.</small>
+              </label>
+
+              <label>
                 <span>Observações</span>
                 {{ form.notes }}
                 {{ form.notes.errors }}
@@ -2201,10 +2219,14 @@
                   </div>
                   <div class="report-metrics">
                     <article>
-                      <span>Arbitragem origem</span>
-                      <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
-                        R$ {{ freebet.source_result|floatformat:2 }}
-                      </strong>
+                      <span>Origem</span>
+                      {% if freebet.source_bet %}
+                        <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
+                          R$ {{ freebet.source_result|floatformat:2 }}
+                        </strong>
+                      {% else %}
+                        <strong>Avulsa</strong>
+                      {% endif %}
                     </article>
                     <article>
                       <span>Resultado parcial</span>
@@ -2218,6 +2240,10 @@
                       <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.source_bet.pk %}">Ver origem</a>
                     {% endif %}
                     <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}?freebet_source={{ freebet.id }}#new-bet">Extrair freebet</a>
+                    <form method="post" action="{% url 'dashboard:delete_freebet' freebet.pk %}" onsubmit="return confirm('Excluir esta freebet cadastrada?');">
+                      {% csrf_token %}
+                      <button class="ghost-button compact link-button danger-link" type="submit">Excluir</button>
+                    </form>
                   </div>
                 </article>
               {% empty %}
@@ -2237,10 +2263,14 @@
                   </div>
                   <div class="report-metrics">
                     <article>
-                      <span>Arbitragem origem</span>
-                      <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
-                        R$ {{ freebet.source_result|floatformat:2 }}
-                      </strong>
+                      <span>Origem</span>
+                      {% if freebet.source_bet %}
+                        <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
+                          R$ {{ freebet.source_result|floatformat:2 }}
+                        </strong>
+                      {% else %}
+                        <strong>Avulsa</strong>
+                      {% endif %}
                     </article>
                     <article>
                       <span>Extração</span>

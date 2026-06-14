@@ -144,6 +144,23 @@ def is_protection_bet(bet):
     return bet.strategy in PROTECTION_STRATEGIES
 
 
+def sync_simple_bet_freebet(bet, freebet):
+    try:
+        current_freebet = bet.simple_freebet
+    except FreeBet.DoesNotExist:
+        current_freebet = None
+
+    if current_freebet and (freebet is None or current_freebet.pk != freebet.pk):
+        current_freebet.is_used = False
+        current_freebet.simple_bet = None
+        current_freebet.save(update_fields=['is_used', 'simple_bet'])
+
+    if freebet is not None and (current_freebet is None or current_freebet.pk != freebet.pk):
+        freebet.is_used = True
+        freebet.simple_bet = bet
+        freebet.save(update_fields=['is_used', 'simple_bet'])
+
+
 def dashboard_bet_type(bet):
     if bet.strategy == 'Extração de freebet':
         return 'freebet_extraction'
@@ -372,12 +389,10 @@ def build_dashboard_context(request, **forms):
         is_used=False,
     ).distinct()
     freebet_cycles_base = FreeBet.objects.filter(
-        source_bet__isnull=False,
-    ).filter(
         Q(source_bet__bankroll__owner=request.user)
         | Q(source_bet__entity__owner=request.user)
         | Q(owner=request.user)
-    ).select_related('source_bet', 'extraction_bet')
+    ).select_related('source_bet', 'extraction_bet', 'simple_bet')
     pending_freebet_cycles = freebet_cycles_base.filter(
         is_used=False,
         extraction_bet__isnull=True,
@@ -2281,7 +2296,9 @@ def index(request):
 
         bet_form = BetForm(request.POST, user=request.user)
         if bet_form.is_valid():
-            bet_form.save()
+            with transaction.atomic():
+                bet = bet_form.save()
+                sync_simple_bet_freebet(bet, bet_form.cleaned_data.get('freebet_source'))
             messages.success(request, 'Aposta cadastrada com sucesso.')
             return redirect('dashboard:index')
         context = build_dashboard_context(request, bet_form=bet_form)
@@ -2533,7 +2550,9 @@ def edit_bet(request, pk):
     if request.method == 'POST':
         form = BetForm(request.POST, instance=bet, user=request.user)
         if form.is_valid():
-            form.save()
+            with transaction.atomic():
+                bet = form.save()
+                sync_simple_bet_freebet(bet, form.cleaned_data.get('freebet_source'))
             messages.success(request, 'Aposta atualizada.')
             return redirect('dashboard:index')
     else:
@@ -2746,9 +2765,38 @@ def settle_surebet(request, pk):
 def delete_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
     if request.method == 'POST':
-        bet.delete()
+        with transaction.atomic():
+            sync_simple_bet_freebet(bet, None)
+            bet.delete()
         messages.success(request, 'Aposta excluída.')
     return redirect_to_history()
+
+
+@login_required
+def delete_freebet(request, pk):
+    freebet = get_object_or_404(
+        FreeBet.objects.filter(
+            Q(owner=request.user)
+            | Q(source_bet__bankroll__owner=request.user)
+            | Q(source_bet__entity__owner=request.user)
+            | Q(extraction_bet__entity__owner=request.user)
+            | Q(simple_bet__bankroll__owner=request.user)
+            | Q(simple_bet__entity__owner=request.user),
+            pk=pk,
+        ).distinct()
+    )
+
+    if request.method == 'POST':
+        if freebet.is_used or freebet.extraction_bet_id or freebet.simple_bet_id:
+            messages.error(
+                request,
+                'Essa freebet ja esta vinculada a uma aposta. Remova o vinculo antes de excluir.',
+            )
+        else:
+            description = f'{freebet.bookmaker} - {format_money(freebet.amount)}'
+            freebet.delete()
+            messages.success(request, f'Freebet {description} excluida.')
+    return redirect(f'{reverse("dashboard:index")}#bets')
 
 
 @login_required

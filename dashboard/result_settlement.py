@@ -218,20 +218,29 @@ def settlement_transaction_kind(amount):
 
 
 def create_protection_balance_movements(bet, entries, winner):
+    winners = list(winner) if isinstance(winner, (list, tuple, set)) else [winner]
+    winner_ids = {entry.pk for entry in winners}
     bet.bankroll_transactions.all().delete()
     entry_amounts = [
-        (entry, entry.settlement_result_for(winner))
+        (entry, entry.settlement_result_for_winners(winners))
         for entry in entries
         if entry.bankroll_id
     ]
     total_movement = sum((amount for _entry, amount in entry_amounts), start=Decimal('0.00'))
-    target_result = bet.actual_net_result if bet.actual_net_result is not None else winner.net_result
+    single_winner = winners[0] if len(winners) == 1 else None
+    target_result = (
+        bet.actual_net_result
+        if bet.actual_net_result is not None
+        else single_winner.net_result
+        if single_winner is not None
+        else total_movement
+    )
     manual_delta = (target_result - total_movement).quantize(Decimal('0.01'))
     for entry in entries:
         if not entry.bankroll_id:
             continue
-        amount = entry.settlement_result_for(winner)
-        if entry.pk == winner.pk and manual_delta:
+        amount = entry.settlement_result_for_winners(winners)
+        if single_winner is not None and entry.pk == single_winner.pk and manual_delta:
             amount = (amount + manual_delta).quantize(Decimal('0.01'))
         if amount == 0:
             continue
@@ -242,7 +251,7 @@ def create_protection_balance_movements(bet, entries, winner):
             amount=abs(amount).quantize(Decimal('0.01')),
             note=(
                 f'{bet.strategy}: {entry.label} '
-                f'({"vencedora" if entry.pk == winner.pk else "perdedora"})'
+                f'({"vencedora" if entry.pk in winner_ids else "perdedora"})'
             )[:160],
         )
 

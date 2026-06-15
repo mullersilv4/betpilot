@@ -129,13 +129,13 @@
           {% if is_protection_bet %}
             <section class="form-section">
               <div class="section-heading">
-                <h2>Casa vencedora</h2>
-                <p class="muted-copy">Escolha a entrada vencedora para atualizar o resultado da proteção.</p>
+                <h2>Casas vencedoras</h2>
+                <p class="muted-copy">Marque uma ou mais entradas vencedoras para atualizar o resultado da proteção.</p>
               </div>
               <div class="settle-surebet-list">
                 {% for entry in entries %}
                   <label class="settle-surebet-option">
-                    <input type="radio" name="winner_entry" value="{{ entry.id }}" {% if entry.is_winner %}checked{% endif %} />
+                    <input type="checkbox" name="winner_entry" value="{{ entry.id }}" {% if entry.is_winner %}checked{% endif %} />
                     <div>
                       <strong>{{ entry.bookmaker }}</strong>
                       <span>{{ entry.label }} | odd {{ entry.effective_odds|floatformat:2 }} | entrada R$ {{ entry.stake|floatformat:2 }}</span>

@@ -13,7 +13,7 @@
         <div class="panel-header">
           <div>
             <p class="eyebrow">Finalização</p>
-            <h1>Escolher casa vencedora</h1>
+            <h1>Escolher casas vencedoras</h1>
             <p class="muted-copy">{{ bet.game }} | responsabilidade R$ {{ bet.stake|floatformat:2 }}</p>
           </div>
           <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Voltar</a>
@@ -33,7 +33,7 @@
           <div class="settle-surebet-list">
             {% for entry in entries %}
               <label class="settle-surebet-option">
-                <input type="radio" name="winner_entry" value="{{ entry.id }}" {% if entry.is_winner %}checked{% endif %} />
+                <input type="checkbox" name="winner_entry" value="{{ entry.id }}" {% if entry.is_winner %}checked{% endif %} />
                 <div>
                   <strong>{{ entry.bookmaker }}</strong>
                   <span>{{ entry.label }} | odd {{ entry.effective_odds|floatformat:2 }} | entrada R$ {{ entry.stake|floatformat:2 }}</span>

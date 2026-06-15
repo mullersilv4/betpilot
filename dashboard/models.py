@@ -694,6 +694,19 @@ class SureBetEntry(models.Model):
             cashback_return = self.stake * (self.cashback / Decimal('100'))
         return (cashback_return - self.exposure).quantize(MONEY_PLACES)
 
+    def settlement_result_for_winners(self, winners):
+        winner_ids = {winner.pk for winner in winners}
+        if self.pk in winner_ids:
+            if self.is_freebet_source:
+                return self.return_amount.quantize(MONEY_PLACES)
+            return (self.return_amount - self.exposure).quantize(MONEY_PLACES)
+        if self.is_freebet_source:
+            return Decimal('0.00')
+        cashback_return = Decimal('0.00')
+        if self.mode == self.Mode.BACK and self.cashback > 0:
+            cashback_return = self.stake * (self.cashback / Decimal('100'))
+        return (cashback_return - self.exposure).quantize(MONEY_PLACES)
+
 
 class BankrollTransaction(models.Model):
     class Kind(models.TextChoices):

@@ -1,7 +1,10 @@
 from decimal import Decimal
 
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import _unicode_ci_compare
 from django.contrib.auth.models import User
 from django.db.models import Q
 
@@ -108,6 +111,34 @@ class SignUpForm(UserCreationForm):
     class Meta:
         model = User
         fields = ('username', 'email', 'password1', 'password2')
+
+
+class PasswordResetIdentifierForm(PasswordResetForm):
+    email = forms.CharField(
+        label='Email ou usuário',
+        max_length=254,
+        widget=forms.TextInput(
+            attrs={
+                'autocomplete': 'username email',
+                'placeholder': 'Digite seu email ou usuário',
+            }
+        ),
+    )
+
+    def get_users(self, identifier):
+        UserModel = get_user_model()
+        active_users = UserModel._default_manager.filter(
+            Q(email__iexact=identifier) | Q(username__iexact=identifier),
+            is_active=True,
+        )
+        for user in active_users:
+            if not user.has_usable_password() or not user.email:
+                continue
+            if _unicode_ci_compare(identifier, user.email) or _unicode_ci_compare(
+                identifier,
+                user.username,
+            ):
+                yield user
 
 
 class BetForm(forms.ModelForm):

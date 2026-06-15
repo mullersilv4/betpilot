@@ -139,6 +139,7 @@ textarea {
 }
 
 .side-panel {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -147,6 +148,95 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.side-panel-user {
+  min-width: 0;
+  flex: 1;
+}
+
+.side-panel-user strong,
+.side-panel-user small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-popover {
+  position: static;
+  margin-left: auto;
+}
+
+.account-popover summary {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--blue);
+  background: var(--surface-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.account-popover summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-popover summary:hover,
+.account-popover[open] summary {
+  border-color: rgb(90 167 255 / 46%);
+  box-shadow: 0 0 0 3px rgb(90 167 255 / 10%);
+}
+
+.account-popover svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-popover-panel {
+  position: absolute;
+  right: 14px;
+  bottom: calc(100% + 10px);
+  left: 14px;
+  z-index: 30;
+  width: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #151b1a;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 34%);
+}
+
+.account-popover-panel dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.account-popover-panel div {
+  display: grid;
+  gap: 3px;
+}
+
+.account-popover-panel dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.account-popover-panel dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .status-dot {

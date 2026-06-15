@@ -75,6 +75,35 @@ class UserAccess(models.Model):
             return 0
         return max(1, remaining.days + (1 if remaining.seconds else 0))
 
+    @property
+    def contract_started_at(self):
+        return self.trial_started_at or self.created_at
+
+    @property
+    def expires_at(self):
+        if self.status == self.Status.ACTIVE:
+            return self.subscription_ends_at
+        if self.status == self.Status.TRIAL:
+            return self.trial_ends_at
+        return self.subscription_ends_at or self.trial_ends_at
+
+    @property
+    def expiration_days_remaining(self):
+        expires_at = self.expires_at
+        if expires_at is None:
+            return None
+        remaining = expires_at - timezone.now()
+        if remaining.total_seconds() <= 0:
+            return 0
+        return max(1, remaining.days + (1 if remaining.seconds else 0))
+
+    @property
+    def expiration_summary(self):
+        days = self.expiration_days_remaining
+        if days is None:
+            return 'Sem vencimento definido'
+        return f'{days} dia(s)'
+
     def expire_if_needed(self):
         if self.status == self.Status.TRIAL and timezone.now() > self.trial_ends_at:
             self.status = self.Status.EXPIRED

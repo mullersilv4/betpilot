@@ -3,6 +3,7 @@ from django.urls import path
 from django.urls import reverse_lazy
 
 from . import views
+from .forms import PasswordResetIdentifierForm
 
 app_name = 'dashboard'
 
@@ -29,6 +30,7 @@ urlpatterns = [
     path(
         'recuperar-senha/',
         auth_views.PasswordResetView.as_view(
+            form_class=PasswordResetIdentifierForm,
             template_name='dashboard/auth/password_reset_form.html',
             email_template_name='dashboard/auth/password_reset_email.html',
             subject_template_name='dashboard/auth/password_reset_subject.txt',

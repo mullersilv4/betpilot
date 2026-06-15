@@ -669,6 +669,19 @@ function setupMobileSidebar() {
   });
 }
 
+function setupAccountPopover() {
+  const popover = document.querySelector(".account-popover");
+  if (!popover) return;
+
+  document.addEventListener("click", (event) => {
+    if (!popover.contains(event.target)) popover.removeAttribute("open");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") popover.removeAttribute("open");
+  });
+}
+
 function setupCollapsiblePanels() {
   document.querySelectorAll("[data-collapsible-toggle]").forEach((button) => {
     const target = document.getElementById(button.dataset.collapsibleToggle);
@@ -1800,6 +1813,7 @@ applyUserCurrencyPreference();
 translateInterface();
 setupInterfaceTranslationObserver();
 setupMobileSidebar();
+setupAccountPopover();
 setupBalanceVisibility();
 setupCollapsiblePanels();
 enhanceResponsiveTables();

@@ -41,10 +41,38 @@
 
         <div class="side-panel">
           <span class="status-dot"></span>
-          <div>
+          <div class="side-panel-user">
             <strong>{{ request.user.username }}</strong>
             <small>Conta ativa</small>
           </div>
+          <details class="account-popover">
+            <summary aria-label="Ver dados da conta" title="Ver dados da conta">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                <path d="M4 21a8 8 0 0 1 16 0"></path>
+              </svg>
+            </summary>
+            <div class="account-popover-panel">
+              <dl>
+                <div>
+                  <dt>Email cadastrado</dt>
+                  <dd>{{ request.user.email|default:"-" }}</dd>
+                </div>
+                <div>
+                  <dt>Nome de usuario</dt>
+                  <dd>{{ request.user.username }}</dd>
+                </div>
+                <div>
+                  <dt>Data da contratação</dt>
+                  <dd>{{ user_access.contract_started_at|date:"d/m/Y" }}</dd>
+                </div>
+                <div>
+                  <dt>Dias até vencimento</dt>
+                  <dd>{{ user_access.expiration_summary }}</dd>
+                </div>
+              </dl>
+            </div>
+          </details>
         </div>
         <a class="ghost-button compact full-button link-button" href="{% url 'dashboard:password_change' %}">Trocar senha</a>
         <form method="post" action="{% url 'dashboard:logout' %}">

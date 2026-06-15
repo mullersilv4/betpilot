@@ -158,11 +158,18 @@ LOGOUT_REDIRECT_URL = 'dashboard:login'
 
 EMAIL_BACKEND = os.environ.get(
     'DJANGO_EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend',
+    (
+        'django.core.mail.backends.smtp.EmailBackend'
+        if os.environ.get('DJANGO_EMAIL_HOST')
+        else 'django.core.mail.backends.console.EmailBackend'
+    ),
 )
 EMAIL_HOST = os.environ.get('DJANGO_EMAIL_HOST', '')
 EMAIL_PORT = int(os.environ.get('DJANGO_EMAIL_PORT', '587'))
 EMAIL_HOST_USER = os.environ.get('DJANGO_EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('DJANGO_EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('DJANGO_EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_USE_SSL = os.environ.get('DJANGO_EMAIL_USE_SSL', 'False') == 'True'
+EMAIL_TIMEOUT = int(os.environ.get('DJANGO_EMAIL_TIMEOUT', '20'))
 DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_DEFAULT_FROM_EMAIL', 'Freebetar <no-reply@freebetar.local>')
+SERVER_EMAIL = os.environ.get('DJANGO_SERVER_EMAIL', DEFAULT_FROM_EMAIL)

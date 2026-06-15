@@ -2104,29 +2104,17 @@
                   <span>Esporte</span>
                   {{ filter_form.sport }}
                 </label>
-                <label class="history-filter-competition">
-                  <span>Competição</span>
-                  {{ filter_form.competition }}
-                </label>
                 <label class="history-filter-strategy">
                   <span>Estratégia</span>
                   {{ filter_form.strategy }}
-                </label>
-                <label class="history-filter-market">
-                  <span>Mercado</span>
-                  {{ filter_form.market }}
                 </label>
                 <label class="history-filter-search">
                   <span>Busca</span>
                   {{ filter_form.query }}
                 </label>
-                <label class="history-filter-min-odds">
-                  <span>Odd min.</span>
-                  {{ filter_form.min_odds }}
-                </label>
-                <label class="history-filter-max-odds">
-                  <span>Odd max.</span>
-                  {{ filter_form.max_odds }}
+                <label class="history-filter-date">
+                  <span>Data</span>
+                  {{ filter_form.event_date }}
                 </label>
                 <button class="ghost-button compact" type="submit">Filtrar</button>
                 <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Limpar</a>

@@ -1292,7 +1292,7 @@ textarea {
 
 .filter-form {
   display: grid;
-  grid-template-columns: repeat(9, minmax(120px, 1fr)) auto auto;
+  grid-template-columns: repeat(7, minmax(120px, 1fr)) auto auto;
   gap: 10px;
   align-items: end;
   margin-top: 14px;

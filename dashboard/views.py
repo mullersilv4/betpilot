@@ -248,12 +248,9 @@ def apply_bet_filters(bets, form):
     status = form.cleaned_data.get('status')
     entry_type = form.cleaned_data.get('entry_type')
     sport = form.cleaned_data.get('sport')
-    competition = form.cleaned_data.get('competition')
     strategy = form.cleaned_data.get('strategy')
-    market = form.cleaned_data.get('market')
     query = form.cleaned_data.get('query')
-    min_odds = form.cleaned_data.get('min_odds')
-    max_odds = form.cleaned_data.get('max_odds')
+    event_date = form.cleaned_data.get('event_date')
 
     if bankroll:
         bets = bets.filter(bankroll=bankroll)
@@ -263,12 +260,10 @@ def apply_bet_filters(bets, form):
         bets = bets.filter(entry_type=entry_type)
     if sport:
         bets = bets.filter(sport__icontains=sport)
-    if competition:
-        bets = bets.filter(competition__icontains=competition)
     if strategy:
         bets = bets.filter(strategy__icontains=strategy)
-    if market:
-        bets = bets.filter(market__icontains=market)
+    if event_date:
+        bets = bets.filter(event_date__date=event_date)
     if query:
         bets = bets.filter(
             Q(game__icontains=query)
@@ -277,10 +272,6 @@ def apply_bet_filters(bets, form):
             | Q(strategy__icontains=query)
             | Q(notes__icontains=query)
         )
-    if min_odds:
-        bets = bets.filter(odds__gte=min_odds)
-    if max_odds:
-        bets = bets.filter(odds__lte=max_odds)
 
     return bets
 

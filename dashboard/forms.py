@@ -449,12 +449,13 @@ class BetFilterForm(forms.Form):
         required=False,
     )
     sport = forms.CharField(label='esporte', required=False)
-    competition = forms.CharField(label='competição', required=False)
     strategy = forms.CharField(label='estratégia', required=False)
-    market = forms.CharField(label='mercado', required=False)
     query = forms.CharField(label='busca', required=False)
-    min_odds = forms.DecimalField(label='odd min.', required=False, min_value=1.01)
-    max_odds = forms.DecimalField(label='odd max.', required=False, min_value=1.01)
+    event_date = forms.DateField(
+        label='data',
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date'}),
+    )
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)

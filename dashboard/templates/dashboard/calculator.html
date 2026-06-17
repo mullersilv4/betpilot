@@ -1,0 +1,262 @@
+<!doctype html>
+{% load static l10n %}
+<html lang="{{ user_preference.language|default:'pt-BR' }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calculadora | Freebetar</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260617-2" />
+  </head>
+  <body
+    data-language="{{ user_preference.language|default:'pt-BR' }}"
+    data-currency-code="{{ currency_code|default:'BRL' }}"
+    data-currency-locale="{{ currency_locale|default:'pt-BR' }}"
+    data-currency-symbol="{{ currency_symbol|default:'R$' }}"
+  >
+    <div class="app-shell">
+      <button class="mobile-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="sidebar-backdrop" data-sidebar-close></div>
+
+      <aside id="appSidebar" class="sidebar" aria-label="Navegação principal">
+        <div class="brand">
+          <span class="brand-mark">FB</span>
+          <div>
+            <strong>Freebetar</strong>
+            <small>Gestão inteligente</small>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <a href="{% url 'dashboard:index' %}#dashboard">Dashboard</a>
+          <a href="{% url 'dashboard:index' %}#bankroll">Financeiro</a>
+          <a href="{% url 'dashboard:index' %}#new-bet">Nova aposta</a>
+          <a class="active" href="{% url 'dashboard:calculator' %}">Calculadora</a>
+          <a href="{% url 'dashboard:index' %}#bets">Histórico</a>
+          <a href="{% url 'dashboard:index' %}#goals">Metas</a>
+          <a href="{% url 'dashboard:index' %}#settings">Configurações</a>
+        </nav>
+
+        <div class="side-panel">
+          <span class="status-dot"></span>
+          <div class="side-panel-user">
+            <strong>{{ request.user.username }}</strong>
+            <small>Conta ativa</small>
+          </div>
+          <details class="account-popover">
+            <summary aria-label="Ver dados da conta" title="Ver dados da conta">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                <path d="M4 21a8 8 0 0 1 16 0"></path>
+              </svg>
+            </summary>
+            <div class="account-popover-panel">
+              <dl>
+                <div>
+                  <dt>Email cadastrado</dt>
+                  <dd>{{ request.user.email|default:"-" }}</dd>
+                </div>
+                <div>
+                  <dt>Nome de usuario</dt>
+                  <dd>{{ request.user.username }}</dd>
+                </div>
+                <div>
+                  <dt>Data da contratação</dt>
+                  <dd>{{ user_access.contract_started_at|date:"d/m/Y" }}</dd>
+                </div>
+                <div>
+                  <dt>Dias até vencimento</dt>
+                  <dd>{{ user_access.expiration_summary }}</dd>
+                </div>
+              </dl>
+            </div>
+          </details>
+        </div>
+        <a class="ghost-button compact full-button link-button" href="{% url 'dashboard:password_change' %}">Trocar senha</a>
+        <form method="post" action="{% url 'dashboard:logout' %}">
+          {% csrf_token %}
+          <button class="ghost-button compact full-button" type="submit">Sair</button>
+        </form>
+      </aside>
+
+      <main class="main-content calculator-workspace">
+        <section class="section-panel">
+          <p class="eyebrow">Calculadora</p>
+          <h1>Cálculo rápido</h1>
+          <p class="muted-text">Simule arbitragem ou extração de freebet sem salvar aposta. Se fizer sentido, registre usando os dados calculados.</p>
+
+          <div class="bet-mode-tabs">
+            <button class="bet-mode-tab is-active" type="button" data-bet-mode-button="surebet">Arbitragem</button>
+            <button class="bet-mode-tab" type="button" data-bet-mode-button="freebet-extract">Extrair freebet</button>
+          </div>
+        </section>
+
+        <template id="bankrollOptionsTemplate">
+          <option value="">Selecione a casa</option>
+          {% for bankroll in bankrolls %}
+            <option value="{{ bankroll.id }}">{{ bankroll.entity.name }} | {{ bankroll.bookmaker }}</option>
+          {% endfor %}
+        </template>
+
+        <form class="bet-form surebet-form bet-mode-panel is-active" data-bet-mode-panel="surebet" data-register-base-url="{% url 'dashboard:index' %}" novalidate>
+          <section class="section-panel">
+            <div class="section-heading">
+              <h2>Arbitragem</h2>
+              <p class="muted-text">Informe a primeira entrada e as odds das outras casas para encontrar stake, responsabilidade e cenário.</p>
+            </div>
+
+            <input type="hidden" name="surebet_entry_count" id="surebetEntryCount" value="3" />
+            <div class="surebet-grid calculator-grid" id="surebetEntries" aria-label="Resultados de arbitragem">
+              <div class="surebet-entry-header" aria-hidden="true">
+                <span>Casa</span>
+                <span>Modo</span>
+                <span>Valor</span>
+                <span>Odd</span>
+                <span>Comissão %</span>
+                <span>Cashback %</span>
+                <span>Aumento %</span>
+                <span>Resultado</span>
+              </div>
+              {% for index in "123" %}
+                <div class="surebet-entry-group" data-surebet-group="{{ forloop.counter }}">
+                  <div class="surebet-entry-row" data-surebet-row="{{ forloop.counter }}">
+                    <label>
+                      <span class="sr-only">Casa de aposta {{ forloop.counter }}</span>
+                      <select name="surebet_bankroll_{{ forloop.counter }}" class="surebet-bankroll-select">
+                        <option value="">Selecione a casa</option>
+                        {% for bankroll in bankrolls %}
+                          <option value="{{ bankroll.id }}">{{ bankroll.entity.name }} | {{ bankroll.bookmaker }}</option>
+                        {% endfor %}
+                      </select>
+                      <input type="hidden" name="surebet_bookmaker_{{ forloop.counter }}" value="" />
+                    </label>
+                    <div class="surebet-mode-control">
+                      <input type="hidden" name="surebet_mode_{{ forloop.counter }}" value="back" />
+                      <button class="surebet-mode-toggle" type="button" aria-label="Alternar entrada back ou lay">Back</button>
+                    </div>
+                    <label>
+                      <span class="sr-only">Valor {{ forloop.counter }}</span>
+                      <input type="number" name="surebet_stake_{{ forloop.counter }}" class="surebet-stake{% if not forloop.first %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if forloop.first %}Ex: 100.00{% else %}Calculado{% endif %}" />
+                      <output class="surebet-liability" data-surebet-liability="{{ forloop.counter }}"></output>
+                    </label>
+                    <label><span class="sr-only">Odd {{ forloop.counter }}</span><input type="number" name="surebet_odd_{{ forloop.counter }}" class="surebet-odd" step="0.01" min="1.01" placeholder="Ex: 2.10" /></label>
+                    <label><span class="sr-only">Comissão % {{ forloop.counter }}</span><input type="number" name="surebet_commission_{{ forloop.counter }}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="0" /></label>
+                    <label><span class="sr-only">Cashback % {{ forloop.counter }}</span><input type="number" name="surebet_cashback_{{ forloop.counter }}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="0" /></label>
+                    <label><span class="sr-only">Aumento % {{ forloop.counter }}</span><input type="number" name="surebet_boost_{{ forloop.counter }}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="0" /></label>
+                    <input type="number" name="surebet_net_{{ forloop.counter }}" class="surebet-entry-return" step="0.01" placeholder="Resultado" data-surebet-result="{{ forloop.counter }}" />
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="calculator-actions">
+              <button class="ghost-button compact surebet-add-button" type="button" id="addProtectionEntry">+ Adicionar entrada</button>
+              <button class="primary-action" type="button" data-calculator-register="surebet">Registrar aposta</button>
+            </div>
+
+            <div class="calculation-preview surebet-preview" aria-live="polite">
+              <div><span>Responsabilidade</span><strong id="surebetTotal">R$ 0,00</strong></div>
+              <div><span>Retorno por resultado</span><strong id="surebetTargetReturn">R$ 0,00</strong></div>
+              <div><span>Arbitragem</span><strong id="surebetMargin">0.00%</strong></div>
+              <div><span>Melhor cenário</span><strong id="surebetBest">R$ 0,00</strong></div>
+              <div><span>Pior cenário</span><strong id="surebetWorst">R$ 0,00</strong></div>
+            </div>
+            <div class="surebet-result-table" id="surebetScenarioTable"></div>
+          </section>
+        </form>
+
+        <form class="bet-form surebet-form freebet-extraction-form bet-mode-panel" data-bet-mode-panel="freebet-extract" data-register-base-url="{% url 'dashboard:index' %}" novalidate>
+          <section class="section-panel">
+            <div class="section-heading">
+              <h2>Extração de freebet</h2>
+              <p class="muted-text">Use o valor da freebet como primeira entrada e calcule as proteções necessárias.</p>
+            </div>
+
+            <div class="form-grid two-columns">
+              <label>
+                <span>Freebet cadastrada</span>
+                <select name="freebet_source" id="freebetSource" data-freebet-source>
+                  <option value="">Calcular sem vincular freebet</option>
+                  {% for freebet in available_freebet_list %}
+                    <option value="{{ freebet.id }}" data-amount="{{ freebet.amount|unlocalize }}" data-bookmaker="{{ freebet.bookmaker }}">{{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                <span>Valor da freebet</span>
+                <input type="number" name="freebet_stake_1" class="surebet-stake" step="0.01" min="0.01" placeholder="Ex: 50.00" />
+              </label>
+            </div>
+
+            <input type="hidden" name="freebet_entry_count" id="freebetEntryCount" value="3" />
+            <div class="surebet-grid calculator-grid" id="freebetEntries" aria-label="Extração por arbitragem da freebet">
+              <div class="surebet-entry-header" aria-hidden="true">
+                <span>Casa</span>
+                <span>Modo</span>
+                <span>Valor</span>
+                <span>Odd</span>
+                <span>Comissão %</span>
+                <span>Cashback %</span>
+                <span>Aumento %</span>
+                <span>Ganha / perde</span>
+              </div>
+              {% for index in "123" %}
+                <div class="surebet-entry-group" data-freebet-group="{{ forloop.counter }}">
+                  <div class="surebet-entry-row" data-freebet-row="{{ forloop.counter }}">
+                    <label>
+                      <span class="sr-only">Casa de aposta {{ forloop.counter }}</span>
+                      <select name="freebet_bankroll_{{ forloop.counter }}" class="surebet-bankroll-select">
+                        <option value="">Selecione a casa</option>
+                        {% for bankroll in bankrolls %}
+                          <option value="{{ bankroll.id }}">{{ bankroll.entity.name }} | {{ bankroll.bookmaker }}</option>
+                        {% endfor %}
+                      </select>
+                      <input type="hidden" name="freebet_bookmaker_{{ forloop.counter }}" value="" />
+                    </label>
+                    <div class="surebet-mode-control">
+                      <input type="hidden" name="freebet_mode_{{ forloop.counter }}" value="back" />
+                      <button class="surebet-mode-toggle{% if forloop.first %} is-source{% endif %}" type="button" aria-label="Alternar entrada back ou lay" {% if forloop.first %}disabled{% endif %}>Back</button>
+                    </div>
+                    <label>
+                      <span class="sr-only">Valor {{ forloop.counter }}</span>
+                      {% if forloop.first %}
+                        <input type="number" name="freebet_stake_shadow_{{ forloop.counter }}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Valor acima" disabled />
+                      {% else %}
+                        <input type="number" name="freebet_stake_{{ forloop.counter }}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado ou manual" />
+                      {% endif %}
+                      <output class="surebet-liability" data-freebet-liability="{{ forloop.counter }}"></output>
+                    </label>
+                    <label><span class="sr-only">Odd {{ forloop.counter }}</span><input type="number" name="freebet_odd_{{ forloop.counter }}" class="surebet-odd" step="0.01" min="1.01" placeholder="Ex: 2.10" /></label>
+                    <label><span class="sr-only">Comissão % {{ forloop.counter }}</span><input type="number" name="freebet_commission_{{ forloop.counter }}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="0" /></label>
+                    <label><span class="sr-only">Cashback % {{ forloop.counter }}</span><input type="number" name="freebet_cashback_{{ forloop.counter }}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="0" /></label>
+                    <label><span class="sr-only">Aumento % {{ forloop.counter }}</span><input type="number" name="freebet_boost_{{ forloop.counter }}" class="surebet-adjustment" step="0.01" min="0" max="100" placeholder="0" /></label>
+                    <output class="surebet-entry-return freebet-result-box" data-freebet-result="{{ forloop.counter }}">0,00</output>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="calculator-actions">
+              <button class="ghost-button compact surebet-add-button" type="button" id="addFreebetEntry">+ Adicionar arbitragem</button>
+              <button class="primary-action" type="button" data-calculator-register="freebet-extract">Registrar aposta</button>
+            </div>
+
+            <div class="calculation-preview surebet-preview" aria-live="polite">
+              <div><span>Dinheiro usado</span><strong id="freebetTotal">R$ 0,00</strong></div>
+              <div><span>Valor extraído alvo</span><strong id="freebetTargetReturn">R$ 0,00</strong></div>
+              <div><span>Conversão</span><strong id="freebetMargin">0.00%</strong></div>
+              <div><span>Melhor cenário</span><strong id="freebetBest">R$ 0,00</strong></div>
+              <div><span>Pior cenário</span><strong id="freebetWorst">R$ 0,00</strong></div>
+            </div>
+            <div class="surebet-result-table" id="freebetScenarioTable"></div>
+          </section>
+        </form>
+      </main>
+    </div>
+
+    <script src="{% static 'dashboard/app.js' %}?v=20260617-1"></script>
+  </body>
+</html>

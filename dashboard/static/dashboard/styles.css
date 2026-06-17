@@ -254,6 +254,72 @@ textarea {
   align-content: start;
 }
 
+.section-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.section-panel h1,
+.section-panel h2 {
+  margin: 0;
+}
+
+.muted-text {
+  margin: 0;
+  color: var(--muted);
+}
+
+.calculator-workspace {
+  max-width: 1220px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.calculator-workspace .surebet-form {
+  max-width: none;
+  width: 100%;
+}
+
+.calculator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.primary-action {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 16px;
+  background: var(--green);
+  color: #04110a;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.calculator-workspace .primary-action {
+  border: 1px solid rgb(34 197 94 / 55%);
+  background: #22c55e;
+  color: #03140a;
+  box-shadow: 0 0 0 3px rgb(34 197 94 / 10%);
+}
+
+.primary-action:hover {
+  filter: brightness(1.06);
+}
+
+.form-grid.two-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .settings-workspace {
   max-width: 980px;
   width: 100%;
@@ -2954,6 +3020,19 @@ th {
 
   .main-content {
     padding-top: 72px;
+  }
+
+  .form-grid.two-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .calculator-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .calculator-actions > * {
+    width: 100%;
   }
 
   .nav-list {

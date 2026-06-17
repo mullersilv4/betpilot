@@ -1700,6 +1700,34 @@ def event_odds(request):
 
 @never_cache
 @login_required
+def calculator(request):
+    user_access = ensure_user_access(request.user)
+    user_preference = ensure_user_preference(request.user)
+    bankrolls = Bankroll.objects.filter(owner=request.user).select_related('entity')
+    available_freebets = FreeBet.objects.filter(
+        Q(owner=request.user)
+        | Q(source_bet__bankroll__owner=request.user)
+        | Q(source_bet__entity__owner=request.user),
+        is_used=False,
+    ).distinct().select_related('source_bet', 'source_bet__entity', 'source_bet__bankroll')
+    return render(
+        request,
+        'dashboard/calculator.html',
+        {
+            'user_access': user_access,
+            'user_preference': user_preference,
+            'currency_code': user_preference.currency,
+            'currency_symbol': user_preference.currency_symbol,
+            'currency_locale': user_preference.currency_locale,
+            'bankrolls': bankrolls,
+            'available_freebet_list': available_freebets,
+            'today': timezone.localdate(),
+        },
+    )
+
+
+@never_cache
+@login_required
 def index(request):
     if request.method == 'POST':
         form_type = request.POST.get('form_type')

@@ -605,6 +605,8 @@ function drawBarChart() {
 }
 
 function activateScreen() {
+  const screenSections = [...document.querySelectorAll("[data-screen]")];
+  if (!screenSections.length) return;
   const screenAliases = {
     overview: "dashboard",
     calendar: "dashboard",
@@ -612,7 +614,7 @@ function activateScreen() {
   const publicScreens = new Set(["dashboard", "new-bet", "bankroll", "bets", "goals", "settings"]);
   const requestedScreen = window.location.hash.replace("#", "") || "dashboard";
   const activeScreen = screenAliases[requestedScreen] || requestedScreen;
-  const availableScreens = [...document.querySelectorAll("[data-screen]")].map(
+  const availableScreens = screenSections.map(
     (section) => section.dataset.screen,
   );
   const safeScreen =
@@ -620,7 +622,7 @@ function activateScreen() {
       ? activeScreen
       : "dashboard";
 
-  document.querySelectorAll("[data-screen]").forEach((section) => {
+  screenSections.forEach((section) => {
     section.classList.toggle("is-active", section.dataset.screen === safeScreen);
   });
 
@@ -709,6 +711,7 @@ function enhanceResponsiveTables() {
 }
 
 function updateBetPreview() {
+  if (!document.querySelector("#previewProfit")) return;
   const odds = Number.parseFloat(document.querySelector("#id_odds")?.value || 0);
   const stakeInput = document.querySelector("#id_stake");
   const stake = Number.parseFloat(stakeInput?.value || 0);
@@ -1105,6 +1108,7 @@ function surebetExposure(row) {
 }
 
 function updateSurebetPreview() {
+  if (!document.querySelector("#surebetEntries")) return;
   const activeResultInput = document.activeElement?.classList?.contains("surebet-entry-return")
     ? document.activeElement
     : null;
@@ -1249,14 +1253,25 @@ function updateSurebetPreview() {
     }
   });
 
-  document.querySelector("#surebetTotal").textContent = formatCurrency(totalStake);
-  document.querySelector("#surebetTargetReturn").textContent = formatCurrency(targetReturn);
-  document.querySelector("#surebetMargin").textContent = `${margin.toFixed(2)}%`;
-  document.querySelector("#surebetMargin").className = margin >= 0 ? "positive" : "negative";
-  document.querySelector("#surebetBest").textContent = formatCurrency(best);
-  document.querySelector("#surebetBest").className = best >= 0 ? "positive" : "negative";
-  document.querySelector("#surebetWorst").textContent = formatCurrency(worst);
-  document.querySelector("#surebetWorst").className = worst >= 0 ? "positive" : "negative";
+  const totalOutput = document.querySelector("#surebetTotal");
+  const targetOutput = document.querySelector("#surebetTargetReturn");
+  const marginOutput = document.querySelector("#surebetMargin");
+  const bestOutput = document.querySelector("#surebetBest");
+  const worstOutput = document.querySelector("#surebetWorst");
+  if (totalOutput) totalOutput.textContent = formatCurrency(totalStake);
+  if (targetOutput) targetOutput.textContent = formatCurrency(targetReturn);
+  if (marginOutput) {
+    marginOutput.textContent = `${margin.toFixed(2)}%`;
+    marginOutput.className = margin >= 0 ? "positive" : "negative";
+  }
+  if (bestOutput) {
+    bestOutput.textContent = formatCurrency(best);
+    bestOutput.className = best >= 0 ? "positive" : "negative";
+  }
+  if (worstOutput) {
+    worstOutput.textContent = formatCurrency(worst);
+    worstOutput.className = worst >= 0 ? "positive" : "negative";
+  }
 
   const table = document.querySelector("#surebetScenarioTable");
   if (!table) return;
@@ -1419,6 +1434,77 @@ function prepareFreebetExtractionFromUrl() {
   });
 }
 
+function setFieldValue(name, value) {
+  const field = document.getElementsByName(name)[0];
+  if (!field || value === null) return;
+  field.value = value;
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function ensureEntryRows(prefix, desiredCount) {
+  const addButton = document.querySelector(prefix === "surebet" ? "#addProtectionEntry" : "#addFreebetEntry");
+  const currentIndices = prefix === "surebet" ? getSurebetIndices() : getFreebetIndices();
+  let currentCount = currentIndices.length ? Math.max(...currentIndices) : 0;
+  while (addButton && currentCount < desiredCount) {
+    addButton.click();
+    currentCount += 1;
+  }
+}
+
+function prepareCalculatorDraftFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const draftMode = params.get("draft_mode");
+  const prefix = draftMode === "freebet-extract" ? "freebet" : draftMode === "surebet" ? "surebet" : "";
+  if (!prefix) return;
+
+  const entryCount = Number.parseInt(params.get(`${prefix}_entry_count`) || "3", 10);
+  ensureEntryRows(prefix, Number.isFinite(entryCount) ? entryCount : 3);
+
+  params.forEach((value, key) => {
+    if (key === "draft_mode") return;
+    if (!key.startsWith(`${prefix}_`)) return;
+    setFieldValue(key, value);
+  });
+
+  setBetMode(draftMode);
+  if (draftMode === "surebet") updateSurebetPreview();
+  if (draftMode === "freebet-extract") updateFreebetExtractionPreview();
+
+  requestAnimationFrame(() => {
+    document.querySelector("#new-bet")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
+}
+
+function setupCalculatorRegistration() {
+  document.querySelectorAll("[data-calculator-register]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.calculatorRegister;
+      const prefix = mode === "freebet-extract" ? "freebet" : "surebet";
+      const form = button.closest("form");
+      const baseUrl = form?.dataset.registerBaseUrl || "/";
+      const params = new URLSearchParams();
+      const indices = prefix === "freebet" ? getFreebetIndices() : getSurebetIndices();
+
+      params.set("draft_mode", mode);
+      params.set(`${prefix}_entry_count`, String(Math.max(...indices, 0)));
+
+      form?.querySelectorAll("input, select, textarea").forEach((field) => {
+        if (!field.name || field.disabled) return;
+        if (!field.name.startsWith(`${prefix}_`)) return;
+        if (field.type === "hidden" || field.value.trim() !== "") {
+          params.set(field.name, field.value);
+        }
+      });
+
+      window.location.href = `${baseUrl}?${params.toString()}#new-bet`;
+    });
+  });
+}
+
 function freebetSourceMultiplier(effectiveOdd, commission) {
   return effectiveOdd > 1 ? (effectiveOdd - 1) * (1 - commission / 100) : 0;
 }
@@ -1429,6 +1515,7 @@ function freebetExposure(row) {
 }
 
 function updateFreebetExtractionPreview() {
+  if (!document.querySelector("#freebetEntries")) return;
   updateSelectedFreebetFields();
 
   const activeStakeInput = document.activeElement?.classList?.contains("surebet-stake")
@@ -1555,14 +1642,25 @@ function updateFreebetExtractionPreview() {
     }
   });
 
-  document.querySelector("#freebetTotal").textContent = formatCurrency(cashExposure);
-  document.querySelector("#freebetTargetReturn").textContent = formatCurrency(targetReturn);
-  document.querySelector("#freebetMargin").textContent = `${conversion.toFixed(2)}%`;
-  document.querySelector("#freebetMargin").className = conversion >= 0 ? "positive" : "negative";
-  document.querySelector("#freebetBest").textContent = formatCurrency(best);
-  document.querySelector("#freebetBest").className = best >= 0 ? "positive" : "negative";
-  document.querySelector("#freebetWorst").textContent = formatCurrency(worst);
-  document.querySelector("#freebetWorst").className = worst >= 0 ? "positive" : "negative";
+  const totalOutput = document.querySelector("#freebetTotal");
+  const targetOutput = document.querySelector("#freebetTargetReturn");
+  const marginOutput = document.querySelector("#freebetMargin");
+  const bestOutput = document.querySelector("#freebetBest");
+  const worstOutput = document.querySelector("#freebetWorst");
+  if (totalOutput) totalOutput.textContent = formatCurrency(cashExposure);
+  if (targetOutput) targetOutput.textContent = formatCurrency(targetReturn);
+  if (marginOutput) {
+    marginOutput.textContent = `${conversion.toFixed(2)}%`;
+    marginOutput.className = conversion >= 0 ? "positive" : "negative";
+  }
+  if (bestOutput) {
+    bestOutput.textContent = formatCurrency(best);
+    bestOutput.className = best >= 0 ? "positive" : "negative";
+  }
+  if (worstOutput) {
+    worstOutput.textContent = formatCurrency(worst);
+    worstOutput.className = worst >= 0 ? "positive" : "negative";
+  }
 
   const table = document.querySelector("#freebetScenarioTable");
   if (!table) return;
@@ -1819,8 +1917,10 @@ setupCollapsiblePanels();
 enhanceResponsiveTables();
 setupEventAutocomplete();
 setupEventOddsLookup();
+setupCalculatorRegistration();
 activateScreen();
 prepareFreebetExtractionFromUrl();
+prepareCalculatorDraftFromUrl();
 drawChart();
 drawBarChart();
 

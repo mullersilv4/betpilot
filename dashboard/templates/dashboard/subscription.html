@@ -1,0 +1,150 @@
+<!doctype html>
+{% load static %}
+<html lang="{{ user_preference.language|default:'pt-BR' }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assinatura | Freebetar</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260617-3" />
+  </head>
+  <body
+    data-language="{{ user_preference.language|default:'pt-BR' }}"
+    data-currency-code="{{ currency_code|default:'BRL' }}"
+    data-currency-locale="{{ currency_locale|default:'pt-BR' }}"
+    data-currency-symbol="{{ currency_symbol|default:'R$' }}"
+  >
+    <div class="app-shell">
+      <button class="mobile-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="sidebar-backdrop" data-sidebar-close></div>
+
+      <aside id="appSidebar" class="sidebar" aria-label="Navegação principal">
+        <div class="brand">
+          <span class="brand-mark">FB</span>
+          <div>
+            <strong>Freebetar</strong>
+            <small>Gestão inteligente</small>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <a href="{% url 'dashboard:index' %}#dashboard">Dashboard</a>
+          <a href="{% url 'dashboard:index' %}#bankroll">Financeiro</a>
+          <a href="{% url 'dashboard:index' %}#new-bet">Nova aposta</a>
+          <a href="{% url 'dashboard:calculator' %}">Calculadora</a>
+          <a href="{% url 'dashboard:index' %}#bets">Histórico</a>
+          <a href="{% url 'dashboard:index' %}#goals">Metas</a>
+          <a href="{% url 'dashboard:index' %}#settings">Configurações</a>
+        </nav>
+
+        <div class="side-panel">
+          <span class="status-dot"></span>
+          <div class="side-panel-user">
+            <strong>{{ request.user.username }}</strong>
+            <small>{{ user_access.get_status_display }}</small>
+          </div>
+          <details class="account-popover">
+            <summary aria-label="Ver dados da conta" title="Ver dados da conta">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                <path d="M4 21a8 8 0 0 1 16 0"></path>
+              </svg>
+            </summary>
+            <div class="account-popover-panel">
+              <dl>
+                <div>
+                  <dt>Email cadastrado</dt>
+                  <dd>{{ request.user.email|default:"-" }}</dd>
+                </div>
+                <div>
+                  <dt>Nome de usuario</dt>
+                  <dd>{{ request.user.username }}</dd>
+                </div>
+                <div>
+                  <dt>Data da contratação</dt>
+                  <dd>{{ user_access.contract_started_at|date:"d/m/Y" }}</dd>
+                </div>
+                <div>
+                  <dt>Dias até vencimento</dt>
+                  <dd>{{ user_access.expiration_summary }}</dd>
+                </div>
+              </dl>
+              <a class="account-popover-action" href="{% url 'dashboard:subscription' %}">Gerenciar assinatura</a>
+            </div>
+          </details>
+        </div>
+        <a class="ghost-button compact full-button link-button" href="{% url 'dashboard:password_change' %}">Trocar senha</a>
+        <form method="post" action="{% url 'dashboard:logout' %}">
+          {% csrf_token %}
+          <button class="ghost-button compact full-button" type="submit">Sair</button>
+        </form>
+      </aside>
+
+      <main class="main-content subscription-workspace">
+        <section class="section-panel subscription-hero">
+          <p class="eyebrow">Assinatura</p>
+          <div class="subscription-title-row">
+            <div>
+              <h1>Gerenciar assinatura</h1>
+              <p class="muted-text">Acompanhe seu acesso, vencimento e dados da conta.</p>
+            </div>
+            <span class="subscription-status status-{{ user_access.status }}">{{ user_access.get_status_display }}</span>
+          </div>
+        </section>
+
+        <section class="subscription-grid">
+          <article class="section-panel subscription-summary">
+            <div class="section-heading">
+              <h2>Acesso atual</h2>
+              <p class="muted-text">Dados usados para liberar ou bloquear o acesso ao sistema.</p>
+            </div>
+            <dl class="subscription-details">
+              <div>
+                <dt>Plano</dt>
+                <dd>{% if user_access.status == 'trial' %}Teste gratuito{% else %}Freebetar{% endif %}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{{ user_access.get_status_display }}</dd>
+              </div>
+              <div>
+                <dt>Data da contratação</dt>
+                <dd>{{ user_access.contract_started_at|date:"d/m/Y" }}</dd>
+              </div>
+              <div>
+                <dt>Vencimento</dt>
+                <dd>{% if user_access.expires_at %}{{ user_access.expires_at|date:"d/m/Y" }}{% else %}Sem vencimento definido{% endif %}</dd>
+              </div>
+              <div>
+                <dt>Dias restantes</dt>
+                <dd>{{ user_access.expiration_summary }}</dd>
+              </div>
+              <div>
+                <dt>Email cadastrado</dt>
+                <dd>{{ request.user.email|default:"-" }}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="section-panel subscription-plan">
+            <div class="section-heading">
+              <h2>Plano Freebetar</h2>
+              <p class="muted-text">Controle de apostas, financeiro, freebets, arbitragem e calculadora rápida.</p>
+            </div>
+            <div class="subscription-price">
+              <strong>Pagamento em breve</strong>
+              <span>Gateway ainda não conectado</span>
+            </div>
+            <button class="primary-action subscription-action" type="button" disabled>Assinar agora</button>
+            <p class="muted-text">Na próxima etapa, esse botão será ligado ao checkout do gateway escolhido.</p>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="{% static 'dashboard/app.js' %}?v=20260617-1"></script>
+  </body>
+</html>

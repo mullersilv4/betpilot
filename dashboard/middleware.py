@@ -10,6 +10,7 @@ class TrialAccessMiddleware:
         '/login/',
         '/cadastro/',
         '/logout/',
+        '/assinatura/',
         '/recuperar-senha/',
         '/senha/',
         '/admin/',

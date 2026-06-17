@@ -239,6 +239,24 @@ textarea {
   font-weight: 600;
 }
 
+.account-popover-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  min-height: 34px;
+  align-items: center;
+  border: 1px solid rgb(90 167 255 / 42%);
+  border-radius: 8px;
+  color: var(--blue);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.account-popover-action:hover {
+  background: rgb(90 167 255 / 10%);
+}
+
 .status-dot {
   width: 10px;
   height: 10px;
@@ -318,6 +336,110 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.subscription-workspace {
+  max-width: 1040px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.subscription-title-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.subscription-status {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 12px;
+  background: rgb(90 167 255 / 14%);
+  color: var(--blue);
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.subscription-status.status-active {
+  background: rgb(34 197 94 / 14%);
+  color: var(--green);
+}
+
+.subscription-status.status-expired,
+.subscription-status.status-canceled {
+  background: rgb(255 112 112 / 14%);
+  color: var(--red);
+}
+
+.subscription-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 14px;
+}
+
+.subscription-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.subscription-details div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111615;
+}
+
+.subscription-details dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.subscription-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.subscription-plan {
+  align-content: start;
+}
+
+.subscription-price {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111615;
+}
+
+.subscription-price strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.subscription-price span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.subscription-action {
+  width: 100%;
+}
+
+.subscription-action:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
 }
 
 .settings-workspace {
@@ -3023,6 +3145,15 @@ th {
   }
 
   .form-grid.two-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-title-row {
+    display: grid;
+  }
+
+  .subscription-grid,
+  .subscription-details {
     grid-template-columns: 1fr;
   }
 

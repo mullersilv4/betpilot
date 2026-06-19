@@ -11,6 +11,7 @@ class TrialAccessMiddleware:
         '/cadastro/',
         '/logout/',
         '/assinatura/',
+        '/webhooks/mercado-pago/',
         '/recuperar-senha/',
         '/senha/',
         '/admin/',

@@ -2,8 +2,12 @@ from decimal import Decimal
 from decimal import InvalidOperation
 from datetime import datetime
 from datetime import timedelta
+import json
 import os
+import urllib.error
+import urllib.request
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth import logout
@@ -18,7 +22,9 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from django.db import transaction
 from django.db.models import Q
 from django.db.models import Sum
@@ -58,6 +64,7 @@ from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
 from .models import OddsSnapshot
+from .models import Payment
 from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
@@ -134,6 +141,95 @@ ODDSPAPI_BRAZIL_BOOKMAKERS = [
 EVENT_SOURCE_THE_ODDS_API = 'the_odds_api'
 EVENT_SOURCE_ODDSPAPI = 'oddspapi'
 PROTECTION_STRATEGIES = {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}
+
+
+class MercadoPagoError(Exception):
+    pass
+
+
+def mercado_pago_request(method, path, payload=None):
+    access_token = settings.MERCADO_PAGO_ACCESS_TOKEN
+    if not access_token:
+        raise MercadoPagoError('Token do Mercado Pago não configurado.')
+
+    body = None
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Accept': 'application/json',
+    }
+    if payload is not None:
+        body = json.dumps(payload).encode('utf-8')
+        headers['Content-Type'] = 'application/json'
+
+    request = urllib.request.Request(
+        f'https://api.mercadopago.com{path}',
+        data=body,
+        headers=headers,
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            response_body = response.read().decode('utf-8')
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode('utf-8', errors='replace')
+        raise MercadoPagoError(f'Erro do Mercado Pago: {exc.code} - {error_body}') from exc
+    except urllib.error.URLError as exc:
+        raise MercadoPagoError(f'Falha de conexão com o Mercado Pago: {exc.reason}') from exc
+
+    if not response_body:
+        return {}
+    return json.loads(response_body)
+
+
+def create_mercado_pago_preference(payment, request):
+    notification_url = request.build_absolute_uri(reverse('dashboard:mercado_pago_webhook'))
+    subscription_url = request.build_absolute_uri(reverse('dashboard:subscription'))
+    payload = {
+        'items': [
+            {
+                'title': f'Freebetar - Plano {payment.plan_label}',
+                'quantity': 1,
+                'currency_id': 'BRL',
+                'unit_price': float(payment.amount),
+            }
+        ],
+        'external_reference': str(payment.pk),
+        'notification_url': notification_url,
+        'back_urls': {
+            'success': f'{subscription_url}?pagamento=sucesso',
+            'failure': f'{subscription_url}?pagamento=falha',
+            'pending': f'{subscription_url}?pagamento=pendente',
+        },
+        'auto_return': 'approved',
+        'payer': {
+            'email': request.user.email or '',
+        },
+        'metadata': {
+            'payment_id': payment.pk,
+            'user_id': request.user.pk,
+            'plan': payment.plan,
+        },
+    }
+    return mercado_pago_request('POST', '/checkout/preferences', payload)
+
+
+def read_mercado_pago_notification(request):
+    payload = {}
+    if request.body:
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except json.JSONDecodeError:
+            payload = {}
+
+    data = payload.get('data') if isinstance(payload.get('data'), dict) else {}
+    payment_id = (
+        request.GET.get('id')
+        or request.GET.get('data.id')
+        or data.get('id')
+        or payload.get('id')
+    )
+    topic = request.GET.get('topic') or request.GET.get('type') or payload.get('type')
+    return topic, payment_id, payload
 
 
 def redirect_to_history():
@@ -1731,6 +1827,14 @@ def calculator(request):
 def subscription(request):
     user_access = ensure_user_access(request.user)
     user_preference = ensure_user_preference(request.user)
+    payment_status = request.GET.get('pagamento')
+    if payment_status == 'sucesso':
+        messages.success(request, 'Pagamento recebido pelo Mercado Pago. Assim que a confirmação chegar, o acesso será atualizado.')
+    elif payment_status == 'pendente':
+        messages.info(request, 'Pagamento pendente. Vamos liberar seu acesso assim que o Mercado Pago aprovar.')
+    elif payment_status == 'falha':
+        messages.error(request, 'O pagamento não foi concluído. Você pode tentar novamente quando quiser.')
+
     return render(
         request,
         'dashboard/subscription.html',
@@ -1740,8 +1844,82 @@ def subscription(request):
             'currency_code': user_preference.currency,
             'currency_symbol': user_preference.currency_symbol,
             'currency_locale': user_preference.currency_locale,
+            'plans': Payment.PLAN_DEFINITIONS,
+            'mercado_pago_ready': bool(settings.MERCADO_PAGO_ACCESS_TOKEN),
         },
     )
+
+
+@require_POST
+@login_required
+def subscription_checkout(request, plan):
+    if plan not in Payment.PLAN_DEFINITIONS:
+        messages.error(request, 'Plano inválido.')
+        return redirect('dashboard:subscription')
+
+    payment = Payment.build_for_plan(request.user, plan)
+    try:
+        preference = create_mercado_pago_preference(payment, request)
+    except MercadoPagoError as exc:
+        payment.status = Payment.Status.CANCELLED
+        payment.raw_payload = {'error': str(exc)}
+        payment.save(update_fields=['status', 'raw_payload', 'updated_at'])
+        messages.error(request, 'Não foi possível abrir o checkout do Mercado Pago. Confira as credenciais no .env.')
+        return redirect('dashboard:subscription')
+
+    checkout_url = preference.get('sandbox_init_point') if settings.MERCADO_PAGO_ENVIRONMENT == 'sandbox' else preference.get('init_point')
+    checkout_url = checkout_url or preference.get('init_point') or preference.get('sandbox_init_point')
+    payment.provider_preference_id = preference.get('id', '')
+    payment.checkout_url = checkout_url or ''
+    payment.raw_payload = preference
+    payment.save(update_fields=['provider_preference_id', 'checkout_url', 'raw_payload', 'updated_at'])
+
+    if not checkout_url:
+        messages.error(request, 'O Mercado Pago não retornou a URL do checkout.')
+        return redirect('dashboard:subscription')
+    return redirect(checkout_url)
+
+
+@csrf_exempt
+def mercado_pago_webhook(request):
+    topic, provider_payment_id, payload = read_mercado_pago_notification(request)
+    if topic and topic != 'payment':
+        return JsonResponse({'ok': True, 'ignored': True})
+    if not provider_payment_id:
+        return JsonResponse({'ok': True, 'ignored': True})
+
+    try:
+        payment_data = mercado_pago_request('GET', f'/v1/payments/{provider_payment_id}')
+    except MercadoPagoError:
+        return JsonResponse({'ok': False}, status=502)
+
+    external_reference = payment_data.get('external_reference')
+    if not external_reference:
+        metadata = payment_data.get('metadata') if isinstance(payment_data.get('metadata'), dict) else {}
+        external_reference = metadata.get('payment_id')
+
+    try:
+        payment = Payment.objects.get(pk=external_reference)
+    except (Payment.DoesNotExist, TypeError, ValueError):
+        return JsonResponse({'ok': True, 'ignored': True})
+
+    status = payment_data.get('status')
+    if payment.status == Payment.Status.APPROVED and status != 'approved':
+        return JsonResponse({'ok': True})
+
+    if status == 'approved':
+        payment.approve(provider_payment_id=str(payment_data.get('id') or provider_payment_id), payload=payment_data)
+    elif status in {'rejected', 'cancelled', 'refunded', 'charged_back'}:
+        payment.status = Payment.Status.REJECTED if status == 'rejected' else Payment.Status.CANCELLED
+        payment.provider_payment_id = str(payment_data.get('id') or provider_payment_id)
+        payment.raw_payload = payment_data
+        payment.save(update_fields=['status', 'provider_payment_id', 'raw_payload', 'updated_at'])
+    else:
+        payment.provider_payment_id = str(payment_data.get('id') or provider_payment_id)
+        payment.raw_payload = payment_data or payload
+        payment.save(update_fields=['provider_payment_id', 'raw_payload', 'updated_at'])
+
+    return JsonResponse({'ok': True})
 
 
 @never_cache

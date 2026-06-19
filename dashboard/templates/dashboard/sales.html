@@ -4,8 +4,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Freebetar | Gestão profissional para apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260609-2" />
+    <title>Freebetar | Gestão de apostas, freebets e arbitragem</title>
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260617-5" />
   </head>
   <body class="sales-page">
     <header class="sales-nav" aria-label="Navegação da página de vendas">
@@ -19,14 +19,15 @@
 
       <nav>
         <a href="#funcionalidades">Funcionalidades</a>
-        <a href="#telas">Telas</a>
-        <a href="#controle">Controle</a>
+        <a href="#calculadoras">Calculadoras</a>
+        <a href="#telas">Dashboard</a>
         <a href="#planos">Planos</a>
+        <a href="#faq">FAQ</a>
       </nav>
 
       <div class="sales-nav-actions">
         {% if request.user.is_authenticated and user_access.has_access %}
-          <a class="ghost-button link-button" href="{% url 'dashboard:index' %}">Abrir dashboard</a>
+          <a class="ghost-button link-button" href="{% url 'dashboard:index' %}">Entrar</a>
         {% elif request.user.is_authenticated %}
           <form method="post" action="{% url 'dashboard:logout' %}">
             {% csrf_token %}
@@ -110,15 +111,24 @@
         </div>
 
         <div class="sales-hero-copy">
-          <p class="eyebrow">Controle para apostadores organizados</p>
-          <h1>Freebetar</h1>
+          <p class="eyebrow">Teste grátis por 7 dias</p>
+          <h1>
+            O sistema que faltava
+            <span>para alavancar sua banca</span>
+            com gestão eficiente.
+          </h1>
           <p>
-            Gestão profissional para bancas, apostas, metas e performance. Saia da planilha
-            improvisada e acompanhe seu resultado real em um painel feito para decisão.
+            Freebetar é a plataforma para controlar bancas, apostas simples, arbitragens,
+            freebets e resultado financeiro sem depender de planilha.
           </p>
+          <ul class="sales-hero-list">
+            <li>Dashboard financeiro e histórico completo.</li>
+            <li>Gestão de freebets, arbitragem e apostas abertas.</li>
+            <li>Calculadora rápida antes de registrar a aposta.</li>
+          </ul>
           <div class="sales-hero-actions">
             {% if request.user.is_authenticated and user_access.has_access %}
-              <a class="primary-button link-button" href="{% url 'dashboard:index' %}">Abrir dashboard</a>
+              <a class="primary-button link-button" href="{% url 'dashboard:index' %}">Entrar</a>
             {% elif request.user.is_authenticated %}
               <form method="post" action="{% url 'dashboard:logout' %}">
                 {% csrf_token %}
@@ -126,18 +136,68 @@
               </form>
               <a class="primary-button link-button" href="#planos">Contratar agora</a>
             {% else %}
-              <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
-              <a class="secondary-button link-button" href="{% url 'dashboard:login' %}">Já sou usuário</a>
+              <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar grátis (7 dias)</a>
+              <a class="secondary-button link-button" href="#calculadoras">Ver calculadora</a>
             {% endif %}
+          </div>
+          <div class="sales-hero-proof">
+            <div>
+              <strong>R$ 20</strong>
+              <span>plano mensal</span>
+            </div>
+            <div>
+              <strong>R$ 55</strong>
+              <span>3 meses de acesso</span>
+            </div>
+            <div>
+              <strong>7 dias</strong>
+              <span>para testar completo</span>
+            </div>
           </div>
         </div>
 
       </section>
 
+      <section class="sales-trust-strip" aria-label="Principais recursos">
+        <span>Dashboard financeiro</span>
+        <span>Apostas simples</span>
+        <span>Arbitragem</span>
+        <span>Extração de freebet</span>
+        <span>Calculadora rápida</span>
+        <span>Metas mensais</span>
+      </section>
+
+      <section class="sales-social-proof" aria-label="Avaliações de usuários">
+        <div class="sales-section-heading">
+          <p class="eyebrow">Avaliações</p>
+          <h2>Feito para quem quer parar de controlar aposta no improviso</h2>
+        </div>
+        <div class="sales-testimonial-grid">
+          <article>
+            <div class="testimonial-stars" aria-label="5 de 5">★★★★★</div>
+            <p>Antes eu me perdia entre saldo de casas, freebets e apostas abertas. Agora vejo tudo separado e sei onde está meu dinheiro.</p>
+            <strong>Usuário em teste</strong>
+            <span>Uso diário</span>
+          </article>
+          <article class="is-raised">
+            <div class="testimonial-stars" aria-label="5 de 5">★★★★★</div>
+            <p>A calculadora de arbitragem já me economizou muito tempo. Faço a conta rápida e só registro quando realmente vale a pena.</p>
+            <strong>Usuário em teste</strong>
+            <span>Arbitragem e freebet</span>
+          </article>
+          <article>
+            <div class="testimonial-stars" aria-label="5 de 5">★★★★★</div>
+            <p>O financeiro ficou bem mais claro. Consigo ver disponível, aberto e total sem depender de planilha manual.</p>
+            <strong>Usuário em teste</strong>
+            <span>Controle financeiro</span>
+          </article>
+        </div>
+      </section>
+
       <section id="funcionalidades" class="sales-section">
         <div class="sales-section-heading">
           <p class="eyebrow">Funcionalidades principais</p>
-          <h2>Tudo que importa para acompanhar sua operação</h2>
+          <h2>O essencial para controlar sua operação em um só lugar</h2>
         </div>
 
         <div class="sales-feature-grid">
@@ -169,7 +229,31 @@
           <article>
             <span>06</span>
             <h3>Arbitragem e freebet</h3>
-            <p>Cadastre apostas simples, arbitragens e extrações de freebet com responsabilidade, retorno e cenários.</p>
+            <p>Cadastre arbitragens e extrações de freebet com responsabilidade, retorno e cenários por casa.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="calculadoras" class="sales-section sales-calculator-section">
+        <div class="sales-section-heading">
+          <p class="eyebrow">Antes de apostar</p>
+          <h2>Faça a conta antes de comprometer sua banca</h2>
+        </div>
+        <div class="sales-calculator-grid">
+          <article>
+            <span>01</span>
+            <h3>Simule</h3>
+            <p>Informe odds, stake, comissão, cashback ou aumento para enxergar melhor e pior cenário.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Decida</h3>
+            <p>Compare responsabilidade, retorno possível e conversão da freebet antes de seguir.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Registre</h3>
+            <p>Se a conta valer a pena, envie os dados para o cadastro de arbitragem ou extração.</p>
           </article>
         </div>
       </section>
@@ -381,23 +465,57 @@
       <section id="planos" class="sales-section sales-plan-section">
         <div class="sales-section-heading">
           <p class="eyebrow">Acesso</p>
-          <h2>Comece usando o Freebetar de verdade</h2>
+          <h2>Comece com 7 dias grátis e escolha seu plano depois</h2>
         </div>
 
         <div class="sales-plan-grid">
           <article>
-            <h3>Teste inicial</h3>
-            <strong>7 dias grátis</strong>
-            <p>Use por 7 dias o dashboard, financeiro, metas, histórico, apostas simples, arbitragem e extração de freebet.</p>
-            <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
+            <span class="plan-badge">Mensal</span>
+            <h3>Plano mensal</h3>
+            <strong>R$ 20,00</strong>
+            <p>30 dias de acesso ao dashboard, financeiro, histórico, calculadora, arbitragem e extração de freebet.</p>
+            <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
           </article>
+          <article class="is-featured">
+            <span class="plan-badge">Melhor valor</span>
+            <h3>Plano trimestral</h3>
+            <strong>R$ 55,00</strong>
+            <p>90 dias de acesso com desconto em relação ao mensal. Ideal para manter a rotina sem interrupção.</p>
+            <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="faq" class="sales-section sales-faq-section">
+        <div class="sales-section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2>Perguntas frequentes</h2>
+        </div>
+
+        <div class="sales-faq-list">
+          <details>
+            <summary>Que tipos de apostas posso registrar no Freebetar?</summary>
+            <p>Você pode registrar apostas simples, arbitragens, extrações de freebet e apostas simples usando freebet. Também acompanha relatórios, casas cadastradas, saldos disponíveis, apostas abertas, histórico, lucro ou perda, ROI, metas e movimentações financeiras.</p>
+          </details>
+          <details>
+            <summary>Preciso colocar cartão no teste grátis?</summary>
+            <p>Não. O teste é liberado por 7 dias e o sistema bloqueia automaticamente quando o período termina.</p>
+          </details>
+          <details>
+            <summary>Consigo controlar freebets?</summary>
+            <p>Sim. O app permite cadastrar freebets avulsas, usar em aposta simples ou extrair via arbitragem.</p>
+          </details>
+          <details>
+            <summary>Quais planos estarão disponíveis?</summary>
+            <p>Plano mensal por R$ 20,00 e plano trimestral por R$ 55,00.</p>
+          </details>
         </div>
       </section>
 
       <section class="sales-final-cta">
         <p class="eyebrow">Freebetar</p>
-        <h2>Organize sua operação antes de aumentar o volume.</h2>
-        <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
+        <h2>Pronto para transformar suas apostas em gestão?</h2>
+        <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
       </section>
     </main>
   </body>

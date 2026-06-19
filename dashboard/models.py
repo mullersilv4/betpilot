@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from decimal import Decimal
@@ -108,6 +109,92 @@ class UserAccess(models.Model):
         if self.status == self.Status.TRIAL and timezone.now() > self.trial_ends_at:
             self.status = self.Status.EXPIRED
             self.save(update_fields=['status', 'updated_at'])
+
+
+class Payment(models.Model):
+    PLAN_DEFINITIONS = {
+        'monthly': {
+            'label': 'Mensal',
+            'amount': Decimal('20.00'),
+            'duration_days': 30,
+        },
+        'quarterly': {
+            'label': 'Trimestral',
+            'amount': Decimal('55.00'),
+            'duration_days': 90,
+        },
+    }
+
+    class Plan(models.TextChoices):
+        MONTHLY = 'monthly', 'Mensal'
+        QUARTERLY = 'quarterly', 'Trimestral'
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pendente'
+        APPROVED = 'approved', 'Aprovado'
+        REJECTED = 'rejected', 'Recusado'
+        CANCELLED = 'cancelled', 'Cancelado'
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='usuário',
+        related_name='payments',
+        on_delete=models.CASCADE,
+    )
+    plan = models.CharField('plano', max_length=20, choices=Plan.choices)
+    amount = models.DecimalField('valor', max_digits=10, decimal_places=2)
+    duration_days = models.PositiveIntegerField('dias de acesso')
+    status = models.CharField('status', max_length=20, choices=Status.choices, default=Status.PENDING)
+    provider = models.CharField('gateway', max_length=40, default='mercado_pago')
+    provider_preference_id = models.CharField('id da preferência', max_length=120, blank=True)
+    provider_payment_id = models.CharField('id do pagamento', max_length=120, blank=True)
+    checkout_url = models.URLField('url do checkout', blank=True)
+    raw_payload = models.JSONField('payload bruto', default=dict, blank=True)
+    approved_at = models.DateTimeField('aprovado em', null=True, blank=True)
+    created_at = models.DateTimeField('criado em', default=timezone.now)
+    updated_at = models.DateTimeField('atualizado em', auto_now=True)
+
+    class Meta:
+        verbose_name = 'pagamento'
+        verbose_name_plural = 'pagamentos'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user} - {self.get_plan_display()} - {self.get_status_display()}'
+
+    @property
+    def plan_label(self):
+        return self.PLAN_DEFINITIONS.get(self.plan, {}).get('label', self.get_plan_display())
+
+    @classmethod
+    def build_for_plan(cls, user, plan):
+        plan_definition = cls.PLAN_DEFINITIONS[plan]
+        return cls.objects.create(
+            user=user,
+            plan=plan,
+            amount=plan_definition['amount'],
+            duration_days=plan_definition['duration_days'],
+        )
+
+    def approve(self, provider_payment_id='', payload=None):
+        if self.status == self.Status.APPROVED:
+            return
+
+        access = ensure_user_access(self.user)
+        now = timezone.now()
+        base_date = access.subscription_ends_at if access.subscription_ends_at and access.subscription_ends_at > now else now
+        access.status = UserAccess.Status.ACTIVE
+        access.subscription_ends_at = base_date + timedelta(days=self.duration_days)
+
+        self.status = self.Status.APPROVED
+        self.provider_payment_id = provider_payment_id or self.provider_payment_id
+        self.approved_at = now
+        if payload is not None:
+            self.raw_payload = payload
+
+        with transaction.atomic():
+            access.save(update_fields=['status', 'subscription_ends_at', 'updated_at'])
+            self.save(update_fields=['status', 'provider_payment_id', 'approved_at', 'raw_payload', 'updated_at'])
 
 
 class UserPreference(models.Model):

@@ -84,6 +84,14 @@
       </aside>
 
       <main class="main-content subscription-workspace">
+        {% if messages %}
+          <div class="messages-stack">
+            {% for message in messages %}
+              <div class="app-message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
         <section class="section-panel subscription-hero">
           <p class="eyebrow">Assinatura</p>
           <div class="subscription-title-row">
@@ -132,14 +140,40 @@
           <article class="section-panel subscription-plan">
             <div class="section-heading">
               <h2>Plano Freebetar</h2>
-              <p class="muted-text">Controle de apostas, financeiro, freebets, arbitragem e calculadora rápida.</p>
+              <p class="muted-text">Escolha o período e finalize com segurança pelo Mercado Pago.</p>
             </div>
-            <div class="subscription-price">
-              <strong>Pagamento em breve</strong>
-              <span>Gateway ainda não conectado</span>
+            <div class="subscription-plan-options">
+              <div class="subscription-plan-option">
+                <div class="subscription-price">
+                  <strong>R$ 20,00</strong>
+                  <span>Plano mensal</span>
+                </div>
+                <form method="post" action="{% url 'dashboard:subscription_checkout' 'monthly' %}">
+                  {% csrf_token %}
+                  <button class="primary-action subscription-action" type="submit" {% if not mercado_pago_ready %}disabled{% endif %}>
+                    Assinar mensal
+                  </button>
+                </form>
+              </div>
+
+              <div class="subscription-plan-option featured">
+                <div class="subscription-price">
+                  <strong>R$ 55,00</strong>
+                  <span>Plano trimestral</span>
+                </div>
+                <form method="post" action="{% url 'dashboard:subscription_checkout' 'quarterly' %}">
+                  {% csrf_token %}
+                  <button class="primary-action subscription-action" type="submit" {% if not mercado_pago_ready %}disabled{% endif %}>
+                    Assinar trimestral
+                  </button>
+                </form>
+              </div>
             </div>
-            <button class="primary-action subscription-action" type="button" disabled>Assinar agora</button>
-            <p class="muted-text">Na próxima etapa, esse botão será ligado ao checkout do gateway escolhido.</p>
+            {% if not mercado_pago_ready %}
+              <p class="muted-text">Configure o token do Mercado Pago no .env para habilitar o checkout.</p>
+            {% else %}
+              <p class="muted-text">Após aprovação do pagamento, o Mercado Pago envia a confirmação e o sistema libera seu acesso automaticamente.</p>
+            {% endif %}
           </article>
         </section>
       </main>

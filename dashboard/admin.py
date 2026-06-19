@@ -10,6 +10,7 @@ from .models import Entity
 from .models import FreeBet
 from .models import MonthlyGoal
 from .models import OddsSnapshot
+from .models import Payment
 from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
@@ -22,6 +23,14 @@ class UserAccessAdmin(admin.ModelAdmin):
     list_display = ('user', 'status', 'trial_started_at', 'trial_ends_at', 'subscription_ends_at')
     list_filter = ('status', 'trial_ends_at', 'subscription_ends_at')
     search_fields = ('user__username', 'user__email')
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'plan', 'amount', 'status', 'provider', 'provider_payment_id', 'created_at', 'approved_at')
+    list_filter = ('status', 'plan', 'provider', 'created_at')
+    search_fields = ('user__username', 'user__email', 'provider_preference_id', 'provider_payment_id')
+    readonly_fields = ('created_at', 'updated_at', 'approved_at', 'raw_payload')
 
 
 @admin.register(Entity)

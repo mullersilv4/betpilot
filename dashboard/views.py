@@ -144,7 +144,9 @@ PROTECTION_STRATEGIES = {'Surebet', 'Proteção', 'Arbitragem', 'Extração de f
 
 
 class MercadoPagoError(Exception):
-    pass
+    def __init__(self, message, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def mercado_pago_request(method, path, payload=None):
@@ -172,7 +174,7 @@ def mercado_pago_request(method, path, payload=None):
             response_body = response.read().decode('utf-8')
     except urllib.error.HTTPError as exc:
         error_body = exc.read().decode('utf-8', errors='replace')
-        raise MercadoPagoError(f'Erro do Mercado Pago: {exc.code} - {error_body}') from exc
+        raise MercadoPagoError(f'Erro do Mercado Pago: {exc.code} - {error_body}', status_code=exc.code) from exc
     except urllib.error.URLError as exc:
         raise MercadoPagoError(f'Falha de conexão com o Mercado Pago: {exc.reason}') from exc
 
@@ -1890,7 +1892,9 @@ def mercado_pago_webhook(request):
 
     try:
         payment_data = mercado_pago_request('GET', f'/v1/payments/{provider_payment_id}')
-    except MercadoPagoError:
+    except MercadoPagoError as exc:
+        if exc.status_code in {400, 404}:
+            return JsonResponse({'ok': True, 'ignored': True, 'reason': 'payment_not_found'})
         return JsonResponse({'ok': False}, status=502)
 
     external_reference = payment_data.get('external_reference')

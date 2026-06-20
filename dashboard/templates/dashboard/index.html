@@ -427,6 +427,21 @@
                   {% endfor %}
                 </select>
               </label>
+              <details class="finance-filter-menu">
+                <summary class="icon-button" aria-label="Opções de filtro" title="Filtros">
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M3 5h18" />
+                    <path d="M7 12h10" />
+                    <path d="M10 19h4" />
+                  </svg>
+                </summary>
+                <div class="finance-filter-dropdown">
+                  <label class="finance-check-option">
+                    <input id="hideZeroBalanceBankrolls" type="checkbox" />
+                    <span>Ocultar casas com saldo zerado</span>
+                  </label>
+                </div>
+              </details>
             </div>
 
             <div class="bankroll-list finance-card-grid">
@@ -434,6 +449,7 @@
                 <article
                   class="bankroll-card finance-balance-card"
                   data-entity-id="{{ bankroll.entity_id|default:'' }}"
+                  data-balance-empty="{% if bankroll.current_balance == 0 %}true{% else %}false{% endif %}"
                   data-search-text="{{ bankroll.entity.name|default:bankroll.name }} {{ bankroll.bookmaker|default:'' }}"
                 >
                   <header class="finance-card-header">

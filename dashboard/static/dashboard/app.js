@@ -69,6 +69,9 @@ const UI_TRANSLATIONS = {
     "Buscar casa": "Buscar casa",
     "Buscar por nome ou casa de aposta...": "Buscar por nombre o casa de apuestas...",
     "Filtrar bancas por entidade": "Filtrar bancas por entidad",
+    "Opções de filtro": "Opciones de filtro",
+    Filtros: "Filtros",
+    "Ocultar casas com saldo zerado": "Ocultar casas con saldo cero",
     "Todas": "Todas",
     "Editar banca": "Editar banca",
     "Editar": "Editar",
@@ -202,6 +205,9 @@ const UI_TRANSLATIONS = {
     "Buscar casa": "Search bookmaker",
     "Buscar por nome ou casa de aposta...": "Search by name or bookmaker...",
     "Filtrar bancas por entidade": "Filter bankrolls by entity",
+    "Opções de filtro": "Filter options",
+    Filtros: "Filters",
+    "Ocultar casas com saldo zerado": "Hide bookmakers with zero balance",
     "Todas": "All",
     "Editar banca": "Edit bankroll",
     "Editar": "Edit",
@@ -714,7 +720,7 @@ function updateBetPreview() {
   if (!document.querySelector("#previewProfit")) return;
   const odds = Number.parseFloat(document.querySelector("#id_odds")?.value || 0);
   const boost = Number.parseFloat(document.querySelector("#id_odds_boost")?.value || 0);
-  const effectiveOdds = odds > 0 ? odds * (1 + boost / 100) : 0;
+  const effectiveOdds = boostedProfitOdds(odds, boost);
   const stakeInput = document.querySelector("#id_stake");
   const stake = Number.parseFloat(stakeInput?.value || 0);
   const freebetSelect = document.querySelector("[data-simple-freebet-select]");
@@ -802,6 +808,11 @@ function localDateInputValue(date = new Date()) {
 
 function readNumber(input) {
   return Number.parseFloat((input?.value || "0").replace(",", ".")) || 0;
+}
+
+function boostedProfitOdds(odds, boost) {
+  if (odds <= 0) return 0;
+  return 1 + (odds - 1) * (1 + boost / 100);
 }
 
 function escapeHtml(value) {
@@ -1122,7 +1133,7 @@ function updateSurebetPreview() {
   const firstCommission = readNumber(document.querySelector('[name="surebet_commission_1"]'));
   const firstBoost = readNumber(document.querySelector('[name="surebet_boost_1"]'));
   const firstMode = readSurebetMode(1);
-  const firstEffectiveOdd = firstOdd * (1 + firstBoost / 100);
+  const firstEffectiveOdd = boostedProfitOdds(firstOdd, firstBoost);
   const firstMultiplier = surebetGrossReturnMultiplier(firstMode, firstEffectiveOdd, firstCommission);
   const targetReturn = firstMultiplier > 0 && firstStake > 0 ? firstMultiplier * firstStake : 0;
   const indices = getSurebetIndices();
@@ -1140,7 +1151,7 @@ function updateSurebetPreview() {
       const odd = readNumber(document.querySelector(`[name="surebet_odd_${index}"]`));
       const commission = readNumber(document.querySelector(`[name="surebet_commission_${index}"]`));
       const boost = readNumber(document.querySelector(`[name="surebet_boost_${index}"]`));
-      const effectiveOdd = odd * (1 + boost / 100);
+      const effectiveOdd = boostedProfitOdds(odd, boost);
       const multiplier = surebetGrossReturnMultiplier(readSurebetMode(index), effectiveOdd, commission);
       return { index, multiplier };
     }).filter((row) => row.multiplier > 0);
@@ -1161,7 +1172,7 @@ function updateSurebetPreview() {
     const commission = readNumber(document.querySelector(`[name="surebet_commission_${index}"]`));
     const boost = readNumber(document.querySelector(`[name="surebet_boost_${index}"]`));
     const mode = readSurebetMode(index);
-    const effectiveOdd = odd * (1 + boost / 100);
+    const effectiveOdd = boostedProfitOdds(odd, boost);
     const multiplier = surebetGrossReturnMultiplier(mode, effectiveOdd, commission);
     if (
       stakeInput &&
@@ -1183,7 +1194,7 @@ function updateSurebetPreview() {
     const boost = readNumber(document.querySelector(`[name="surebet_boost_${index}"]`));
     const odd = readNumber(oddInput);
     const mode = readSurebetMode(index);
-    const effectiveOdd = odd * (1 + boost / 100);
+    const effectiveOdd = boostedProfitOdds(odd, boost);
     const multiplier = surebetGrossReturnMultiplier(mode, effectiveOdd, commission);
     const stake = readNumber(stakeInput);
     const liability = mode === "lay" && effectiveOdd > 1 ? stake * (effectiveOdd - 1) : 0;
@@ -1527,7 +1538,7 @@ function updateFreebetExtractionPreview() {
   const firstStake = readNumber(document.querySelector('[name="freebet_stake_1"]'));
   const firstCommission = readNumber(document.querySelector('[name="freebet_commission_1"]'));
   const firstBoost = readNumber(document.querySelector('[name="freebet_boost_1"]'));
-  const firstEffectiveOdd = firstOdd * (1 + firstBoost / 100);
+  const firstEffectiveOdd = boostedProfitOdds(firstOdd, firstBoost);
   const firstMultiplier = freebetSourceMultiplier(firstEffectiveOdd, firstCommission);
   const targetReturn = firstMultiplier > 0 && firstStake > 0 ? firstMultiplier * firstStake : 0;
   const indices = getFreebetIndices();
@@ -1539,7 +1550,7 @@ function updateFreebetExtractionPreview() {
     const commission = readNumber(document.querySelector(`[name="freebet_commission_${index}"]`));
     const boost = readNumber(document.querySelector(`[name="freebet_boost_${index}"]`));
     const mode = readFreebetMode(index);
-    const effectiveOdd = odd * (1 + boost / 100);
+    const effectiveOdd = boostedProfitOdds(odd, boost);
     const multiplier = surebetTargetMultiplier(mode, effectiveOdd, commission);
     if (
       stakeInput &&
@@ -1558,7 +1569,7 @@ function updateFreebetExtractionPreview() {
     const boost = readNumber(document.querySelector(`[name="freebet_boost_${index}"]`));
     const odd = readNumber(oddInput);
     const mode = readFreebetMode(index);
-    const effectiveOdd = odd * (1 + boost / 100);
+    const effectiveOdd = boostedProfitOdds(odd, boost);
     const multiplier = index === 1
       ? freebetSourceMultiplier(effectiveOdd, commission)
       : surebetTargetMultiplier(mode, effectiveOdd, commission);
@@ -1914,26 +1925,22 @@ document.querySelector(".freebet-extraction-form")?.addEventListener("click", (e
   }
 });
 
-document.querySelector("#bankrollEntityFilter")?.addEventListener("change", (event) => {
-  const selectedEntity = event.target.value;
+function applyBankrollFilters() {
+  const selectedEntity = document.querySelector("#bankrollEntityFilter")?.value || "";
   const searchTerm = (document.querySelector("#bankrollSearch")?.value || "").trim().toLowerCase();
+  const hideZeroBalance = document.querySelector("#hideZeroBalanceBankrolls")?.checked || false;
   document.querySelectorAll(".bankroll-card[data-entity-id]").forEach((card) => {
     const matchesEntity = !selectedEntity || card.dataset.entityId === selectedEntity;
     const matchesSearch = !searchTerm || (card.dataset.searchText || "").toLowerCase().includes(searchTerm);
-    const shouldShow = matchesEntity && matchesSearch;
+    const matchesBalance = !hideZeroBalance || card.dataset.balanceEmpty !== "true";
+    const shouldShow = matchesEntity && matchesSearch && matchesBalance;
     card.classList.toggle("is-filtered-out", !shouldShow);
   });
-});
+}
 
-document.querySelector("#bankrollSearch")?.addEventListener("input", (event) => {
-  const searchTerm = event.target.value.trim().toLowerCase();
-  const selectedEntity = document.querySelector("#bankrollEntityFilter")?.value || "";
-  document.querySelectorAll(".bankroll-card[data-entity-id]").forEach((card) => {
-    const matchesEntity = !selectedEntity || card.dataset.entityId === selectedEntity;
-    const matchesSearch = !searchTerm || (card.dataset.searchText || "").toLowerCase().includes(searchTerm);
-    card.classList.toggle("is-filtered-out", !(matchesEntity && matchesSearch));
-  });
-});
+document.querySelector("#bankrollEntityFilter")?.addEventListener("change", applyBankrollFilters);
+document.querySelector("#bankrollSearch")?.addEventListener("input", applyBankrollFilters);
+document.querySelector("#hideZeroBalanceBankrolls")?.addEventListener("change", applyBankrollFilters);
 
 document.querySelectorAll(".finance-card-form").forEach((form) => {
   const kindInput = form.querySelector("[data-finance-kind]");

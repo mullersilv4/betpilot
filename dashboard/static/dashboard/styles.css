@@ -2664,7 +2664,7 @@ td strong {
 
 .finance-toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(240px, 1fr) auto auto;
   gap: 12px;
   align-items: center;
   padding-bottom: 16px;
@@ -2712,6 +2712,59 @@ td strong {
 
 .compact-filter select {
   min-height: 40px;
+}
+
+.finance-filter-menu {
+  position: relative;
+  justify-self: end;
+}
+
+.finance-filter-menu summary {
+  list-style: none;
+}
+
+.finance-filter-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.finance-filter-menu[open] summary {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.finance-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 250px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 18px 45px rgb(0 0 0 / 32%);
+}
+
+.finance-check-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.finance-check-option input {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  accent-color: var(--cyan);
+  cursor: pointer;
+}
+
+.finance-check-option span {
+  line-height: 1.25;
 }
 
 .finance-card-grid {
@@ -2926,6 +2979,16 @@ td strong {
 
   .compact-filter {
     min-width: 0;
+  }
+
+  .finance-filter-menu {
+    justify-self: start;
+  }
+
+  .finance-filter-dropdown {
+    left: 0;
+    right: auto;
+    min-width: min(280px, calc(100vw - 48px));
   }
 
   .finance-create-card .form-row {

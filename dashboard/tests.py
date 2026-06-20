@@ -39,6 +39,7 @@ from .result_settlement import apply_settlement
 from .result_settlement import apply_surebet_settlement
 from .result_settlement import resolve_bet_from_event
 from .result_settlement import resolve_surebet_from_event
+from .views import build_surebet_payload
 from .views import parse_import_lines
 
 
@@ -66,6 +67,38 @@ class BetCalculationTests(TestCase):
         self.assertEqual(bet.potential_profit, Decimal('85.50'))
         self.assertEqual(bet.potential_return, Decimal('185.50'))
         self.assertEqual(bet.net_result, Decimal('85.50'))
+
+    def test_odds_boost_increases_only_profit_portion(self):
+        bet = Bet(
+            bankroll=self.bankroll,
+            game='Santos x Bahia',
+            market='Casa vence',
+            odds=Decimal('1.50'),
+            stake=Decimal('100.00'),
+            odds_boost=Decimal('10.00'),
+            status=Bet.Status.WON,
+        )
+
+        self.assertEqual(bet.effective_odds, Decimal('1.55'))
+        self.assertEqual(bet.gross_profit, Decimal('55.00'))
+        self.assertEqual(bet.potential_return, Decimal('155.00'))
+
+    def test_surebet_boost_increases_only_profit_portion(self):
+        outcomes = build_surebet_payload(
+            {
+                'surebet_bookmaker_1': 'Bet365',
+                'surebet_outcome_1': 'Casa vence',
+                'surebet_mode_1': 'back',
+                'surebet_odd_1': '1.50',
+                'surebet_stake_1': '100.00',
+                'surebet_commission_1': '0',
+                'surebet_cashback_1': '0',
+                'surebet_boost_1': '10',
+            }
+        )
+
+        self.assertEqual(outcomes[0]['effective_odd'].quantize(Decimal('0.01')), Decimal('1.55'))
+        self.assertEqual(outcomes[0]['payout_multiplier'].quantize(Decimal('0.01')), Decimal('1.55'))
 
     def test_lost_bet_returns_negative_stake(self):
         bet = Bet(

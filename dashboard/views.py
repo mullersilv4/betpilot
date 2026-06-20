@@ -70,6 +70,7 @@ from .models import PromotionPage
 from .models import RegulatedBookmaker
 from .models import SureBetEntry
 from .models import UserAccess
+from .models import boosted_profit_odds
 from .models import ensure_user_access
 from .models import ensure_user_preference
 from .odds_api import OddsApiClient
@@ -1042,7 +1043,7 @@ def build_surebet_payload(post_data):
         cashback = cashback or Decimal('0.00')
         boost = boost or Decimal('0.00')
         freebet_amount = freebet_amount or Decimal('0.00')
-        effective_odd = odd * (Decimal('1.00') + boost / Decimal('100')) if odd else None
+        effective_odd = boosted_profit_odds(odd, boost) if odd else None
         payout_multiplier = None
         if effective_odd and effective_odd > 1:
             if mode == 'lay':
@@ -1128,7 +1129,7 @@ def build_freebet_extract_payload(post_data, source_freebet=None):
         freebet_amount = freebet_amount or Decimal('0.00')
         if index == 1 and source_amount > 0 and not stake:
             stake = source_amount
-        effective_odd = odd * (Decimal('1.00') + boost / Decimal('100')) if odd else None
+        effective_odd = boosted_profit_odds(odd, boost) if odd else None
         payout_multiplier = None
         if effective_odd and effective_odd > 1:
             if index == 1:

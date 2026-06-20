@@ -10,6 +10,16 @@ MONEY_PLACES = Decimal('0.01')
 TRIAL_DAYS = 7
 
 
+def boosted_profit_odds(odds, boost):
+    if odds is None:
+        return None
+    boost = boost or Decimal('0.00')
+    if boost <= 0:
+        return odds
+    profit_multiplier = odds - Decimal('1.00')
+    return Decimal('1.00') + (profit_multiplier * (Decimal('1.00') + boost / Decimal('100')))
+
+
 class UserAccess(models.Model):
     class Status(models.TextChoices):
         TRIAL = 'trial', 'Teste'
@@ -404,9 +414,7 @@ class Bet(models.Model):
     def effective_odds(self):
         if self.odds_boost <= 0:
             return self.odds
-        return (self.odds * (Decimal('1.00') + (self.odds_boost / Decimal('100')))).quantize(
-            MONEY_PLACES
-        )
+        return boosted_profit_odds(self.odds, self.odds_boost).quantize(MONEY_PLACES)
 
     @property
     def gross_profit(self):

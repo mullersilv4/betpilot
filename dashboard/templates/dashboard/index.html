@@ -800,6 +800,7 @@
             <div class="bet-mode-tabs" role="tablist" aria-label="Tipo de aposta">
               <button class="bet-mode-tab is-active" type="button" data-bet-mode-button="simple">Aposta simples</button>
               <button class="bet-mode-tab" type="button" data-bet-mode-button="surebet">Arbitragem</button>
+              <button class="bet-mode-tab" type="button" data-bet-mode-button="double-protection">Proteção do duplo</button>
               <button class="bet-mode-tab" type="button" data-bet-mode-button="freebet-extract">Extrair freebet</button>
             </div>
 
@@ -1163,6 +1164,157 @@
               </label>
 
               <button class="primary-button" type="submit">Salvar arbitragem</button>
+            </form>
+
+            <form class="bet-form compact-bet-form double-protection-form bet-mode-panel" data-bet-mode-panel="double-protection" method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="form_type" value="double_protection" />
+
+              {% if double_protection_errors %}
+                <div class="form-errors">
+                  {% for error in double_protection_errors %}
+                    <div>{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <div class="form-row">
+                <label>
+                  <span>Entidade</span>
+                  <select name="double_entity" required>
+                    <option value="">Selecione</option>
+                    {% for entity in entities %}
+                      <option value="{{ entity.id }}" {% if double_protection_data.double_entity == entity.id|stringformat:"s" %}selected{% endif %}>
+                        {{ entity.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Casa da proteção</span>
+                  <select name="double_bankroll" data-double-bankroll required>
+                    <option value="">Selecione a casa</option>
+                    {% for bankroll in bankrolls %}
+                      <option value="{{ bankroll.id }}" {% if double_protection_data.double_bankroll == bankroll.id|stringformat:"s" %}selected{% endif %}>
+                        {{ bankroll.display_name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-row mobile-pair">
+                <label>
+                  <span>Esporte</span>
+                  <input type="text" name="double_sport" value="{{ double_protection_data.double_sport|default:'Futebol' }}" placeholder="Ex: Futebol" autocomplete="off" />
+                </label>
+
+                <label>
+                  <span>Competição</span>
+                  <input type="text" name="double_competition" value="{{ double_protection_data.double_competition }}" placeholder="Ex: Brasileirão, NBA, ATP" autocomplete="off" />
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Data da aposta</span>
+                  <input type="date" name="double_event_date" value="{{ double_protection_data.double_event_date }}" data-event-date-input />
+                </label>
+              </div>
+
+              <label>
+                <span>Jogo</span>
+                <input
+                  type="text"
+                  name="double_game"
+                  value="{{ double_protection_data.double_game }}"
+                  placeholder="Ex: Palmeiras x Flamengo"
+                  autocomplete="off"
+                  data-event-game-input
+                />
+                <input type="hidden" name="double_external_event_id" value="{{ double_protection_data.double_external_event_id }}" data-event-id-input />
+                <input type="hidden" name="double_external_sport_key" value="{{ double_protection_data.double_external_sport_key }}" data-event-sport-key-input />
+                <input type="hidden" name="double_home_team" value="{{ double_protection_data.double_home_team }}" data-event-home-team-input />
+                <input type="hidden" name="double_away_team" value="{{ double_protection_data.double_away_team }}" data-event-away-team-input />
+                <div
+                  class="event-autocomplete"
+                  data-event-autocomplete
+                  data-url="{% url 'dashboard:event_autocomplete' %}"
+                  hidden
+                ></div>
+              </label>
+
+              <div class="form-row">
+                <label>
+                  <span>Ganho já pago</span>
+                  <input type="number" name="double_early_profit" value="{{ double_protection_data.double_early_profit }}" step="0.01" min="0" placeholder="Ex: 120.00" />
+                </label>
+
+                <label>
+                  <span>Ganho possível no empate/virada</span>
+                  <input type="number" name="double_second_chance_profit" value="{{ double_protection_data.double_second_chance_profit }}" step="0.01" min="0.01" placeholder="Ex: 80.00" />
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
+                  <span>Odd atual do time 1</span>
+                  <input type="number" name="double_live_odd" value="{{ double_protection_data.double_live_odd }}" step="0.01" min="1.01" placeholder="Ex: 1.35" />
+                </label>
+
+                <label>
+                  <span>Comissão (%)</span>
+                  <input type="number" name="double_commission" value="{{ double_protection_data.double_commission|default:'0' }}" step="0.01" min="0" max="100" placeholder="Ex: 0" />
+                </label>
+              </div>
+
+              <div class="calculation-preview surebet-preview" aria-live="polite">
+                <div>
+                  <span>Nova aposta</span>
+                  <strong id="doubleStake">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Time 1 confirma</span>
+                  <strong id="doubleTeamOneNet">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Empate / virada</span>
+                  <strong id="doubleSecondNet">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span>Pior cenário</span>
+                  <strong id="doubleWorst">R$ 0,00</strong>
+                </div>
+              </div>
+
+              <div class="surebet-result-table" id="doubleScenarioTable">
+                <div class="surebet-result-head">
+                  <span>Cenário</span>
+                  <span>Casa</span>
+                  <span>Odd</span>
+                  <span>Respons.</span>
+                  <span>Retorno</span>
+                  <span>Cashback</span>
+                  <span>Ganha / perde</span>
+                </div>
+                <div class="surebet-result-row">
+                  <span>-</span>
+                  <span>-</span>
+                  <span>-</span>
+                  <span>R$ 0,00</span>
+                  <span>R$ 0,00</span>
+                  <span>R$ 0,00</span>
+                  <strong>R$ 0,00</strong>
+                </div>
+              </div>
+
+              <label>
+                <span>Observações</span>
+                <textarea name="double_notes" rows="3" placeholder="Contexto do 2x0, casas envolvidas, leitura ao vivo...">{{ double_protection_data.double_notes }}</textarea>
+              </label>
+
+              <button class="primary-button" type="submit">Salvar proteção do duplo</button>
             </form>
 
             <form class="bet-form compact-bet-form manual-freebet-form bet-mode-panel" data-bet-mode-panel="freebet-extract" method="post" novalidate>

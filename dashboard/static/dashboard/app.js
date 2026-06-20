@@ -1704,6 +1704,66 @@ function updateFreebetExtractionPreview() {
   `;
 }
 
+function updateDoubleProtectionPreview() {
+  if (!document.querySelector(".double-protection-form")) return;
+  const earlyProfit = readNumber(document.querySelector('[name="double_early_profit"]'));
+  const secondChanceProfit = readNumber(document.querySelector('[name="double_second_chance_profit"]'));
+  const liveOdd = readNumber(document.querySelector('[name="double_live_odd"]'));
+  const commission = readNumber(document.querySelector('[name="double_commission"]'));
+  const payoutMultiplier = liveOdd > 1 ? 1 + (liveOdd - 1) * (1 - commission / 100) : 0;
+  const stake = secondChanceProfit > 0 && payoutMultiplier > 0 ? secondChanceProfit / payoutMultiplier : 0;
+  const returnAmount = stake * payoutMultiplier;
+  const teamOneNet = earlyProfit + returnAmount - stake;
+  const secondNet = earlyProfit + secondChanceProfit - stake;
+  const worst = Math.min(teamOneNet, secondNet);
+  const bookmaker = selectedBankrollText("double_bankroll");
+  const values = {
+    "#doubleStake": stake,
+    "#doubleTeamOneNet": teamOneNet,
+    "#doubleSecondNet": secondNet,
+    "#doubleWorst": worst,
+  };
+
+  Object.entries(values).forEach(([selector, value]) => {
+    const output = document.querySelector(selector);
+    if (!output) return;
+    output.textContent = formatCurrency(value);
+    output.className = value >= 0 ? "positive" : "negative";
+  });
+
+  const table = document.querySelector("#doubleScenarioTable");
+  if (!table) return;
+  table.innerHTML = `
+    <div class="surebet-result-head">
+      <span>Cenário</span>
+      <span>Casa</span>
+      <span>Odd</span>
+      <span>Respons.</span>
+      <span>Retorno</span>
+      <span>Cashback</span>
+      <span>Ganha / perde</span>
+    </div>
+    <div class="surebet-result-row">
+      <span>Time 1 confirma</span>
+      <span>${escapeHtml(bookmaker)}</span>
+      <span>${liveOdd > 0 ? liveOdd.toFixed(2) : "-"}</span>
+      <span>${formatCurrency(stake)}</span>
+      <span>${formatCurrency(returnAmount)}</span>
+      <span>${formatCurrency(0)}</span>
+      <strong class="${teamOneNet >= 0 ? "positive" : "negative"}">${formatCurrency(teamOneNet)}</strong>
+    </div>
+    <div class="surebet-result-row">
+      <span>Empate / virada</span>
+      <span>Cenário protegido</span>
+      <span>-</span>
+      <span>${formatCurrency(stake)}</span>
+      <span>${formatCurrency(earlyProfit + secondChanceProfit)}</span>
+      <span>${formatCurrency(0)}</span>
+      <strong class="${secondNet >= 0 ? "positive" : "negative"}">${formatCurrency(secondNet)}</strong>
+    </div>
+  `;
+}
+
 function createFreebetEntry(index) {
   const group = document.createElement("div");
   group.className = "surebet-entry-group";
@@ -1829,6 +1889,9 @@ document.querySelector(".surebet-form")?.addEventListener("click", (event) => {
   }
 });
 
+document.querySelector(".double-protection-form")?.addEventListener("input", updateDoubleProtectionPreview);
+document.querySelector(".double-protection-form")?.addEventListener("change", updateDoubleProtectionPreview);
+
 document.querySelector(".freebet-extraction-form")?.addEventListener("input", (event) => {
   if (event.target.classList.contains("surebet-stake")) {
     event.target.dataset.manualStake = "true";
@@ -1897,6 +1960,10 @@ if (document.querySelector('[data-bet-mode-panel="surebet"] .form-errors')) {
   setBetMode("surebet");
 }
 
+if (document.querySelector('[data-bet-mode-panel="double-protection"] .form-errors')) {
+  setBetMode("double-protection");
+}
+
 if (document.querySelector('[data-bet-mode-panel="freebet-extract"] .form-errors')) {
   setBetMode("freebet-extract");
 }
@@ -1908,6 +1975,7 @@ if (document.querySelector('[data-bet-mode-panel="freebet-extract"] .form-errors
 
 updateBetPreview();
 updateSurebetPreview();
+updateDoubleProtectionPreview();
 updateFreebetExtractionPreview();
 applyUserCurrencyPreference();
 translateInterface();

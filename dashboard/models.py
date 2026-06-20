@@ -341,6 +341,7 @@ class Bet(models.Model):
         null=True,
         blank=True,
     )
+    settled_at = models.DateTimeField('finalizada em', null=True, blank=True)
     created_at = models.DateTimeField('criada em', default=timezone.now)
 
     class Meta:
@@ -350,6 +351,16 @@ class Bet(models.Model):
 
     def __str__(self):
         return f'{self.game} - {self.market}'
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        if self.status == self.Status.OPEN:
+            self.settled_at = None
+        elif self.settled_at is None:
+            self.settled_at = self.created_at if self._state.adding else timezone.now()
+        if update_fields is not None and 'status' in update_fields:
+            kwargs['update_fields'] = set(update_fields) | {'settled_at'}
+        super().save(*args, **kwargs)
 
     @property
     def display_market(self):
@@ -365,7 +376,18 @@ class Bet(models.Model):
 
     @property
     def is_protection(self):
-        return self.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet'}
+        return self.strategy in {'Surebet', 'Proteção', 'Arbitragem', 'Extração de freebet', 'Proteção do duplo'}
+
+    @property
+    def accounting_at(self):
+        if self.strategy == 'Extração de freebet':
+            try:
+                source_bet = self.extracted_freebet.source_bet
+            except FreeBet.DoesNotExist:
+                source_bet = None
+            if source_bet is not None:
+                return source_bet.settled_at or source_bet.created_at
+        return self.settled_at or self.created_at
 
     @property
     def simple_freebet_amount(self):
@@ -1133,9 +1155,8 @@ class Bankroll(models.Model):
         return sum(
             (
                 bet.net_result
-                for bet in self.bets.filter(
-                    created_at__gte=start,
-                ).exclude(status=Bet.Status.OPEN)
+                for bet in self.bets.exclude(status=Bet.Status.OPEN)
+                if bet.accounting_at >= start
             ),
             start=Decimal('0.00'),
         ).quantize(MONEY_PLACES)
@@ -1252,11 +1273,17 @@ class MonthlyGoal(models.Model):
 
     @property
     def settled_bets(self):
-        return Bet.objects.filter(
+        bets = Bet.objects.filter(
             Q(entity=self.entity) | Q(bankroll__entity=self.entity),
-            created_at__gte=self.month_start,
-            created_at__lt=self.next_month_start,
-        ).exclude(status=Bet.Status.OPEN).distinct()
+        ).exclude(status=Bet.Status.OPEN).select_related(
+            'extracted_freebet',
+            'extracted_freebet__source_bet',
+        ).distinct()
+        return [
+            bet
+            for bet in bets
+            if self.month_start <= bet.accounting_at < self.next_month_start
+        ]
 
     @property
     def profit(self):
@@ -1268,7 +1295,7 @@ class MonthlyGoal(models.Model):
 
     @property
     def volume(self):
-        return self.settled_bets.count()
+        return len(self.settled_bets)
 
     @property
     def roi(self):

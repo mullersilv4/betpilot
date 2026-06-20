@@ -466,6 +466,50 @@ class AnalyticsTests(TestCase):
         self.assertEqual(days[0]['count'], 2)
         self.assertEqual(days[0]['tone'], 'positive')
 
+    def test_freebet_extraction_uses_source_bet_settlement_day(self):
+        source_day = timezone.localtime().replace(day=7, hour=18, minute=0, second=0, microsecond=0)
+        extraction_day = timezone.localtime().replace(day=20, hour=12, minute=0, second=0, microsecond=0)
+        source_bet = Bet.objects.create(
+            bankroll=self.bankroll,
+            game='Time A x Time B',
+            market='Promo',
+            odds=Decimal('2.00'),
+            stake=Decimal('50.00'),
+            status=Bet.Status.WON,
+            settled_at=source_day,
+            created_at=source_day - timezone.timedelta(days=1),
+        )
+        extraction_bet = Bet.objects.create(
+            bankroll=self.bankroll,
+            game='Time C x Time D',
+            market='Extração freebet',
+            strategy='Extração de freebet',
+            odds=Decimal('1.50'),
+            stake=Decimal('100.00'),
+            status=Bet.Status.WON,
+            actual_net_result=Decimal('30.00'),
+            created_at=extraction_day,
+        )
+        FreeBet.objects.create(
+            source_bet=source_bet,
+            extraction_bet=extraction_bet,
+            bookmaker='Casa teste',
+            amount=Decimal('25.00'),
+            is_used=True,
+        )
+
+        calendar = build_month_calendar(Bet.objects.select_related(
+            'extracted_freebet',
+            'extracted_freebet__source_bet',
+        ), source_day.date())
+        day_7 = [day for week in calendar['weeks'] for day in week if day.get('day') == 7][0]
+        day_20 = [day for week in calendar['weeks'] for day in week if day.get('day') == 20][0]
+
+        self.assertEqual(day_7['profit'], Decimal('80.00'))
+        self.assertEqual(day_7['count'], 2)
+        self.assertEqual(day_20['profit'], Decimal('0.00'))
+        self.assertEqual(day_20['count'], 0)
+
 
 class BankrollTransactionFormTests(TestCase):
     def setUp(self):

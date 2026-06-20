@@ -17,6 +17,10 @@ def settled_bets(bets):
     return [bet for bet in bets if bet.status != Bet.Status.OPEN]
 
 
+def bet_accounting_at(bet):
+    return bet.accounting_at
+
+
 def period_start(days=None, month=False, reference_date=None):
     now = reference_date or timezone.localtime()
     if month:
@@ -30,7 +34,7 @@ def result_for_period(bets, start):
     period_bets = [
         bet
         for bet in settled_bets(bets)
-        if timezone.localtime(bet.created_at) >= start
+        if timezone.localtime(bet_accounting_at(bet)) >= start
     ]
     profit = sum((bet.net_result for bet in period_bets), start=Decimal('0.00'))
     stake = sum((bet.stake for bet in period_bets), start=Decimal('0.00'))
@@ -69,7 +73,7 @@ def grouped_roi(bets, key_func):
 def equity_curve(bets, initial_balance):
     values = [float(initial_balance)]
     running_total = Decimal(initial_balance)
-    for bet in sorted(settled_bets(bets), key=lambda item: item.created_at):
+    for bet in sorted(settled_bets(bets), key=bet_accounting_at):
         running_total += bet.net_result
         values.append(float(running_total))
     return values
@@ -86,7 +90,7 @@ def max_drawdown(values):
 
 
 def current_streak(bets):
-    ordered = sorted(settled_bets(bets), key=lambda item: item.created_at, reverse=True)
+    ordered = sorted(settled_bets(bets), key=bet_accounting_at, reverse=True)
     if not ordered:
         return {'label': 'Sem sequência', 'count': 0, 'kind': 'neutral'}
 
@@ -112,7 +116,7 @@ def build_month_calendar(bets, reference_date=None):
 
     daily_results = defaultdict(lambda: {'profit': Decimal('0.00'), 'count': 0})
     for bet in settled_bets(bets):
-        bet_date = timezone.localtime(bet.created_at).date()
+        bet_date = timezone.localtime(bet_accounting_at(bet)).date()
         if bet_date.year == current_date.year and bet_date.month == current_date.month:
             daily_results[bet_date]['profit'] += bet.net_result
             daily_results[bet_date]['count'] += 1
@@ -166,7 +170,7 @@ def period_chart_for_month(bets, reference_date):
     _, days_in_month = monthrange(current_date.year, current_date.month)
     monthly_results = defaultdict(Decimal)
     for bet in settled_bets(bets):
-        bet_date = timezone.localtime(bet.created_at).date()
+        bet_date = timezone.localtime(bet_accounting_at(bet)).date()
         if bet_date.year == current_date.year and bet_date.month == current_date.month:
             monthly_results[bet_date.day] += bet.net_result
 

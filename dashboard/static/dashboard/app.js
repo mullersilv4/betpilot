@@ -713,6 +713,8 @@ function enhanceResponsiveTables() {
 function updateBetPreview() {
   if (!document.querySelector("#previewProfit")) return;
   const odds = Number.parseFloat(document.querySelector("#id_odds")?.value || 0);
+  const boost = Number.parseFloat(document.querySelector("#id_odds_boost")?.value || 0);
+  const effectiveOdds = odds > 0 ? odds * (1 + boost / 100) : 0;
   const stakeInput = document.querySelector("#id_stake");
   const stake = Number.parseFloat(stakeInput?.value || 0);
   const freebetSelect = document.querySelector("[data-simple-freebet-select]");
@@ -728,7 +730,7 @@ function updateBetPreview() {
   }
 
   const effectiveStake = usesFreebet ? freebetAmount : stake;
-  const grossProfit = odds > 1 && effectiveStake > 0 ? effectiveStake * (odds - 1) : 0;
+  const grossProfit = effectiveOdds > 1 && effectiveStake > 0 ? effectiveStake * (effectiveOdds - 1) : 0;
   const commission = grossProfit * (commissionPercentage / 100);
   const netProfit = grossProfit - commission;
   const totalReturn = usesFreebet ? netProfit : effectiveStake + netProfit;
@@ -1899,7 +1901,7 @@ if (document.querySelector('[data-bet-mode-panel="freebet-extract"] .form-errors
   setBetMode("freebet-extract");
 }
 
-["#id_bankroll", "#id_odds", "#id_stake", "#id_exchange_commission", "[data-simple-freebet-select]"].forEach((selector) => {
+["#id_bankroll", "#id_odds", "#id_odds_boost", "#id_stake", "#id_exchange_commission", "[data-simple-freebet-select]"].forEach((selector) => {
   document.querySelector(selector)?.addEventListener("input", updateBetPreview);
   document.querySelector(selector)?.addEventListener("change", updateBetPreview);
 });

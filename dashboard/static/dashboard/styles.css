@@ -985,6 +985,44 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.history-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(118px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  justify-content: end;
+  max-width: 430px;
+}
+
+.history-summary div {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.history-summary span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.history-summary strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
 .compact-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1619,7 +1657,7 @@ textarea {
 
 .filter-form {
   display: grid;
-  grid-template-columns: repeat(7, minmax(120px, 1fr)) auto auto;
+  grid-template-columns: minmax(132px, 1fr) minmax(132px, 0.95fr) minmax(132px, 0.95fr) minmax(132px, 1fr) minmax(132px, 1fr) minmax(132px, 1fr) minmax(150px, 0.95fr) auto;
   gap: 10px;
   align-items: end;
   margin-top: 14px;
@@ -1634,6 +1672,18 @@ textarea {
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 600;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 152px;
+}
+
+.filter-actions .ghost-button {
+  min-height: 39px;
 }
 
 canvas {
@@ -3276,6 +3326,16 @@ th {
     flex-direction: column;
   }
 
+  .history-summary {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .history-summary div {
+    min-width: 0;
+    text-align: left;
+  }
+
   .calendar-summary {
     text-align: left;
   }
@@ -3363,7 +3423,8 @@ th {
   }
 
   .filter-form .history-filter-bankroll,
-  .filter-form .history-filter-search {
+  .filter-form .history-filter-search,
+  .filter-actions {
     grid-column: 1 / -1;
   }
 
@@ -3371,8 +3432,13 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .filter-form button,
-  .filter-form a {
+  .filter-actions {
+    min-width: 0;
+    justify-content: stretch;
+  }
+
+  .filter-actions button,
+  .filter-actions a {
     width: 100%;
   }
 

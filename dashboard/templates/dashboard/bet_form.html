@@ -117,6 +117,14 @@
               {{ form.exchange_commission }}
               {{ form.exchange_commission.errors }}
             </label>
+            <label>
+              <span>Aumento (%)</span>
+              {{ form.odds_boost }}
+              {{ form.odds_boost.errors }}
+            </label>
+          </div>
+
+          <div class="form-row">
             {% if form.status %}
               <label>
                 <span>Resultado</span>

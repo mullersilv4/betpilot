@@ -319,6 +319,12 @@ class Bet(models.Model):
         decimal_places=2,
         default=Decimal('0.00'),
     )
+    odds_boost = models.DecimalField(
+        'aumento (%)',
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
     status = models.CharField(
         'resultado',
         max_length=8,
@@ -373,8 +379,16 @@ class Bet(models.Model):
         return self.simple_freebet_amount > 0
 
     @property
+    def effective_odds(self):
+        if self.odds_boost <= 0:
+            return self.odds
+        return (self.odds * (Decimal('1.00') + (self.odds_boost / Decimal('100')))).quantize(
+            MONEY_PLACES
+        )
+
+    @property
     def gross_profit(self):
-        return (self.stake * (self.odds - Decimal('1.00'))).quantize(MONEY_PLACES)
+        return (self.stake * (self.effective_odds - Decimal('1.00'))).quantize(MONEY_PLACES)
 
     @property
     def commission_amount(self):
@@ -408,6 +422,8 @@ class Bet(models.Model):
     @property
     def display_odds(self):
         if not self.is_protection:
+            if self.odds_boost > 0:
+                return f'{self.odds:.2f} + {self.odds_boost:.2f}%'
             return f'{self.odds:.2f}'
         entries = list(self.surebet_entries.all())
         if not entries:

@@ -203,6 +203,7 @@ class BetForm(forms.ModelForm):
             'odds',
             'stake',
             'exchange_commission',
+            'odds_boost',
             'status',
             'exact_score',
             'game_link',
@@ -250,6 +251,9 @@ class BetForm(forms.ModelForm):
             'stake': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01'}),
             'exchange_commission': forms.NumberInput(
                 attrs={'step': '0.01', 'min': '0', 'max': '100'}
+            ),
+            'odds_boost': forms.NumberInput(
+                attrs={'step': '0.01', 'min': '0', 'max': '100', 'placeholder': 'Ex: 10'}
             ),
             'status': forms.Select(),
             'exact_score': forms.TextInput(
@@ -311,6 +315,12 @@ class BetForm(forms.ModelForm):
         if commission < 0 or commission > 100:
             raise forms.ValidationError('Informe uma porcentagem entre 0 e 100.')
         return commission
+
+    def clean_odds_boost(self):
+        boost = self.cleaned_data['odds_boost']
+        if boost < 0 or boost > 100:
+            raise forms.ValidationError('Informe uma porcentagem entre 0 e 100.')
+        return boost
 
 
 class BankrollTransactionForm(forms.ModelForm):

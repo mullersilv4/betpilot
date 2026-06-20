@@ -921,6 +921,14 @@
                 </label>
 
                 <label>
+                  <span>Aumento (%)</span>
+                  {{ form.odds_boost }}
+                  {{ form.odds_boost.errors }}
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label>
                   <span>Resultado</span>
                   {{ form.status }}
                   {{ form.status.errors }}
@@ -2113,6 +2121,24 @@
                 <p class="eyebrow">Histórico</p>
                 <h2>Apostas recentes</h2>
               </div>
+              <div class="history-summary" aria-label="Resumo dos filtros aplicados">
+                <div>
+                  <span>Apostado</span>
+                  <strong>R$ {{ history_summary.total_stake|floatformat:2 }}</strong>
+                </div>
+                <div>
+                  <span>Lucro / Perda</span>
+                  <strong class="{% if history_summary.net_profit > 0 %}positive{% elif history_summary.net_profit < 0 %}negative{% endif %}">
+                    R$ {{ history_summary.net_profit|floatformat:2 }}
+                  </strong>
+                </div>
+                <div>
+                  <span>ROI</span>
+                  <strong class="{% if history_summary.roi > 0 %}positive{% elif history_summary.roi < 0 %}negative{% endif %}">
+                    {{ history_summary.roi|floatformat:2 }}%
+                  </strong>
+                </div>
+              </div>
             </div>
 
             <details class="settings-disclosure history-filters">
@@ -2146,8 +2172,10 @@
                   <span>Data</span>
                   {{ filter_form.event_date }}
                 </label>
-                <button class="ghost-button compact" type="submit">Filtrar</button>
-                <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Limpar</a>
+                <div class="filter-actions">
+                  <button class="ghost-button compact" type="submit">Filtrar</button>
+                  <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Limpar</a>
+                </div>
               </form>
             </details>
 

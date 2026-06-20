@@ -84,6 +84,7 @@ class BetAdmin(admin.ModelAdmin):
         'market',
         'entry_type',
         'odds',
+        'odds_boost',
         'stake',
         'exchange_commission',
         'status',

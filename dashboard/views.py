@@ -471,6 +471,13 @@ def build_dashboard_context(request, **forms):
     ]
     filter_form = forms.get('filter_form') or BetFilterForm(request.GET or None, user=request.user)
     bets = apply_bet_filters(all_bets, filter_form)
+    history_bets = list(bets)
+    history_total_stake = sum((bet.stake for bet in history_bets), start=Decimal('0.00'))
+    history_net_profit = sum((bet.net_result for bet in history_bets), start=Decimal('0.00'))
+    history_roi = (
+        (history_net_profit / history_total_stake * Decimal('100'))
+        if history_total_stake else Decimal('0.00')
+    )
 
     settled_bets = [bet for bet in dashboard_bets if bet.status != Bet.Status.OPEN]
     total_stake = sum((bet.stake for bet in dashboard_bets), start=Decimal('0.00'))
@@ -645,7 +652,13 @@ def build_dashboard_context(request, **forms):
         'primary_bank_account': primary_bank_account,
         'bank_account_summaries': bank_account_summaries,
         'entities': entities,
-        'bets': bets[:30],
+        'bets': history_bets[:30],
+        'history_summary': {
+            'total_stake': history_total_stake,
+            'net_profit': history_net_profit,
+            'roi': history_roi,
+            'count': len(history_bets),
+        },
         'latest_transactions': latest_transactions,
         'monthly_goals': MonthlyGoal.objects.filter(entity__owner=request.user).select_related('entity')[:12],
         'dashboard_filter': dashboard_filter,

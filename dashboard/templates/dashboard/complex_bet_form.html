@@ -15,12 +15,13 @@
             <p class="eyebrow">Edição</p>
             <h1>Editar {% if is_freebet_edit %}extração de freebet{% else %}arbitragem{% endif %}</h1>
           </div>
-          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Voltar</a>
+          <a class="ghost-button compact link-button subtle-link" href="{{ history_return_url|default:'#bets' }}">Voltar</a>
         </div>
 
         {% if is_freebet_edit %}
           <form class="bet-form freebet-extraction-form is-active" method="post" novalidate>
             {% csrf_token %}
+            <input type="hidden" name="next" value="{{ history_return_url }}" />
 
             {% if errors %}
               <div class="form-errors">
@@ -188,6 +189,7 @@
         {% else %}
           <form class="bet-form surebet-form is-active" method="post" novalidate>
             {% csrf_token %}
+            <input type="hidden" name="next" value="{{ history_return_url }}" />
 
             {% if errors %}
               <div class="form-errors">

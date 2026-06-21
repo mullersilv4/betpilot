@@ -16,7 +16,7 @@
             <h1>Escolher casas vencedoras</h1>
             <p class="muted-copy">{{ bet.game }} | responsabilidade R$ {{ bet.stake|floatformat:2 }}</p>
           </div>
-          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Voltar</a>
+          <a class="ghost-button compact link-button subtle-link" href="{{ history_return_url|default:'#bets' }}">Voltar</a>
         </div>
 
         {% if messages %}
@@ -29,6 +29,7 @@
 
         <form class="bet-form" method="post" novalidate>
           {% csrf_token %}
+          <input type="hidden" name="next" value="{{ history_return_url }}" />
 
           <div class="settle-surebet-list">
             {% for entry in entries %}

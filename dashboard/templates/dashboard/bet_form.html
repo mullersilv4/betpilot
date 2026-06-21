@@ -15,11 +15,12 @@
             <p class="eyebrow">Edição</p>
             <h1>Editar aposta</h1>
           </div>
-          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:index' %}#bets">Voltar</a>
+          <a class="ghost-button compact link-button subtle-link" href="{{ history_return_url|default:'#bets' }}">Voltar</a>
         </div>
 
         <form class="bet-form" method="post" novalidate>
           {% csrf_token %}
+          <input type="hidden" name="next" value="{{ history_return_url }}" />
 
           {% if form.non_field_errors %}
             <div class="form-errors">{{ form.non_field_errors }}</div>

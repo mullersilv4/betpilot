@@ -163,6 +163,38 @@ class BetCalculationTests(TestCase):
         self.assertEqual(self.bankroll.current_balance, Decimal('900.00'))
 
 
+class HistoryFilterRedirectTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='owner', password='StrongPass123!')
+        self.bankroll = Bankroll.objects.create(
+            owner=self.user,
+            name='Banca principal',
+            bookmaker='Betfair',
+            initial_balance=Decimal('1000.00'),
+        )
+        self.bet = Bet.objects.create(
+            bankroll=self.bankroll,
+            game='Palmeiras x Flamengo',
+            market='Over 2.5 gols',
+            odds=Decimal('1.90'),
+            stake=Decimal('100.00'),
+            status=Bet.Status.OPEN,
+        )
+
+    def test_settle_bet_keeps_history_filter_redirect(self):
+        self.client.login(username='owner', password='StrongPass123!')
+        next_url = '/?status=open#bets'
+
+        response = self.client.post(
+            reverse('dashboard:settle_bet', args=[self.bet.pk, Bet.Status.WON]),
+            {'next': next_url},
+        )
+
+        self.assertRedirects(response, next_url, fetch_redirect_response=False)
+        self.bet.refresh_from_db()
+        self.assertEqual(self.bet.status, Bet.Status.WON)
+
+
 class BetFormTests(TestCase):
     def setUp(self):
         self.bankroll = Bankroll.objects.create(

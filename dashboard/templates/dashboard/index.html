@@ -2311,7 +2311,7 @@
 
             <details class="settings-disclosure history-filters">
               <summary>Filtros</summary>
-              <form class="filter-form" method="get">
+              <form class="filter-form" method="get" action="{% url 'dashboard:index' %}#bets">
                 <label class="history-filter-bankroll">
                   <span>Banca</span>
                   {{ filter_form.bankroll }}
@@ -2379,21 +2379,24 @@
                       </td>
                       <td>
                         <div class="table-actions">
-                          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' bet.pk %}">Editar</a>
+                          <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' bet.pk %}?next={{ history_return_url|urlencode }}">Editar</a>
                           {% if bet.status == 'open' %}
                             {% if bet.strategy == 'Surebet' or bet.strategy == 'Proteção' or bet.strategy == 'Arbitragem' or bet.strategy == 'Extração de freebet' %}
-                              <a class="mini-button won link-button" href="{% url 'dashboard:settle_surebet' bet.pk %}">Finalizar arbitragem</a>
+                              <a class="mini-button won link-button" href="{% url 'dashboard:settle_surebet' bet.pk %}?next={{ history_return_url|urlencode }}">Finalizar arbitragem</a>
                             {% else %}
                               <form method="post" action="{% url 'dashboard:settle_bet' bet.pk 'won' %}">
                                 {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ history_return_url }}" />
                                 <button class="mini-button won" type="submit">Ganha</button>
                               </form>
                               <form method="post" action="{% url 'dashboard:settle_bet' bet.pk 'lost' %}">
                                 {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ history_return_url }}" />
                                 <button class="mini-button lost" type="submit">Perdida</button>
                               </form>
                               <form class="cashout-form" method="post" action="{% url 'dashboard:cashout_bet' bet.pk %}">
                                 {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ history_return_url }}" />
                                 <input type="number" name="cashout_result" step="0.01" placeholder="Valor" aria-label="Lucro ou prejuízo do cash out" required />
                                 <button class="mini-button cashout" type="submit">Cash out</button>
                               </form>
@@ -2401,6 +2404,7 @@
                           {% endif %}
                           <form method="post" action="{% url 'dashboard:delete_bet' bet.pk %}">
                             {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ history_return_url }}" />
                             <button class="mini-button danger" type="submit">Excluir</button>
                           </form>
                         </div>
@@ -2456,6 +2460,7 @@
                     <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}?freebet_source={{ freebet.id }}#new-bet">Extrair freebet</a>
                     <form method="post" action="{% url 'dashboard:delete_freebet' freebet.pk %}" onsubmit="return confirm('Excluir esta freebet cadastrada?');">
                       {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ history_return_url }}" />
                       <button class="ghost-button compact link-button danger-link" type="submit">Excluir</button>
                     </form>
                   </div>

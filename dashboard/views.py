@@ -21,6 +21,7 @@ from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.dateparse import parse_datetime
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
@@ -235,7 +236,23 @@ def read_mercado_pago_notification(request):
     return topic, payment_id, payload
 
 
-def redirect_to_history():
+def history_return_url(request):
+    fallback = f'{reverse("dashboard:index")}#bets'
+    raw_next = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if raw_next and url_has_allowed_host_and_scheme(
+        raw_next,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return raw_next
+    if request.resolver_match and request.resolver_match.url_name == 'index':
+        return f'{request.get_full_path()}#bets'
+    return fallback
+
+
+def redirect_to_history(request=None):
+    if request is not None:
+        return redirect(history_return_url(request))
     return redirect(f'{reverse("dashboard:index")}#bets')
 
 
@@ -672,6 +689,7 @@ def build_dashboard_context(request, **forms):
             'roi': history_roi,
             'count': len(history_bets),
         },
+        'history_return_url': history_return_url(request),
         'latest_transactions': latest_transactions,
         'monthly_goals': MonthlyGoal.objects.filter(entity__owner=request.user).select_related('entity')[:12],
         'dashboard_filter': dashboard_filter,
@@ -2845,7 +2863,7 @@ def edit_bet(request, pk):
                                 request.user,
                             )
                     messages.success(request, 'Extração de freebet atualizada.')
-                    return redirect(f'{reverse("dashboard:index")}#bets')
+                    return redirect_to_history(request)
                 rows = build_freebet_extract_rows(request.POST)
                 data = request.POST
             else:
@@ -2933,7 +2951,7 @@ def edit_bet(request, pk):
                                 request.user,
                             )
                     messages.success(request, 'Arbitragem atualizada.')
-                    return redirect(f'{reverse("dashboard:index")}#bets')
+                    return redirect_to_history(request)
                 rows = build_surebet_rows(request.POST)
                 data = request.POST
         else:
@@ -2956,6 +2974,7 @@ def edit_bet(request, pk):
             'surebet_data': data if not is_freebet_edit else {},
             'surebet_rows': rows if not is_freebet_edit else [],
             'entries': bet.surebet_entries.select_related('bankroll').all(),
+            'history_return_url': history_return_url(request),
         }
         return render(request, 'dashboard/complex_bet_form.html', context)
 
@@ -2966,11 +2985,15 @@ def edit_bet(request, pk):
                 bet = form.save()
                 sync_simple_bet_freebet(bet, form.cleaned_data.get('freebet_source'))
             messages.success(request, 'Aposta atualizada.')
-            return redirect('dashboard:index')
+            return redirect_to_history(request)
     else:
         form = BetForm(instance=bet, user=request.user)
 
-    return render(request, 'dashboard/bet_form.html', {'form': form, 'bet': bet})
+    return render(
+        request,
+        'dashboard/bet_form.html',
+        {'form': form, 'bet': bet, 'history_return_url': history_return_url(request)},
+    )
 
 
 @login_required
@@ -3115,7 +3138,7 @@ def settle_bet(request, pk, status):
         else:
             bet.save(update_fields=['status'])
         messages.success(request, 'Status da aposta atualizado.')
-    return redirect_to_history()
+    return redirect_to_history(request)
 
 
 @login_required
@@ -3129,7 +3152,7 @@ def cashout_bet(request, pk):
         cashout_result = decimal_from_post(request.POST, 'cashout_result', default='')
         if cashout_result is None:
             messages.error(request, 'Informe um valor válido para o lucro ou prejuízo do cash out.')
-            return redirect_to_history()
+            return redirect_to_history(request)
 
         cashout_result = cashout_result.quantize(Decimal('0.01'))
         bet.status = Bet.Status.WON if cashout_result >= 0 else Bet.Status.LOST
@@ -3138,7 +3161,7 @@ def cashout_bet(request, pk):
         bet.save(update_fields=['status', 'actual_net_result', 'exact_score'])
         messages.success(request, 'Cash out registrado com sucesso.')
 
-    return redirect_to_history()
+    return redirect_to_history(request)
 
 
 @login_required
@@ -3158,18 +3181,18 @@ def settle_surebet(request, pk):
             return render(
                 request,
                 'dashboard/surebet_settle.html',
-                {'bet': bet, 'entries': entries},
+                {'bet': bet, 'entries': entries, 'history_return_url': history_return_url(request)},
             )
 
         apply_manual_protection_winners(bet, entries, winners, request.user)
 
         messages.success(request, 'Arbitragem finalizada com o resultado das casas vencedoras.')
-        return redirect_to_history()
+        return redirect_to_history(request)
 
     return render(
         request,
         'dashboard/surebet_settle.html',
-        {'bet': bet, 'entries': entries},
+        {'bet': bet, 'entries': entries, 'history_return_url': history_return_url(request)},
     )
 
 
@@ -3181,7 +3204,7 @@ def delete_bet(request, pk):
             sync_simple_bet_freebet(bet, None)
             bet.delete()
         messages.success(request, 'Aposta excluída.')
-    return redirect_to_history()
+    return redirect_to_history(request)
 
 
 @login_required
@@ -3208,7 +3231,7 @@ def delete_freebet(request, pk):
             description = f'{freebet.bookmaker} - {format_money(freebet.amount)}'
             freebet.delete()
             messages.success(request, f'Freebet {description} excluida.')
-    return redirect(f'{reverse("dashboard:index")}#bets')
+    return redirect_to_history(request)
 
 
 @login_required

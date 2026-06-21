@@ -1,5 +1,7 @@
 from decimal import Decimal
 from datetime import timedelta
+import hashlib
+import hmac
 import json
 from unittest.mock import patch
 from django.core import mail
@@ -1801,7 +1803,11 @@ class AuthenticationTests(TestCase):
         self.assertTrue(payload['filter_note'])
 
 
-@override_settings(MERCADO_PAGO_ACCESS_TOKEN='TEST-access-token', MERCADO_PAGO_ENVIRONMENT='sandbox')
+@override_settings(
+    MERCADO_PAGO_ACCESS_TOKEN='TEST-access-token',
+    MERCADO_PAGO_ENVIRONMENT='sandbox',
+    MERCADO_PAGO_WEBHOOK_SECRET='test-webhook-secret',
+)
 class MercadoPagoCheckoutTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -1810,6 +1816,18 @@ class MercadoPagoCheckoutTests(TestCase):
             password='StrongPass123!',
         )
         self.client.force_login(self.user)
+
+    def signed_webhook_headers(self, provider_payment_id, request_id='request-test-123', timestamp='1704908010'):
+        manifest = f'id:{provider_payment_id.lower()};request-id:{request_id};ts:{timestamp};'
+        signature = hmac.new(
+            b'test-webhook-secret',
+            manifest.encode('utf-8'),
+            hashlib.sha256,
+        ).hexdigest()
+        return {
+            'HTTP_X_SIGNATURE': f'ts={timestamp},v1={signature}',
+            'HTTP_X_REQUEST_ID': request_id,
+        }
 
     @patch('dashboard.views.mercado_pago_request')
     def test_monthly_checkout_creates_preference_and_redirects_to_sandbox(self, mocked_request):
@@ -1848,9 +1866,10 @@ class MercadoPagoCheckoutTests(TestCase):
         }
 
         response = self.client.post(
-            reverse('dashboard:mercado_pago_webhook'),
+            f"{reverse('dashboard:mercado_pago_webhook')}?data.id=mp-payment-123",
             data=json.dumps({'type': 'payment', 'data': {'id': 'mp-payment-123'}}),
             content_type='application/json',
+            **self.signed_webhook_headers('mp-payment-123'),
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1860,6 +1879,61 @@ class MercadoPagoCheckoutTests(TestCase):
         self.assertEqual(payment.provider_payment_id, 'mp-payment-123')
         self.assertEqual(access.status, UserAccess.Status.ACTIVE)
         self.assertGreaterEqual(access.subscription_ends_at, timezone.now() + timedelta(days=89))
+
+        expiration_before_retry = access.subscription_ends_at
+        retry_response = self.client.post(
+            f"{reverse('dashboard:mercado_pago_webhook')}?data.id=mp-payment-123",
+            data=json.dumps({'type': 'payment', 'data': {'id': 'mp-payment-123'}}),
+            content_type='application/json',
+            **self.signed_webhook_headers('mp-payment-123'),
+        )
+        self.assertEqual(retry_response.status_code, 200)
+        access.refresh_from_db()
+        self.assertEqual(access.subscription_ends_at, expiration_before_retry)
+
+    @patch('dashboard.views.mercado_pago_request')
+    def test_webhook_with_invalid_signature_does_not_change_payment(self, mocked_request):
+        payment = Payment.build_for_plan(self.user, Payment.Plan.MONTHLY)
+
+        response = self.client.post(
+            f"{reverse('dashboard:mercado_pago_webhook')}?data.id=mp-payment-invalid",
+            data=json.dumps({'type': 'payment', 'data': {'id': 'mp-payment-invalid'}}),
+            content_type='application/json',
+            HTTP_X_SIGNATURE='ts=1704908010,v1=invalid',
+            HTTP_X_REQUEST_ID='request-test-123',
+        )
+
+        self.assertEqual(response.status_code, 401)
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertFalse(UserAccess.objects.filter(user=self.user).exists())
+        mocked_request.assert_not_called()
+
+    @patch('dashboard.views.mercado_pago_request')
+    def test_signed_webhook_for_unknown_payment_is_ignored(self, mocked_request):
+        mocked_request.return_value = {
+            'id': 'mp-payment-unknown',
+            'status': 'approved',
+            'external_reference': '999999',
+        }
+
+        response = self.client.post(
+            f"{reverse('dashboard:mercado_pago_webhook')}?data.id=mp-payment-unknown",
+            data=json.dumps({'type': 'payment', 'data': {'id': 'mp-payment-unknown'}}),
+            content_type='application/json',
+            **self.signed_webhook_headers('mp-payment-unknown'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ignored'])
+        self.assertFalse(UserAccess.objects.filter(user=self.user).exists())
+
+    @override_settings(MERCADO_PAGO_WEBHOOK_SECRET='')
+    def test_webhook_is_unavailable_without_secret(self):
+        response = self.client.post(reverse('dashboard:mercado_pago_webhook'))
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['reason'], 'secret_not_configured')
 
 
 class SalesSubscriptionCtaTests(TestCase):

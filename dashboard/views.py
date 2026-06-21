@@ -2,6 +2,8 @@ from decimal import Decimal
 from decimal import InvalidOperation
 from datetime import datetime
 from datetime import timedelta
+import hashlib
+import hmac
 import json
 import os
 import urllib.error
@@ -234,6 +236,38 @@ def read_mercado_pago_notification(request):
     )
     topic = request.GET.get('topic') or request.GET.get('type') or payload.get('type')
     return topic, payment_id, payload
+
+
+def is_valid_mercado_pago_webhook(request):
+    secret = settings.MERCADO_PAGO_WEBHOOK_SECRET
+    if not secret:
+        return False, 'secret_not_configured'
+
+    signature_parts = {}
+    for part in request.headers.get('x-signature', '').split(','):
+        key, separator, value = part.strip().partition('=')
+        if separator and key and value:
+            signature_parts[key.strip()] = value.strip()
+
+    timestamp = signature_parts.get('ts')
+    received_signature = signature_parts.get('v1')
+    if not timestamp or not received_signature:
+        return False, 'invalid_signature'
+
+    data_id = request.GET.get('data.id', '').lower()
+    request_id = request.headers.get('x-request-id', '')
+    manifest_parts = []
+    if data_id:
+        manifest_parts.append(f'id:{data_id};')
+    if request_id:
+        manifest_parts.append(f'request-id:{request_id};')
+    manifest_parts.append(f'ts:{timestamp};')
+    expected_signature = hmac.new(
+        secret.encode('utf-8'),
+        ''.join(manifest_parts).encode('utf-8'),
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected_signature, received_signature), 'invalid_signature'
 
 
 def history_return_url(request):
@@ -1955,6 +1989,11 @@ def subscription_checkout(request, plan):
 
 @csrf_exempt
 def mercado_pago_webhook(request):
+    signature_is_valid, signature_error = is_valid_mercado_pago_webhook(request)
+    if not signature_is_valid:
+        status_code = 503 if signature_error == 'secret_not_configured' else 401
+        return JsonResponse({'ok': False, 'reason': signature_error}, status=status_code)
+
     topic, provider_payment_id, payload = read_mercado_pago_notification(request)
     if topic and topic != 'payment':
         return JsonResponse({'ok': True, 'ignored': True})

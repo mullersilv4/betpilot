@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freebetar | Gestão de apostas, freebets e arbitragem</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260617-5" />
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260621-sales-1" />
   </head>
   <body class="sales-page">
     <header class="sales-nav" aria-label="Navegação da página de vendas">
@@ -74,38 +74,68 @@
     <main>
       <section class="sales-hero">
         <div class="sales-hero-visual" aria-hidden="true">
-          <div class="sales-product-preview">
-            <div class="preview-sidebar">
+          <div class="sales-product-preview sales-dashboard-preview">
+            <div class="preview-window-bar">
               <span></span>
-              <i></i>
-              <i></i>
-              <i></i>
-              <i></i>
+              <span></span>
+              <span></span>
             </div>
-            <div class="preview-content">
-              <div class="preview-topline">
-                <span></span>
+            <div class="preview-dashboard-header">
+              <div>
+                <span>Dashboard</span>
                 <strong>R$ 18.742,90</strong>
               </div>
-              <div class="preview-metrics">
-                <span></span>
-                <span></span>
-                <span></span>
+              <small>30 dias</small>
+            </div>
+            <div class="preview-kpis">
+              <article>
+                <span>Disponível</span>
+                <strong>R$ 14.860,40</strong>
+              </article>
+              <article>
+                <span>Lucro líquido</span>
+                <strong>R$ 1.248,72</strong>
+              </article>
+              <article>
+                <span>ROI</span>
+                <strong>8,4%</strong>
+              </article>
+            </div>
+            <div class="preview-dashboard-grid">
+              <div class="preview-line-panel">
+                <div class="preview-panel-title">
+                  <span>Evolução</span>
+                  <strong>Banca acumulada</strong>
+                </div>
+                <svg viewBox="0 0 520 210" role="img" aria-label="Linha de evolução da banca">
+                  <path class="preview-grid" d="M24 36H496M24 88H496M24 140H496M24 192H496" />
+                  <path class="preview-area" d="M24 150 L70 145 L116 132 L162 134 L208 116 L254 101 L300 109 L346 86 L392 77 L438 58 L496 51 L496 192 L24 192 Z" />
+                  <path class="preview-line" d="M24 150 L70 145 L116 132 L162 134 L208 116 L254 101 L300 109 L346 86 L392 77 L438 58 L496 51" />
+                </svg>
               </div>
-              <div class="preview-chart">
-                <i style="height: 46%"></i>
-                <i style="height: 68%"></i>
-                <i style="height: 54%"></i>
-                <i style="height: 82%"></i>
-                <i style="height: 61%"></i>
-                <i style="height: 74%"></i>
-                <i style="height: 88%"></i>
+              <div class="preview-history-panel">
+                <div class="preview-panel-title">
+                  <span>Histórico</span>
+                  <strong>Apostas recentes</strong>
+                </div>
+                <div class="preview-bet-row">
+                  <span>Arbitragem</span>
+                  <strong>+R$ 84,20</strong>
+                </div>
+                <div class="preview-bet-row">
+                  <span>Freebet</span>
+                  <strong>+R$ 42,60</strong>
+                </div>
+                <div class="preview-bet-row muted">
+                  <span>Aberta</span>
+                  <strong>R$ 180,00</strong>
+                </div>
               </div>
-              <div class="preview-table">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
+            </div>
+            <div class="preview-finance-strip">
+              <span>Bet365 R$ 4.260,00</span>
+              <span>Betano R$ 3.120,40</span>
+              <span>Exchange R$ 7.480,00</span>
             </div>
           </div>
         </div>
@@ -113,18 +143,18 @@
         <div class="sales-hero-copy">
           <p class="eyebrow">Teste grátis por 7 dias</p>
           <h1>
-            O sistema que faltava
-            <span>para alavancar sua banca</span>
-            com gestão eficiente.
+            Controle sua banca,
+            <span>freebets e arbitragem</span>
+            sem depender de planilha.
           </h1>
           <p>
-            Freebetar é a plataforma para controlar bancas, apostas simples, arbitragens,
-            freebets e resultado financeiro sem depender de planilha.
+            Freebetar centraliza saldo por casa, apostas abertas, resultado líquido,
+            ROI, freebets e movimentações para você tomar decisões com dados claros.
           </p>
           <ul class="sales-hero-list">
-            <li>Dashboard financeiro e histórico completo.</li>
-            <li>Gestão de freebets, arbitragem e apostas abertas.</li>
-            <li>Calculadora rápida antes de registrar a aposta.</li>
+            <li>Financeiro por entidade, casa e exposição aberta.</li>
+            <li>Histórico com filtros, status e lucro real por aposta.</li>
+            <li>Calculadoras para arbitragem, freebet e cenários de retorno.</li>
           </ul>
           <div class="sales-hero-actions">
             {% if request.user.is_authenticated and user_access.has_access %}
@@ -137,7 +167,7 @@
               <a class="primary-button link-button" href="#planos">Contratar agora</a>
             {% else %}
               <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar grátis (7 dias)</a>
-              <a class="secondary-button link-button" href="#calculadoras">Ver calculadora</a>
+              <a class="secondary-button link-button" href="#telas">Ver demonstração</a>
             {% endif %}
           </div>
           <div class="sales-hero-proof">
@@ -387,17 +417,6 @@
                     <path class="grid" d="M34 34H606M34 86H606M34 138H606M34 190H606" />
                     <path class="area" d="M34 121 L106 127 L178 121 L250 126 L322 138 L394 144 L466 132 L538 126 L606 104 L606 190 L34 190 Z" />
                     <path class="line" d="M34 121 L106 127 L178 121 L250 126 L322 138 L394 144 L466 132 L538 126 L606 104" />
-                    <g class="points">
-                      <circle cx="34" cy="121" r="4" />
-                      <circle cx="106" cy="127" r="4" />
-                      <circle cx="178" cy="121" r="4" />
-                      <circle cx="250" cy="126" r="4" />
-                      <circle cx="322" cy="138" r="4" />
-                      <circle cx="394" cy="144" r="4" />
-                      <circle cx="466" cy="132" r="4" />
-                      <circle cx="538" cy="126" r="4" />
-                      <circle cx="606" cy="104" r="4" />
-                    </g>
                     <text x="34" y="204">R$ 218,27</text>
                     <text x="536" y="24">R$ 767,83</text>
                   </svg>
@@ -432,6 +451,25 @@
                 </div>
               </article>
             </div>
+          </div>
+
+          <div class="sales-workflow-grid">
+            <article>
+              <span>01</span>
+              <strong>Veja onde está o dinheiro</strong>
+              <p>Saldos por casa, exposição aberta e disponível aparecem juntos para evitar decisão no escuro.</p>
+            </article>
+            <article>
+              <span>02</span>
+              <strong>Registre e filtre o histórico</strong>
+              <p>Acompanhe abertas, ganhas, perdidas, estratégias e casas sem perder o contexto dos filtros.</p>
+            </article>
+            <article>
+              <span>03</span>
+              <strong>Transforme freebet em saldo</strong>
+              <p>Simule arbitragem, cashback, comissão e aumento antes de lançar a operação na banca.</p>
+            </article>
+          </div>
         </div>
       </section>
 

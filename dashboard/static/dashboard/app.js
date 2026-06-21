@@ -447,20 +447,10 @@ function drawChart() {
     else context.lineTo(point.x, point.y);
   });
   context.strokeStyle = "#5aa7ff";
-  context.lineWidth = 4;
+  context.lineWidth = 3;
   context.lineCap = "round";
   context.lineJoin = "round";
   context.stroke();
-
-  points.forEach((point) => {
-    context.beginPath();
-    context.arc(point.x, point.y, 4, 0, Math.PI * 2);
-    context.fillStyle = "#101414";
-    context.fill();
-    context.strokeStyle = "#5aa7ff";
-    context.lineWidth = 3;
-    context.stroke();
-  });
 
   context.fillStyle = "#9caaa3";
   context.font = "13px Inter, system-ui, sans-serif";

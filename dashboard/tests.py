@@ -1860,3 +1860,19 @@ class MercadoPagoCheckoutTests(TestCase):
         self.assertEqual(payment.provider_payment_id, 'mp-payment-123')
         self.assertEqual(access.status, UserAccess.Status.ACTIVE)
         self.assertGreaterEqual(access.subscription_ends_at, timezone.now() + timedelta(days=89))
+
+
+class SalesSubscriptionCtaTests(TestCase):
+    def test_expired_user_is_sent_to_subscription_from_sales_ctas(self):
+        user = User.objects.create_user(username='expired-user', password='StrongPass123!')
+        access = UserAccess.create_trial_for(user)
+        access.status = UserAccess.Status.EXPIRED
+        access.trial_ends_at = timezone.now() - timedelta(days=1)
+        access.save(update_fields=['status', 'trial_ends_at', 'updated_at'])
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('dashboard:sales'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('dashboard:subscription'), count=5)
+        self.assertNotContains(response, 'href="/cadastro/">Começar teste grátis</a>')

@@ -33,7 +33,7 @@
             {% csrf_token %}
             <button class="ghost-button" type="submit">Sair e entrar</button>
           </form>
-          <a class="primary-button link-button" href="#planos">Contratar agora</a>
+          <a class="primary-button link-button" href="{% url 'dashboard:subscription' %}">Contratar agora</a>
         {% else %}
           <a class="ghost-button link-button" href="{% url 'dashboard:login' %}">Entrar</a>
           <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Contratar agora</a>
@@ -164,7 +164,7 @@
                 {% csrf_token %}
                 <button class="ghost-button" type="submit">Sair e entrar</button>
               </form>
-              <a class="primary-button link-button" href="#planos">Contratar agora</a>
+              <a class="primary-button link-button" href="{% url 'dashboard:subscription' %}">Contratar agora</a>
             {% else %}
               <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar grátis (7 dias)</a>
               <a class="secondary-button link-button" href="#telas">Ver demonstração</a>
@@ -512,14 +512,22 @@
             <h3>Plano mensal</h3>
             <strong>R$ 20,00</strong>
             <p>30 dias de acesso ao dashboard, financeiro, histórico, calculadora, arbitragem e extração de freebet.</p>
-            <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
+            {% if request.user.is_authenticated %}
+              <a class="primary-button link-button" href="{% url 'dashboard:subscription' %}">Escolher mensal</a>
+            {% else %}
+              <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
+            {% endif %}
           </article>
           <article class="is-featured">
             <span class="plan-badge">Melhor valor</span>
             <h3>Plano trimestral</h3>
             <strong>R$ 55,00</strong>
             <p>90 dias de acesso com desconto em relação ao mensal. Ideal para manter a rotina sem interrupção.</p>
-            <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
+            {% if request.user.is_authenticated %}
+              <a class="primary-button link-button" href="{% url 'dashboard:subscription' %}">Escolher trimestral</a>
+            {% else %}
+              <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
+            {% endif %}
           </article>
         </div>
       </section>
@@ -553,7 +561,11 @@
       <section class="sales-final-cta">
         <p class="eyebrow">Freebetar</p>
         <h2>Pronto para transformar suas apostas em gestão?</h2>
-        <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
+        {% if request.user.is_authenticated %}
+          <a class="primary-button link-button" href="{% url 'dashboard:subscription' %}">Ver planos</a>
+        {% else %}
+          <a class="primary-button link-button" href="{% url 'dashboard:signup' %}">Começar teste grátis</a>
+        {% endif %}
       </section>
     </main>
   </body>

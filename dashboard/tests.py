@@ -1,4 +1,6 @@
 from decimal import Decimal
+from datetime import timedelta
+import json
 from unittest.mock import patch
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -31,6 +33,8 @@ from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
 from .models import SureBetEntry
+from .models import Payment
+from .models import UserAccess
 from .promotion_scan import detect_money
 from .promotion_scan import detect_expires_at
 from .promotion_scan import is_actionable_promotion
@@ -1795,3 +1799,64 @@ class AuthenticationTests(TestCase):
         payload = response.json()
         self.assertEqual([bookmaker['title'] for bookmaker in payload['bookmakers']], ['Betclic', 'Betano'])
         self.assertTrue(payload['filter_note'])
+
+
+@override_settings(MERCADO_PAGO_ACCESS_TOKEN='TEST-access-token', MERCADO_PAGO_ENVIRONMENT='sandbox')
+class MercadoPagoCheckoutTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='subscriber',
+            email='subscriber@example.com',
+            password='StrongPass123!',
+        )
+        self.client.force_login(self.user)
+
+    @patch('dashboard.views.mercado_pago_request')
+    def test_monthly_checkout_creates_preference_and_redirects_to_sandbox(self, mocked_request):
+        mocked_request.return_value = {
+            'id': 'preference-test-1',
+            'sandbox_init_point': 'https://sandbox.mercadopago.com.br/checkout/test-1',
+        }
+
+        response = self.client.post(reverse('dashboard:subscription_checkout', args=['monthly']))
+
+        self.assertRedirects(
+            response,
+            'https://sandbox.mercadopago.com.br/checkout/test-1',
+            fetch_redirect_response=False,
+        )
+        payment = Payment.objects.get(user=self.user)
+        self.assertEqual(payment.plan, Payment.Plan.MONTHLY)
+        self.assertEqual(payment.amount, Decimal('20.00'))
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(payment.provider_preference_id, 'preference-test-1')
+        self.assertEqual(payment.checkout_url, 'https://sandbox.mercadopago.com.br/checkout/test-1')
+
+        method, path, payload = mocked_request.call_args.args
+        self.assertEqual((method, path), ('POST', '/checkout/preferences'))
+        self.assertEqual(payload['external_reference'], str(payment.pk))
+        self.assertEqual(payload['metadata']['plan'], Payment.Plan.MONTHLY)
+        self.assertEqual(payload['items'][0]['unit_price'], 20.0)
+
+    @patch('dashboard.views.mercado_pago_request')
+    def test_approved_webhook_activates_access_for_payment_duration(self, mocked_request):
+        payment = Payment.build_for_plan(self.user, Payment.Plan.QUARTERLY)
+        mocked_request.return_value = {
+            'id': 'mp-payment-123',
+            'status': 'approved',
+            'external_reference': str(payment.pk),
+        }
+
+        response = self.client.post(
+            reverse('dashboard:mercado_pago_webhook'),
+            data=json.dumps({'type': 'payment', 'data': {'id': 'mp-payment-123'}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payment.refresh_from_db()
+        access = UserAccess.objects.get(user=self.user)
+        self.assertEqual(payment.status, Payment.Status.APPROVED)
+        self.assertEqual(payment.provider_payment_id, 'mp-payment-123')
+        self.assertEqual(access.status, UserAccess.Status.ACTIVE)
+        self.assertGreaterEqual(access.subscription_ends_at, timezone.now() + timedelta(days=89))

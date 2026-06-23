@@ -728,6 +728,170 @@ textarea {
   margin-top: 2px;
 }
 
+.onboarding-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgb(90 167 255 / 38%);
+  border-radius: 8px;
+  background: #131c1b;
+}
+
+.onboarding-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.onboarding-heading h2 {
+  margin: 3px 0 6px;
+  font-size: 1.2rem;
+}
+
+.onboarding-heading p:not(.eyebrow),
+.onboarding-step p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.onboarding-heading > strong {
+  display: grid;
+  min-width: 48px;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--green);
+  font-size: 0.9rem;
+}
+
+.onboarding-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(244 247 242 / 10%);
+}
+
+.onboarding-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+.onboarding-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onboarding-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 98px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101716;
+}
+
+.onboarding-step-state {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgb(90 167 255 / 45%);
+  border-radius: 50%;
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.onboarding-step strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.onboarding-step.is-complete {
+  border-color: rgb(90 167 255 / 32%);
+}
+
+.onboarding-step.is-complete .onboarding-step-state {
+  border-color: var(--green);
+  background: rgb(90 167 255 / 14%);
+}
+
+.onboarding-complete {
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.onboarding-next-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid rgb(90 167 255 / 38%);
+  border-radius: 8px;
+  background: #131c1b;
+}
+
+.onboarding-next-panel h2 {
+  margin: 3px 0 6px;
+  font-size: 1.1rem;
+}
+
+.onboarding-next-panel p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.history-guide {
+  margin: 14px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #121918;
+}
+
+.history-guide summary {
+  padding: 12px 14px;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.history-guide-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.history-guide-content div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101716;
+}
+
+.history-guide-content strong {
+  color: var(--text);
+}
+
+.history-guide-content p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .insight-strip,
 .metric-grid,
 .workspace-grid,
@@ -1401,6 +1565,29 @@ textarea {
 
 .surebet-form {
   max-width: 980px;
+}
+
+.surebet-guidance {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-left: 3px solid var(--green);
+  border-radius: 0 8px 8px 0;
+  background: rgb(90 167 255 / 9%);
+}
+
+.surebet-guidance strong {
+  color: var(--text);
+}
+
+.surebet-guidance span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.surebet-stake[readonly] {
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .surebet-grid {
@@ -3835,6 +4022,37 @@ th {
 }
 
 @media (max-width: 620px) {
+  .onboarding-heading,
+  .onboarding-step {
+    align-items: start;
+  }
+
+  .onboarding-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-step {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .onboarding-step .ghost-button,
+  .onboarding-complete {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .onboarding-next-panel {
+    display: grid;
+  }
+
+  .onboarding-next-panel .primary-button {
+    justify-self: start;
+  }
+
+  .history-guide-content {
+    grid-template-columns: 1fr;
+  }
+
   .bet-form-panel {
     padding: 10px;
   }

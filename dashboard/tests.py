@@ -5,6 +5,7 @@ import hmac
 import json
 from unittest.mock import patch
 from django.core import mail
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 
@@ -36,6 +37,7 @@ from .models import PromotionPage
 from .models import RegulatedBookmaker
 from .models import SureBetEntry
 from .models import Payment
+from .models import SubscriptionReminder
 from .models import UserAccess
 from .promotion_scan import detect_money
 from .promotion_scan import detect_expires_at
@@ -1950,3 +1952,80 @@ class SalesSubscriptionCtaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse('dashboard:subscription'), count=5)
         self.assertNotContains(response, 'href="/cadastro/">Começar teste grátis</a>')
+
+
+@override_settings(FREEBETAR_SITE_URL='https://freebetar.example')
+class SubscriptionReminderTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='renewal-user',
+            email='renewal@example.com',
+            password='StrongPass123!',
+        )
+        self.access = UserAccess.create_trial_for(self.user)
+        self.access.status = UserAccess.Status.ACTIVE
+        self.access.subscription_ends_at = timezone.now() + timedelta(days=7)
+        self.access.save(update_fields=['status', 'subscription_ends_at', 'updated_at'])
+
+    def test_command_sends_one_reminder_and_does_not_repeat_it(self):
+        call_command('send_subscription_reminders')
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('vence em 7 dia(s)', mail.outbox[0].subject)
+        self.assertIn('https://freebetar.example/assinatura/', mail.outbox[0].body)
+        self.assertTrue(SubscriptionReminder.objects.filter(access=self.access, days_before=7).exists())
+
+        call_command('send_subscription_reminders')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_dashboard_shows_renewal_notice_once_per_day(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('dashboard:index'))
+
+        self.assertContains(response, 'Sua assinatura vence em 7 dia(s).')
+        response = self.client.get(reverse('dashboard:index'))
+        self.assertNotContains(response, 'Sua assinatura vence em 7 dia(s).')
+
+
+class OnboardingTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='onboarding-user', password='StrongPass123!')
+        self.client.force_login(self.user)
+
+    def test_new_user_sees_financial_setup_steps_and_surebet_guidance(self):
+        response = self.client.get(reverse('dashboard:index'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Monte sua operação no Freebetar')
+        self.assertContains(response, 'data-onboarding-action="bank-account"')
+        self.assertContains(response, 'Na aposta 2, preencha apenas a casa e a odd')
+        self.assertContains(response, 'name="surebet_stake_2"', count=1)
+        self.assertContains(response, 'name="surebet_stake_2" value="" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly')
+        self.assertContains(response, 'Como acompanhar suas apostas')
+
+    def test_onboarding_hides_after_financial_setup_and_first_bet(self):
+        entity = Entity.objects.create(owner=self.user, name='Operação própria')
+        bankroll = Bankroll.objects.create(
+            owner=self.user,
+            entity=entity,
+            name='Operação própria - Bet365',
+            bookmaker='Bet365',
+            initial_balance=Decimal('100.00'),
+        )
+        BankAccount.objects.create(owner=self.user, name='Nubank', bank_name='Nubank')
+        Bet.objects.create(
+            entity=entity,
+            bankroll=bankroll,
+            game='Palmeiras x Bahia',
+            market='Casa vence',
+            odds=Decimal('1.80'),
+            stake=Decimal('20.00'),
+        )
+
+        response = self.client.get(reverse('dashboard:index'))
+
+        self.assertNotContains(response, 'Monte sua operação no Freebetar')
+        self.assertContains(response, 'Sua primeira aposta já está registrada')
+        self.assertContains(response, 'data-onboarding-action="history"')
+        self.assertContains(response, 'placeholder="Lucro/prejuízo"')

@@ -207,6 +207,30 @@ class Payment(models.Model):
             self.save(update_fields=['status', 'provider_payment_id', 'approved_at', 'raw_payload', 'updated_at'])
 
 
+class SubscriptionReminder(models.Model):
+    access = models.ForeignKey(
+        UserAccess,
+        verbose_name='acesso',
+        related_name='subscription_reminders',
+        on_delete=models.CASCADE,
+    )
+    days_before = models.PositiveSmallIntegerField('dias antes do vencimento')
+    sent_at = models.DateTimeField('enviado em', default=timezone.now)
+
+    class Meta:
+        verbose_name = 'lembrete de assinatura'
+        verbose_name_plural = 'lembretes de assinatura'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['access', 'days_before'],
+                name='unique_subscription_reminder_per_access_and_day',
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.access.user} - {self.days_before} dia(s)'
+
+
 class UserPreference(models.Model):
     class Language(models.TextChoices):
         PORTUGUESE = 'pt-BR', 'Português'

@@ -666,6 +666,36 @@ def build_dashboard_context(request, **forms):
         balance_before_period,
         dashboard_filter['reference_date'].date(),
     )
+    onboarding_steps = [
+        {
+            'title': 'Cadastre uma conta bancária',
+            'description': 'Registre a conta usada para depósitos, saques e movimentações.',
+            'action': 'bank-account',
+            'action_label': 'Cadastrar conta',
+            'complete': bank_accounts.exists(),
+        },
+        {
+            'title': 'Crie uma entidade',
+            'description': 'Organize sua operação, cliente ou projeto antes de cadastrar as casas.',
+            'action': 'entity',
+            'action_label': 'Criar entidade',
+            'complete': entities.exists(),
+        },
+        {
+            'title': 'Adicione as casas de aposta',
+            'description': 'Informe a casa, a entidade responsável e o saldo inicial de cada banca.',
+            'action': 'bankroll',
+            'action_label': 'Cadastrar casa',
+            'complete': bankrolls.exists(),
+        },
+        {
+            'title': 'Registre e acompanhe uma aposta',
+            'description': 'Lance a primeira entrada e confira como ela aparece no histórico e dashboard.',
+            'action': 'bet',
+            'action_label': 'Registrar aposta',
+            'complete': all_bets.exists(),
+        },
+    ]
 
     return {
         'bankroll_form': forms.get('bankroll_form') or BankrollForm(user=request.user),
@@ -729,6 +759,10 @@ def build_dashboard_context(request, **forms):
         'dashboard_filter': dashboard_filter,
         'user_access': user_access,
         'user_preference': user_preference,
+        'onboarding_steps': onboarding_steps,
+        'onboarding_completed_count': sum(step['complete'] for step in onboarding_steps),
+        'onboarding_is_complete': all(step['complete'] for step in onboarding_steps),
+        'onboarding_history_ready': all(step['complete'] for step in onboarding_steps) and all_bets.count() == 1,
         'currency_code': user_preference.currency,
         'currency_symbol': user_preference.currency_symbol,
         'currency_locale': user_preference.currency_locale,

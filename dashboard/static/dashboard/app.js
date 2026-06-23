@@ -693,6 +693,38 @@ function setupCollapsiblePanels() {
   });
 }
 
+function setupOnboarding() {
+  const actions = {
+    "bank-account": { screen: "bankroll", target: "#onboardingBankAccountForm", panel: "financeControls" },
+    entity: { screen: "bankroll", target: "#onboardingEntityForm" },
+    bankroll: { screen: "bankroll", target: "#onboardingBankrollForm" },
+    bet: { screen: "new-bet", target: "#onboardingBetForm" },
+    history: { screen: "bets", target: ".history-guide" },
+  };
+
+  document.querySelectorAll("[data-onboarding-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = actions[button.dataset.onboardingAction];
+      if (!action) return;
+
+      window.location.hash = action.screen;
+      window.setTimeout(() => {
+        if (action.panel) {
+          const panel = document.getElementById(action.panel);
+          const toggle = document.querySelector(`[data-collapsible-toggle="${action.panel}"]`);
+          if (panel?.hidden) {
+            panel.hidden = false;
+            toggle?.setAttribute("aria-expanded", "true");
+          }
+        }
+        const target = document.querySelector(action.target);
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        target?.querySelector("input, select, textarea")?.focus({ preventScroll: true });
+      }, 0);
+    });
+  });
+}
+
 function enhanceResponsiveTables() {
   document.querySelectorAll("table").forEach((table) => {
     const headers = [...table.querySelectorAll("thead th")].map((header) =>
@@ -1336,7 +1368,7 @@ function createSurebetEntry(index) {
       </div>
       <label>
         <span class="sr-only">Valor ${index}</span>
-        <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" />
+        <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly aria-label="Valor calculado automaticamente" />
         <output class="surebet-liability" data-surebet-liability="${index}"></output>
       </label>
       <label>
@@ -1981,6 +2013,7 @@ setupMobileSidebar();
 setupAccountPopover();
 setupBalanceVisibility();
 setupCollapsiblePanels();
+setupOnboarding();
 enhanceResponsiveTables();
 setupEventAutocomplete();
 setupEventOddsLookup();

@@ -15,6 +15,7 @@ from .models import Promotion
 from .models import PromotionPage
 from .models import RegulatedBookmaker
 from .models import SureBetEntry
+from .models import SubscriptionReminder
 from .models import UserAccess
 
 
@@ -31,6 +32,14 @@ class PaymentAdmin(admin.ModelAdmin):
     list_filter = ('status', 'plan', 'provider', 'created_at')
     search_fields = ('user__username', 'user__email', 'provider_preference_id', 'provider_payment_id')
     readonly_fields = ('created_at', 'updated_at', 'approved_at', 'raw_payload')
+
+
+@admin.register(SubscriptionReminder)
+class SubscriptionReminderAdmin(admin.ModelAdmin):
+    list_display = ('access', 'days_before', 'sent_at')
+    list_filter = ('days_before', 'sent_at')
+    search_fields = ('access__user__username', 'access__user__email')
+    readonly_fields = ('sent_at',)
 
 
 @admin.register(Entity)

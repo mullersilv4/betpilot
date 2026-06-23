@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freebetar | Dashboard de Apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260609-1" />
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260622-onboarding-2" />
   </head>
   <body
     data-language="{{ user_preference.language|default:'pt-BR' }}"
@@ -99,6 +99,51 @@
               <strong>{{ user_access.days_remaining }} dia(s) restantes no Freebetar</strong>
             </div>
             <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:sales' %}#planos">Ver planos</a>
+          </section>
+        {% endif %}
+
+        {% if not onboarding_is_complete %}
+          <section class="onboarding-panel" data-screen="dashboard" aria-labelledby="onboardingTitle">
+            <div class="onboarding-heading">
+              <div>
+                <p class="eyebrow">Primeiros passos</p>
+                <h2 id="onboardingTitle">Monte sua operação no Freebetar</h2>
+                <p>Conclua a base financeira antes de registrar suas apostas.</p>
+              </div>
+              <strong>{{ onboarding_completed_count }}/{{ onboarding_steps|length }}</strong>
+            </div>
+            <div class="onboarding-progress" aria-hidden="true">
+              <i style="width: {% widthratio onboarding_completed_count onboarding_steps|length 100 %}%"></i>
+            </div>
+            <div class="onboarding-steps">
+              {% for step in onboarding_steps %}
+                <article class="onboarding-step{% if step.complete %} is-complete{% endif %}">
+                  <span class="onboarding-step-state" aria-label="{% if step.complete %}Concluída{% else %}Pendente{% endif %}">
+                    {% if step.complete %}✓{% else %}{{ forloop.counter }}{% endif %}
+                  </span>
+                  <div>
+                    <strong>{{ step.title }}</strong>
+                    <p>{{ step.description }}</p>
+                  </div>
+                  {% if step.complete %}
+                    <span class="onboarding-complete">Concluído</span>
+                  {% else %}
+                    <button class="ghost-button compact" type="button" data-onboarding-action="{{ step.action }}">{{ step.action_label }}</button>
+                  {% endif %}
+                </article>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+
+        {% if onboarding_history_ready %}
+          <section class="onboarding-next-panel" data-screen="dashboard" aria-labelledby="historyOnboardingTitle">
+            <div>
+              <p class="eyebrow">Próximo passo</p>
+              <h2 id="historyOnboardingTitle">Sua primeira aposta já está registrada</h2>
+              <p>Abra o Histórico para acompanhar o status, registrar o resultado e entender o lucro ou prejuízo da operação.</p>
+            </div>
+            <button class="primary-button" type="button" data-onboarding-action="history">Ver histórico</button>
           </section>
         {% endif %}
 
@@ -360,7 +405,7 @@
                 </div>
               </div>
               <div class="finance-create-grid">
-                <form class="bet-form compact-finance-form finance-create-card" method="post" novalidate>
+                <form id="onboardingEntityForm" class="bet-form compact-finance-form finance-create-card" method="post" novalidate>
                   {% csrf_token %}
                   <input type="hidden" name="form_type" value="entity" />
                   <div class="finance-create-card-head">
@@ -376,7 +421,7 @@
                   <button class="ghost-button compact" type="submit">Salvar entidade</button>
                 </form>
 
-                <form class="bet-form compact-finance-form finance-create-card" method="post" novalidate>
+                <form id="onboardingBankrollForm" class="bet-form compact-finance-form finance-create-card" method="post" novalidate>
                   {% csrf_token %}
                   <input type="hidden" name="form_type" value="bankroll" />
                   <div class="finance-create-card-head">
@@ -549,7 +594,7 @@
                 </div>
               </div>
 
-              <form class="bet-form" method="post" novalidate>
+              <form id="onboardingBankAccountForm" class="bet-form" method="post" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="form_type" value="bank_account" />
 
@@ -820,7 +865,7 @@
               <button class="bet-mode-tab" type="button" data-bet-mode-button="freebet-extract">Extrair freebet</button>
             </div>
 
-            <form class="bet-form compact-bet-form bet-mode-panel is-active" data-bet-mode-panel="simple" method="post" novalidate>
+            <form id="onboardingBetForm" class="bet-form compact-bet-form bet-mode-panel is-active" data-bet-mode-panel="simple" method="post" novalidate>
               {% csrf_token %}
               <input type="hidden" name="form_type" value="bet" />
 
@@ -982,6 +1027,11 @@
                 </div>
               {% endif %}
 
+              <div class="surebet-guidance" role="note">
+                <strong>Como preencher a arbitragem</strong>
+                <span>Na aposta 1, informe casa, valor e odd. Na aposta 2, preencha apenas a casa e a odd; o valor é calculado automaticamente para equilibrar os cenários.</span>
+              </div>
+
               <div class="form-row">
                 <label>
                   <span>Entidade</span>
@@ -1074,7 +1124,7 @@
                       </div>
                       <label>
                         <span class="sr-only">Valor {{ row.index }}</span>
-                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" />
+                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly %}readonly aria-label="Valor calculado automaticamente"{% endif %} />
                         <output class="surebet-liability" data-surebet-liability="{{ row.index }}"></output>
                       </label>
                       <label>
@@ -2347,6 +2397,20 @@
               </form>
             </details>
 
+            <details class="history-guide" open>
+              <summary>Como acompanhar suas apostas</summary>
+              <div class="history-guide-content">
+                <div>
+                  <strong>Filtros e status</strong>
+                  <p>Use os filtros para encontrar uma casa, estratégia ou aposta aberta. Ao encerrar uma aposta, marque como ganha ou perdida para atualizar saldo, lucro e ROI.</p>
+                </div>
+                <div>
+                  <strong>Cash Out</strong>
+                  <p>Use quando a casa encerrou a aposta antes do fim. Informe apenas o lucro ou prejuízo líquido: se apostou R$ 100 e recebeu R$ 85, registre R$ -15; se recebeu R$ 125, registre R$ 25.</p>
+                </div>
+              </div>
+            </details>
+
             <div class="table-wrap">
               <table>
                 <thead>
@@ -2397,7 +2461,7 @@
                               <form class="cashout-form" method="post" action="{% url 'dashboard:cashout_bet' bet.pk %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{{ history_return_url }}" />
-                                <input type="number" name="cashout_result" step="0.01" placeholder="Valor" aria-label="Lucro ou prejuízo do cash out" required />
+                                <input type="number" name="cashout_result" step="0.01" placeholder="Lucro/prejuízo" aria-label="Lucro ou prejuízo do cash out" required />
                                 <button class="mini-button cashout" type="submit">Cash out</button>
                               </form>
                             {% endif %}
@@ -2579,6 +2643,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    <script src="{% static 'dashboard/app.js' %}?v=20260602-7"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260622-onboarding-2"></script>
   </body>
 </html>

@@ -745,16 +745,19 @@ function updateBetPreview() {
   const effectiveOdds = boostedProfitOdds(odds, boost);
   const stakeInput = document.querySelector("#id_stake");
   const stake = Number.parseFloat(stakeInput?.value || 0);
-  const freebetSelect = document.querySelector("[data-simple-freebet-select]");
-  const selectedFreebet = freebetSelect?.selectedOptions?.[0];
-  const freebetAmount = Number.parseFloat(selectedFreebet?.dataset.amount || 0);
-  const usesFreebet = Boolean(freebetSelect?.value && freebetAmount > 0);
+  const freebetToggle = document.querySelector("[data-simple-freebet-toggle]");
+  const freebetAmountInput = document.querySelector("[data-simple-freebet-amount]");
+  const freebetAmount = Number.parseFloat(freebetAmountInput?.value || 0);
+  const usesFreebet = Boolean(freebetToggle?.checked && freebetAmount > 0);
   const commissionPercentage = Number.parseFloat(
     document.querySelector("#id_exchange_commission")?.value || 0,
   );
 
-  if (usesFreebet && stakeInput && document.activeElement !== stakeInput) {
+  if (freebetToggle?.checked && stakeInput && freebetAmount > 0 && document.activeElement !== stakeInput) {
     stakeInput.value = freebetAmount.toFixed(2);
+  }
+  if (freebetAmountInput) {
+    freebetAmountInput.disabled = !freebetToggle?.checked;
   }
 
   const effectiveStake = usesFreebet ? freebetAmount : stake;
@@ -776,6 +779,86 @@ function setBetMode(mode) {
     panel.classList.toggle("is-active", panel.dataset.betModePanel === mode);
   });
 }
+
+const PENDING_BET_DRAFT_KEY = "freebetarPendingBetDraft";
+
+function betFormDraftKey(form) {
+  const formType = form.querySelector('[name="form_type"]')?.value || "";
+  return `${form.dataset.betModePanel || "standalone"}:${formType || form.className}`;
+}
+
+function formHtmlWithCurrentValues(form) {
+  const clone = form.cloneNode(true);
+  const fields = [...form.querySelectorAll("input, select, textarea")];
+  const clonedFields = [...clone.querySelectorAll("input, select, textarea")];
+
+  fields.forEach((field, index) => {
+    const clonedField = clonedFields[index];
+    if (!clonedField) return;
+    if (field.matches("textarea")) {
+      clonedField.textContent = field.value;
+      return;
+    }
+    if (field.matches("select")) {
+      [...clonedField.options].forEach((option) => {
+        option.toggleAttribute("selected", option.value === field.value);
+      });
+      return;
+    }
+    if (field.matches('input[type="checkbox"], input[type="radio"]')) {
+      clonedField.toggleAttribute("checked", field.checked);
+      return;
+    }
+    clonedField.setAttribute("value", field.value);
+  });
+
+  clone.querySelectorAll(".form-errors, .errorlist").forEach((element) => element.remove());
+  return clone.outerHTML;
+}
+
+function savePendingBetDraft() {
+  const forms = [...document.querySelectorAll(".bet-form-panel form[data-bet-mode-panel]")];
+  if (!forms.length) return;
+  const activeButton = document.querySelector("[data-bet-mode-button].is-active");
+  const payload = {
+    activeMode: activeButton?.dataset.betModeButton || "simple",
+    forms: forms.map((form) => ({
+      key: betFormDraftKey(form),
+      html: formHtmlWithCurrentValues(form),
+    })),
+  };
+  sessionStorage.setItem(PENDING_BET_DRAFT_KEY, JSON.stringify(payload));
+}
+
+function restorePendingBetDraft() {
+  const rawDraft = sessionStorage.getItem(PENDING_BET_DRAFT_KEY);
+  if (!rawDraft) return;
+  sessionStorage.removeItem(PENDING_BET_DRAFT_KEY);
+
+  let draft;
+  try {
+    draft = JSON.parse(rawDraft);
+  } catch (_error) {
+    return;
+  }
+
+  (draft.forms || []).forEach((savedForm) => {
+    const currentForm = [...document.querySelectorAll(".bet-form-panel form[data-bet-mode-panel]")]
+      .find((form) => betFormDraftKey(form) === savedForm.key);
+    if (currentForm && savedForm.html) {
+      currentForm.outerHTML = savedForm.html;
+    }
+  });
+
+  if (draft.activeMode) {
+    setBetMode(draft.activeMode);
+  }
+  if (document.querySelector("#new-bet")) {
+    window.location.hash = "new-bet";
+  }
+}
+
+restorePendingBetDraft();
 
 function setupBalanceVisibility() {
   const card = document.querySelector("[data-balance-card]");
@@ -1427,32 +1510,10 @@ function readFreebetMode(index) {
   return document.querySelector(`[name="freebet_mode_${index}"]`)?.value === "lay" ? "lay" : "back";
 }
 
-function updateSelectedFreebetFields() {
-  const select = document.querySelector("[data-freebet-source]");
-  if (!select) return;
-  const selected = select.options[select.selectedIndex];
-  const amount = selected?.dataset.amount || "";
-  const bookmaker = selected?.dataset.bookmaker || "";
-  const sourceChanged = select.dataset.currentSource !== select.value;
-  const stakeInput = document.querySelector('[name="freebet_stake_1"]');
-  if (stakeInput && amount && (sourceChanged || !stakeInput.value)) {
-    stakeInput.value = Number.parseFloat(amount).toFixed(2);
-  }
-  const bookmakerInput = document.querySelector('[name="freebet_bookmaker_1"]');
-  if (bookmakerInput && bookmaker && !bookmakerInput.value) bookmakerInput.value = bookmaker;
-  select.dataset.currentSource = select.value;
-}
-
 function prepareFreebetExtractionFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const freebetSource = params.get("freebet_source");
   if (!freebetSource) return;
-
-  const select = document.querySelector("[data-freebet-source]");
-  if (select && [...select.options].some((option) => option.value === freebetSource)) {
-    select.value = freebetSource;
-    select.dataset.currentSource = "";
-  }
 
   const dateInput = document.querySelector('[name="freebet_event_date"]');
   if (dateInput && !dateInput.value) {
@@ -1551,7 +1612,6 @@ function freebetExposure(row) {
 
 function updateFreebetExtractionPreview() {
   if (!document.querySelector("#freebetEntries")) return;
-  updateSelectedFreebetFields();
 
   const activeStakeInput = document.activeElement?.classList?.contains("surebet-stake")
     ? document.activeElement
@@ -1992,6 +2052,7 @@ const balanceModal = document.querySelector("[data-balance-modal]");
 const balanceModalBankroll = balanceModal?.querySelector("[data-balance-modal-bankroll]");
 const balanceModalTitle = balanceModal?.querySelector("[data-balance-modal-title]");
 const balanceModalAmount = balanceModal?.querySelector("[data-balance-modal-amount]");
+const balanceModalForm = balanceModal?.querySelector(".balance-deposit-form");
 
 document.querySelectorAll("[data-open-balance-modal]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -2021,6 +2082,8 @@ document.querySelectorAll("[data-close-balance-modal]").forEach((button) => {
     }
   });
 });
+
+balanceModalForm?.addEventListener("submit", savePendingBetDraft);
 
 balanceModal?.addEventListener("click", (event) => {
   if (event.target === balanceModal) {
@@ -2067,7 +2130,7 @@ if (document.querySelector('[data-bet-mode-panel="freebet-extract"] .form-errors
   setBetMode("freebet-extract");
 }
 
-["#id_bankroll", "#id_odds", "#id_odds_boost", "#id_stake", "#id_exchange_commission", "[data-simple-freebet-select]"].forEach((selector) => {
+["#id_bankroll", "#id_odds", "#id_odds_boost", "#id_stake", "#id_exchange_commission", "[data-simple-freebet-toggle]", "[data-simple-freebet-amount]"].forEach((selector) => {
   document.querySelector(selector)?.addEventListener("input", updateBetPreview);
   document.querySelector(selector)?.addEventListener("change", updateBetPreview);
 });

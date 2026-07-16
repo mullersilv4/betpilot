@@ -13,7 +13,6 @@ from .models import Bankroll
 from .models import BankrollTransaction
 from .models import Bet
 from .models import Entity
-from .models import FreeBet
 from .models import MonthlyGoal
 from .models import BookmakerAlias
 from .models import Promotion
@@ -142,12 +141,10 @@ class PasswordResetIdentifierForm(PasswordResetForm):
 
 
 class BetForm(forms.ModelForm):
-    freebet_source = forms.ModelChoiceField(
-        label='Usar freebet',
-        queryset=FreeBet.objects.none(),
+    uses_freebet = forms.BooleanField(
+        label='Essa aposta está usando freebet?',
         required=False,
-        empty_label='Não usar freebet',
-        widget=forms.Select(attrs={'data-simple-freebet-select': 'true'}),
+        widget=forms.CheckboxInput(attrs={'data-simple-freebet-toggle': 'true'}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -156,28 +153,11 @@ class BetForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if user is not None:
             self.fields['bankroll'].queryset = Bankroll.objects.filter(owner=user)
-            freebet_filter = (
-                Q(owner=user)
-                | Q(source_bet__bankroll__owner=user)
-                | Q(source_bet__entity__owner=user)
-            )
-            current_freebet = None
-            if self.instance and self.instance.pk:
-                try:
-                    current_freebet = self.instance.simple_freebet
-                except FreeBet.DoesNotExist:
-                    current_freebet = None
-            available_filter = Q(is_used=False)
-            if current_freebet is not None:
-                available_filter |= Q(pk=current_freebet.pk)
-                self.initial['freebet_source'] = current_freebet.pk
-            self.fields['freebet_source'].queryset = (
-                FreeBet.objects.filter(freebet_filter)
-                .filter(available_filter)
-                .select_related('source_bet', 'simple_bet')
-                .distinct()
-            )
+        if self.instance and self.instance.pk and self.instance.uses_simple_freebet:
+            self.initial['uses_freebet'] = True
+            self.initial['freebet_amount'] = self.instance.simple_freebet_amount
         self.fields['game'].required = False
+        self.fields['freebet_amount'].required = False
         if not show_status:
             self.fields.pop('status', None)
         if self.instance and self.instance.event_date:
@@ -199,7 +179,8 @@ class BetForm(forms.ModelForm):
             'strategy',
             'event_date',
             'entry_type',
-            'freebet_source',
+            'uses_freebet',
+            'freebet_amount',
             'odds',
             'stake',
             'exchange_commission',
@@ -255,6 +236,14 @@ class BetForm(forms.ModelForm):
             'odds_boost': forms.NumberInput(
                 attrs={'step': '0.01', 'min': '0', 'max': '100', 'placeholder': 'Ex: 10'}
             ),
+            'freebet_amount': forms.NumberInput(
+                attrs={
+                    'step': '0.01',
+                    'min': '0.01',
+                    'placeholder': 'Ex: 30.00',
+                    'data-simple-freebet-amount': 'true',
+                }
+            ),
             'status': forms.Select(),
             'exact_score': forms.TextInput(
                 attrs={
@@ -280,12 +269,18 @@ class BetForm(forms.ModelForm):
         cleaned_data = super().clean()
         bankroll = cleaned_data.get('bankroll')
         stake = cleaned_data.get('stake')
-        freebet_source = cleaned_data.get('freebet_source')
+        uses_freebet = cleaned_data.get('uses_freebet')
+        freebet_amount = cleaned_data.get('freebet_amount') or Decimal('0.00')
         self.balance_prompt = None
 
-        if freebet_source:
-            cleaned_data['stake'] = freebet_source.amount
-            stake = freebet_source.amount
+        if uses_freebet:
+            if freebet_amount <= 0:
+                self.add_error('freebet_amount', 'Informe o valor da freebet maior que zero.')
+            else:
+                cleaned_data['stake'] = freebet_amount
+                stake = freebet_amount
+        else:
+            cleaned_data['freebet_amount'] = Decimal('0.00')
 
         available_balance = bankroll.available_balance if bankroll else 0
         if (
@@ -297,7 +292,7 @@ class BetForm(forms.ModelForm):
         ):
             available_balance += self.instance.stake
 
-        if bankroll and stake and not freebet_source and stake > available_balance:
+        if bankroll and stake and not uses_freebet and stake > available_balance:
             missing_amount = stake - available_balance
             self.balance_prompt = {
                 'bankroll_id': bankroll.pk,

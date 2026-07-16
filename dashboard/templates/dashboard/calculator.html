@@ -178,17 +178,8 @@
 
             <div class="form-grid two-columns">
               <label>
-                <span>Freebet cadastrada</span>
-                <select name="freebet_source" id="freebetSource" data-freebet-source>
-                  <option value="">Calcular sem vincular freebet</option>
-                  {% for freebet in available_freebet_list %}
-                    <option value="{{ freebet.id }}" data-amount="{{ freebet.amount|unlocalize }}" data-bookmaker="{{ freebet.bookmaker }}">{{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
                 <span>Valor da freebet</span>
-                <input type="number" name="freebet_stake_1" class="surebet-stake" step="0.01" min="0.01" placeholder="Ex: 50.00" />
+                <input type="number" name="freebet_stake_1" class="surebet-stake" step="0.01" min="0.01" placeholder="Ex: 30.00" />
               </label>
             </div>
 

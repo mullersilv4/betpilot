@@ -97,22 +97,10 @@
               </div>
             {% endif %}
 
-            <label>
-              <span>Freebet disponível</span>
-              <select name="freebet_source" id="freebetSource" data-freebet-source required>
-                <option value="">Selecione a freebet</option>
-                {% for freebet in available_freebet_list %}
-                  <option
-                    value="{{ freebet.id }}"
-                    data-amount="{{ freebet.amount }}"
-                    data-bookmaker="{{ freebet.bookmaker }}"
-                    {% if freebet_extract_data.freebet_source == freebet.id|stringformat:"s" %}selected{% endif %}
-                  >
-                    {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
-                  </option>
-                {% endfor %}
-              </select>
-            </label>
+            <div class="surebet-guidance" role="note">
+              <strong>Como preencher a extração</strong>
+              <span>Na primeira linha, selecione a casa da freebet e informe somente o valor que será usado. Nas linhas seguintes, informe as casas e odds da proteção.</span>
+            </div>
 
             <div class="form-row mobile-pair">
               <label>

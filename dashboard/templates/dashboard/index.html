@@ -102,7 +102,7 @@
           </section>
         {% endif %}
 
-        {% if not onboarding_is_complete %}
+        {% if show_tutorials and not onboarding_is_complete %}
           <section class="onboarding-panel" data-screen="dashboard" aria-labelledby="onboardingTitle">
             <div class="onboarding-heading">
               <div>
@@ -136,7 +136,7 @@
           </section>
         {% endif %}
 
-        {% if onboarding_history_ready %}
+        {% if show_tutorials and onboarding_history_ready %}
           <section class="onboarding-next-panel" data-screen="dashboard" aria-labelledby="historyOnboardingTitle">
             <div>
               <p class="eyebrow">Próximo passo</p>
@@ -1017,23 +1017,18 @@
                 </label>
               </div>
 
-              <label>
-                <span>Usar freebet cadastrada</span>
-                <select name="{{ form.freebet_source.html_name }}" id="{{ form.freebet_source.id_for_label }}" data-simple-freebet-select>
-                  <option value="">Não usar freebet</option>
-                  {% for freebet in form.freebet_source.field.queryset %}
-                    <option
-                      value="{{ freebet.pk }}"
-                      data-amount="{{ freebet.amount|unlocalize }}"
-                      {% if form.freebet_source.value|stringformat:"s" == freebet.pk|stringformat:"s" %}selected{% endif %}
-                    >
-                      {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
-                    </option>
-                  {% endfor %}
-                </select>
-                {{ form.freebet_source.errors }}
-                <small class="field-hint">Use quando a casa deu uma freebet e voce quer fazer uma aposta simples sem protecao.</small>
-              </label>
+              <div class="freebet-inline-fields">
+                <label class="checkbox-field">
+                  {{ form.uses_freebet }}
+                  <span>Essa aposta está utilizando freebet?</span>
+                </label>
+                <label>
+                  <span>Valor da freebet</span>
+                  {{ form.freebet_amount }}
+                  {{ form.freebet_amount.errors }}
+                </label>
+                <small class="field-hint">Informe somente o valor de freebet que será usado nessa aposta.</small>
+              </div>
 
               <label>
                 <span>Observações</span>
@@ -1093,10 +1088,12 @@
                 </div>
               {% endif %}
 
-              <div class="surebet-guidance" role="note">
-                <strong>Como preencher a arbitragem</strong>
-                <span>Na aposta 1, informe casa, valor e odd. Na aposta 2, preencha apenas a casa e a odd; o valor é calculado automaticamente para equilibrar os cenários.</span>
-              </div>
+              {% if show_tutorials %}
+                <div class="surebet-guidance" role="note">
+                  <strong>Como preencher a arbitragem</strong>
+                  <span>Na aposta 1, informe casa, valor e odd. Na aposta 2, preencha apenas a casa e a odd; o valor é calculado automaticamente para equilibrar os cenários.</span>
+                </div>
+              {% endif %}
 
               <div class="form-row">
                 <label>
@@ -1449,34 +1446,6 @@
               <button class="primary-button" type="submit">Salvar proteção do duplo</button>
             </form>
 
-            <form class="bet-form compact-bet-form manual-freebet-form bet-mode-panel" data-bet-mode-panel="freebet-extract" method="post" novalidate>
-              {% csrf_token %}
-              <input type="hidden" name="form_type" value="freebet_manual" />
-
-              {% if freebet_manual_errors %}
-                <div class="form-errors">
-                  {% for error in freebet_manual_errors %}
-                    <div>{{ error }}</div>
-                  {% endfor %}
-                </div>
-              {% endif %}
-
-              <div class="form-row mobile-pair">
-                <label>
-                  <span>Casa da freebet</span>
-                  <input type="text" name="manual_freebet_bookmaker" value="{{ freebet_manual_data.manual_freebet_bookmaker }}" placeholder="Ex: Betano" autocomplete="off" />
-                </label>
-                <label>
-                  <span>Valor da freebet</span>
-                  <input type="number" name="manual_freebet_amount" value="{{ freebet_manual_data.manual_freebet_amount }}" step="0.01" min="0.01" placeholder="Ex: 25.00" />
-                </label>
-              </div>
-
-              <div class="manual-freebet-actions">
-                <button class="ghost-button compact" type="submit">Adicionar freebet avulsa</button>
-              </div>
-            </form>
-
             <form class="bet-form surebet-form freebet-extraction-form bet-mode-panel" data-bet-mode-panel="freebet-extract" method="post" novalidate>
               {% csrf_token %}
               <input type="hidden" name="form_type" value="freebet_extract" />
@@ -1489,23 +1458,12 @@
                 </div>
               {% endif %}
 
-              <label>
-                <span>Freebet disponível</span>
-                <select name="freebet_source" id="freebetSource" data-freebet-source required>
-                  <option value="">Selecione a freebet</option>
-                  {% for freebet in available_freebet_list %}
-                    <option
-                      value="{{ freebet.id }}"
-                      data-amount="{{ freebet.amount }}"
-                      data-bookmaker="{{ freebet.bookmaker }}"
-                      {% if freebet_extract_data.freebet_source == freebet.id|stringformat:"s" %}selected{% endif %}
-                    >
-                      {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
-                    </option>
-                  {% endfor %}
-                </select>
-                <small class="field-hint">Use a freebet recebida e informe as odds da arbitragem para transformar em saldo real.</small>
-              </label>
+              {% if show_tutorials %}
+                <div class="surebet-guidance" role="note">
+                  <strong>Como preencher a extração</strong>
+                  <span>Na primeira linha, selecione a casa da freebet e informe somente o valor que será usado. Nas linhas seguintes, informe as casas e odds da proteção.</span>
+                </div>
+              {% endif %}
 
               <div class="form-row mobile-pair">
                 <label>
@@ -2463,19 +2421,21 @@
               </form>
             </details>
 
-            <details class="history-guide" open>
-              <summary>Como acompanhar suas apostas</summary>
-              <div class="history-guide-content">
-                <div>
-                  <strong>Filtros e status</strong>
-                  <p>Use os filtros para encontrar uma casa, estratégia ou aposta aberta. Ao encerrar uma aposta, marque como ganha ou perdida para atualizar saldo, lucro e ROI.</p>
+            {% if show_tutorials %}
+              <details class="history-guide" open>
+                <summary>Como acompanhar suas apostas</summary>
+                <div class="history-guide-content">
+                  <div>
+                    <strong>Filtros e status</strong>
+                    <p>Use os filtros para encontrar uma casa, estratégia ou aposta aberta. Ao encerrar uma aposta, marque como ganha ou perdida para atualizar saldo, lucro e ROI.</p>
+                  </div>
+                  <div>
+                    <strong>Cash Out</strong>
+                    <p>Use quando a casa encerrou a aposta antes do fim. Informe apenas o lucro ou prejuízo líquido: se apostou R$ 100 e recebeu R$ 85, registre R$ -15; se recebeu R$ 125, registre R$ 25.</p>
+                  </div>
                 </div>
-                <div>
-                  <strong>Cash Out</strong>
-                  <p>Use quando a casa encerrou a aposta antes do fim. Informe apenas o lucro ou prejuízo líquido: se apostou R$ 100 e recebeu R$ 85, registre R$ -15; se recebeu R$ 125, registre R$ 25.</p>
-                </div>
-              </div>
-            </details>
+              </details>
+            {% endif %}
 
             <div class="table-wrap">
               <table>
@@ -2587,7 +2547,7 @@
                     {% if freebet.source_bet %}
                       <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.source_bet.pk %}">Ver origem</a>
                     {% endif %}
-                    <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}?freebet_source={{ freebet.id }}#new-bet">Extrair freebet</a>
+                    <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}#new-bet">Registrar extração</a>
                     <form method="post" action="{% url 'dashboard:delete_freebet' freebet.pk %}" onsubmit="return confirm('Excluir esta freebet cadastrada?');">
                       {% csrf_token %}
                       <input type="hidden" name="next" value="{{ history_return_url }}" />

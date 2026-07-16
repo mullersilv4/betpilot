@@ -94,23 +94,18 @@
             </label>
           </div>
 
-          <label>
-            <span>Usar freebet cadastrada</span>
-            <select name="{{ form.freebet_source.html_name }}" id="{{ form.freebet_source.id_for_label }}" data-simple-freebet-select>
-              <option value="">Não usar freebet</option>
-              {% for freebet in form.freebet_source.field.queryset %}
-                <option
-                  value="{{ freebet.pk }}"
-                  data-amount="{{ freebet.amount|unlocalize }}"
-                  {% if form.freebet_source.value|stringformat:"s" == freebet.pk|stringformat:"s" %}selected{% endif %}
-                >
-                  {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
-                </option>
-              {% endfor %}
-            </select>
-            {{ form.freebet_source.errors }}
+          <div class="freebet-inline-fields">
+            <label class="checkbox-field">
+              {{ form.uses_freebet }}
+              <span>Essa aposta está utilizando freebet?</span>
+            </label>
+            <label>
+              <span>Valor da freebet</span>
+              {{ form.freebet_amount }}
+              {{ form.freebet_amount.errors }}
+            </label>
             <small class="field-hint">Ao usar freebet, o retorno considera apenas o lucro da odd e uma perda fica em R$ 0,00.</small>
-          </label>
+          </div>
 
           <div class="form-row">
             <label>

@@ -1523,6 +1523,17 @@ textarea {
   font-weight: 700;
 }
 
+.freebet-inline-fields {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.7fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.freebet-inline-fields .field-hint {
+  grid-column: 1 / -1;
+}
+
 .calculation-preview {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1556,6 +1567,7 @@ textarea {
 
 .compact-bet-form > label,
 .compact-bet-form .form-row,
+.compact-bet-form .freebet-inline-fields,
 .compact-bet-form .calculation-preview,
 .compact-bet-form .form-errors,
 .compact-bet-form button {
@@ -1566,6 +1578,7 @@ textarea {
 .compact-bet-form > label:nth-of-type(2),
 .compact-bet-form > label:nth-of-type(3),
 .compact-bet-form > label:nth-of-type(4),
+.compact-bet-form .freebet-inline-fields,
 .compact-bet-form .calculation-preview,
 .compact-bet-form .form-errors,
 .compact-bet-form button {

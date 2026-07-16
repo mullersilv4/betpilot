@@ -260,6 +260,7 @@ class UserPreference(models.Model):
         choices=Currency.choices,
         default=Currency.BRL,
     )
+    tutorials_seen_at = models.DateTimeField('tutoriais vistos em', null=True, blank=True)
     updated_at = models.DateTimeField('atualizado em', auto_now=True)
 
     class Meta:
@@ -359,6 +360,12 @@ class Bet(models.Model):
         decimal_places=2,
         default=Decimal('0.00'),
     )
+    freebet_amount = models.DecimalField(
+        'valor da freebet',
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
     status = models.CharField(
         'resultado',
         max_length=8,
@@ -425,6 +432,8 @@ class Bet(models.Model):
 
     @property
     def simple_freebet_amount(self):
+        if self.freebet_amount > 0:
+            return self.freebet_amount
         try:
             return self.simple_freebet.amount
         except FreeBet.DoesNotExist:

@@ -281,6 +281,7 @@ class BetForm(forms.ModelForm):
         bankroll = cleaned_data.get('bankroll')
         stake = cleaned_data.get('stake')
         freebet_source = cleaned_data.get('freebet_source')
+        self.balance_prompt = None
 
         if freebet_source:
             cleaned_data['stake'] = freebet_source.amount
@@ -297,9 +298,17 @@ class BetForm(forms.ModelForm):
             available_balance += self.instance.stake
 
         if bankroll and stake and not freebet_source and stake > available_balance:
+            missing_amount = stake - available_balance
+            self.balance_prompt = {
+                'bankroll_id': bankroll.pk,
+                'bankroll_name': bankroll.display_name,
+                'required': stake,
+                'available': available_balance,
+                'missing': missing_amount,
+            }
             self.add_error(
                 'stake',
-                'O valor da aposta não pode ser maior que o saldo disponível da banca.',
+                'Não há saldo suficiente nessa casa para registrar a aposta.',
             )
 
         return cleaned_data

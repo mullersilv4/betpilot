@@ -1,5 +1,5 @@
 <!doctype html>
-{% load static %}
+{% load static l10n %}
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
@@ -17,6 +17,72 @@
           </div>
           <a class="ghost-button compact link-button subtle-link" href="{{ history_return_url|default:'#bets' }}">Voltar</a>
         </div>
+
+        {% if balance_prompt %}
+          <div class="balance-shortfall-alert" data-balance-shortfall>
+            <strong>Não há saldo suficiente em {{ balance_prompt.bankroll_name }}.</strong>
+            <span>
+              Necessário R$ {{ balance_prompt.required|floatformat:2 }},
+              disponível R$ {{ balance_prompt.available|floatformat:2 }}.
+            </span>
+            <p>Deseja adicionar saldo a essa casa?</p>
+            <div class="balance-shortfall-actions">
+              <button
+                class="primary-button compact"
+                type="button"
+                data-open-balance-modal
+                data-bankroll-id="{{ balance_prompt.bankroll_id }}"
+                data-bankroll-name="{{ balance_prompt.bankroll_name }}"
+                data-missing-amount="{{ balance_prompt.missing|unlocalize }}"
+              >
+                Sim
+              </button>
+              <button class="ghost-button compact" type="button" data-dismiss-balance-alert>Não</button>
+            </div>
+          </div>
+        {% endif %}
+
+        <dialog class="balance-deposit-dialog" data-balance-modal>
+          <form class="balance-deposit-form" method="post" action="{% url 'dashboard:index' %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="transaction" />
+            <input type="hidden" name="kind" value="deposit" />
+            <input type="hidden" name="bankroll" data-balance-modal-bankroll />
+            <header>
+              <div>
+                <span>Adicionar saldo</span>
+                <strong data-balance-modal-title>Casa de aposta</strong>
+              </div>
+              <button class="icon-button" type="button" aria-label="Fechar" title="Fechar" data-close-balance-modal>
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </header>
+            <label>
+              <span>Valor</span>
+              <input type="number" name="amount" step="0.01" min="0.01" placeholder="0,00" required data-balance-modal-amount />
+            </label>
+            <label>
+              <span>Conta</span>
+              <select name="bank_account">
+                <option value="">Conta</option>
+                {% for bank_account in bank_accounts %}
+                  <option value="{{ bank_account.pk }}">{{ bank_account.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Observação</span>
+              <input type="text" name="note" maxlength="160" value="Depósito para liberar aposta" autocomplete="off" />
+            </label>
+            <div class="balance-deposit-actions">
+              <button class="ghost-button compact" type="button" data-close-balance-modal>Cancelar</button>
+              <button class="primary-button compact" type="submit">Adicionar saldo</button>
+            </div>
+          </form>
+        </dialog>
 
         {% if is_freebet_edit %}
           <form class="bet-form freebet-extraction-form is-active" method="post" novalidate>

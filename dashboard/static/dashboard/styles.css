@@ -1444,6 +1444,85 @@ textarea {
   font-size: 0.86rem;
 }
 
+.balance-shortfall-alert {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgb(240 111 101 / 45%);
+  border-radius: 8px;
+  background: rgb(240 111 101 / 12%);
+  color: var(--text);
+}
+
+.balance-shortfall-alert strong {
+  color: var(--red);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.balance-shortfall-alert span,
+.balance-shortfall-alert p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.balance-shortfall-actions,
+.balance-deposit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.balance-deposit-dialog {
+  width: min(440px, calc(100vw - 28px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+}
+
+.balance-deposit-dialog::backdrop {
+  background: rgb(7 12 24 / 68%);
+}
+
+.balance-deposit-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.balance-deposit-form header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.balance-deposit-form header div,
+.balance-deposit-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.balance-deposit-form header span,
+.balance-deposit-form label span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.balance-deposit-form header strong {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .calculation-preview {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -734,6 +734,7 @@ def build_dashboard_context(request, **forms):
         'freebet_extract_rows': build_freebet_extract_rows(forms.get('freebet_extract_data')),
         'freebet_manual_errors': forms.get('freebet_manual_errors') or [],
         'freebet_manual_data': forms.get('freebet_manual_data') or {},
+        'balance_prompt': forms.get('balance_prompt') or getattr(forms.get('bet_form'), 'balance_prompt', None),
         'available_freebet_list': available_freebets.select_related(
             'source_bet',
             'source_bet__entity',
@@ -1326,6 +1327,77 @@ def bind_outcome_bankrolls(outcomes, user, errors, entity=None):
             continue
         outcome['bankroll'] = bankroll
         outcome['bookmaker'] = bankroll_display_name(bankroll)
+
+
+def outcome_cash_requirement(outcome):
+    if outcome.get('is_freebet_source'):
+        return Decimal('0.00')
+    if outcome.get('mode') == 'lay':
+        return outcome.get('liability') or Decimal('0.00')
+    return outcome.get('stake') or Decimal('0.00')
+
+
+def balance_prompt_from_shortfalls(shortfalls):
+    if not shortfalls:
+        return None
+    first = shortfalls[0]
+    return {
+        'bankroll_id': first['bankroll'].pk,
+        'bankroll_name': first['bankroll'].display_name,
+        'required': first['required'],
+        'available': first['available'],
+        'missing': first['required'] - first['available'],
+        'shortfalls': [
+            {
+                'bankroll_name': item['bankroll'].display_name,
+                'required': item['required'],
+                'available': item['available'],
+                'missing': item['required'] - item['available'],
+            }
+            for item in shortfalls
+        ],
+    }
+
+
+def validate_outcome_balances(outcomes, errors, existing_bet=None):
+    requirements = {}
+    bankrolls = {}
+    for outcome in outcomes:
+        bankroll = outcome.get('bankroll')
+        if not bankroll:
+            continue
+        required = outcome_cash_requirement(outcome)
+        if required <= 0:
+            continue
+        requirements[bankroll.pk] = requirements.get(bankroll.pk, Decimal('0.00')) + required
+        bankrolls[bankroll.pk] = bankroll
+
+    existing_requirements = {}
+    if existing_bet is not None and existing_bet.status == Bet.Status.OPEN:
+        for entry in existing_bet.surebet_entries.select_related('bankroll'):
+            if not entry.bankroll_id or entry.is_freebet_source:
+                continue
+            existing_required = entry.liability if entry.mode == SureBetEntry.Mode.LAY else entry.stake
+            existing_requirements[entry.bankroll_id] = (
+                existing_requirements.get(entry.bankroll_id, Decimal('0.00')) + existing_required
+            )
+
+    shortfalls = []
+    for bankroll_id, required in requirements.items():
+        bankroll = bankrolls[bankroll_id]
+        available = bankroll.available_balance + existing_requirements.get(bankroll_id, Decimal('0.00'))
+        if required > available:
+            shortfalls.append(
+                {
+                    'bankroll': bankroll,
+                    'required': required,
+                    'available': available,
+                }
+            )
+
+    if shortfalls:
+        errors.append('Não há saldo suficiente em uma ou mais casas para registrar a aposta.')
+    return balance_prompt_from_shortfalls(shortfalls)
 
 
 def add_suggested_stakes(opportunities, total_stake):
@@ -2371,6 +2443,7 @@ def index(request):
             if len(outcomes) < 2:
                 surebet_errors.append('Informe pelo menos dois resultados de arbitragem.')
             bind_outcome_bankrolls(outcomes, request.user, surebet_errors, entity=entity)
+            balance_prompt = None
 
             for outcome in outcomes:
                 if outcome['odd'] is None or outcome['odd'] <= 1:
@@ -2390,6 +2463,9 @@ def index(request):
                     surebet_errors.append(
                         f'Informe o valor da freebet gerada em {outcome["label"]}.'
                     )
+
+            if not surebet_errors:
+                balance_prompt = validate_outcome_balances(outcomes, surebet_errors)
 
             if not surebet_errors:
                 total_stake = sum(
@@ -2429,6 +2505,7 @@ def index(request):
                     request,
                     surebet_errors=surebet_errors,
                     surebet_data=request.POST,
+                    balance_prompt=balance_prompt,
                 )
                 return render(request, 'dashboard/index.html', context)
 
@@ -2535,8 +2612,6 @@ def index(request):
                 double_errors.append('Selecione a casa onde a proteção será feita.')
             elif entity is not None and bankroll.entity_id and bankroll.entity_id != entity.id:
                 double_errors.append('A casa selecionada precisa pertencer à entidade escolhida.')
-            if not game:
-                double_errors.append('Informe o jogo da proteção.')
             if early_profit is None or early_profit < 0:
                 double_errors.append('Informe o ganho já pago com valor igual ou maior que zero.')
             if second_chance_profit is None or second_chance_profit <= 0:
@@ -2554,12 +2629,25 @@ def index(request):
             )
             if calculation is None and not double_errors:
                 double_errors.append('Não foi possível calcular a proteção com esses valores.')
+            balance_prompt = None
+            if not double_errors and calculation['stake'] > bankroll.available_balance:
+                balance_prompt = balance_prompt_from_shortfalls(
+                    [
+                        {
+                            'bankroll': bankroll,
+                            'required': calculation['stake'],
+                            'available': bankroll.available_balance,
+                        }
+                    ]
+                )
+                double_errors.append('Não há saldo suficiente nessa casa para registrar a proteção.')
 
             if double_errors:
                 context = build_dashboard_context(
                     request,
                     double_protection_errors=double_errors,
                     double_protection_data=request.POST,
+                    balance_prompt=balance_prompt,
                 )
                 return render(request, 'dashboard/index.html', context)
 
@@ -2661,11 +2749,10 @@ def index(request):
 
             if source_freebet is None:
                 extraction_errors.append('Selecione uma freebet disponível para extrair.')
-            if not game:
-                extraction_errors.append('Informe o jogo da extração da freebet.')
             if len(outcomes) < 2:
                 extraction_errors.append('Informe a freebet e pelo menos uma arbitragem.')
             bind_outcome_bankrolls(outcomes, request.user, extraction_errors)
+            balance_prompt = None
 
             for outcome in outcomes:
                 if outcome['odd'] is None or outcome['odd'] <= 1:
@@ -2687,6 +2774,9 @@ def index(request):
                     )
 
             if not extraction_errors:
+                balance_prompt = validate_outcome_balances(outcomes, extraction_errors)
+
+            if not extraction_errors:
                 cash_exposure, outcome_results = calculate_freebet_results(outcomes)
 
             if extraction_errors:
@@ -2694,6 +2784,7 @@ def index(request):
                     request,
                     freebet_extract_errors=extraction_errors,
                     freebet_extract_data=request.POST,
+                    balance_prompt=balance_prompt,
                 )
                 return render(request, 'dashboard/index.html', context)
 
@@ -2823,6 +2914,7 @@ def edit_bet(request, pk):
             | Q(extraction_bet=bet),
         ).filter(Q(is_used=False) | Q(extraction_bet=bet)).select_related('source_bet').distinct()
         errors = []
+        balance_prompt = None
 
         if request.method == 'POST':
             winner_signatures = selected_winner_signatures(bet, request.POST.getlist('winner_entry'))
@@ -2840,11 +2932,10 @@ def edit_bet(request, pk):
 
                 if source_freebet is None:
                     errors.append('Selecione a freebet usada nessa extração.')
-                if not game:
-                    errors.append('Informe o jogo da extração da freebet.')
                 if len(outcomes) < 2:
                     errors.append('Informe a freebet e pelo menos uma arbitragem.')
                 bind_outcome_bankrolls(outcomes, request.user, errors)
+                balance_prompt = None
                 for outcome in outcomes:
                     if outcome['odd'] is None or outcome['odd'] <= 1:
                         errors.append(f'A odd de {outcome["label"]} precisa ser maior que 1.00.')
@@ -2853,6 +2944,9 @@ def edit_bet(request, pk):
                     for field, label in [('commission', 'comissão'), ('cashback', 'cashback'), ('boost', 'aumento')]:
                         if outcome[field] < 0 or outcome[field] > 100:
                             errors.append(f'O campo {label} de {outcome["label"]} precisa ficar entre 0% e 100%.')
+
+                if not errors:
+                    balance_prompt = validate_outcome_balances(outcomes, errors, existing_bet=bet)
 
                 if not errors:
                     cash_exposure, outcome_results = calculate_freebet_results(outcomes)
@@ -2951,11 +3045,10 @@ def edit_bet(request, pk):
 
                 if entity is None:
                     errors.append('Selecione a entidade da arbitragem.')
-                if not game:
-                    errors.append('Informe o jogo da arbitragem.')
                 if len(outcomes) < 2:
                     errors.append('Informe pelo menos dois resultados de arbitragem.')
                 bind_outcome_bankrolls(outcomes, request.user, errors, entity=entity)
+                balance_prompt = None
                 for outcome in outcomes:
                     if outcome['odd'] is None or outcome['odd'] <= 1:
                         errors.append(f'A odd de {outcome["label"]} precisa ser maior que 1.00.')
@@ -2966,6 +3059,9 @@ def edit_bet(request, pk):
                             errors.append(f'O campo {label} de {outcome["label"]} precisa ficar entre 0% e 100%.')
                     if outcome['freebet_enabled'] and outcome['freebet_amount'] <= 0:
                         errors.append(f'Informe o valor da freebet gerada em {outcome["label"]}.')
+
+                if not errors:
+                    balance_prompt = validate_outcome_balances(outcomes, errors, existing_bet=bet)
 
                 if not errors:
                     total_stake, outcome_results = calculate_protection_results(outcomes)
@@ -3048,6 +3144,8 @@ def edit_bet(request, pk):
             'surebet_rows': rows if not is_freebet_edit else [],
             'entries': bet.surebet_entries.select_related('bankroll').all(),
             'history_return_url': history_return_url(request),
+            'balance_prompt': balance_prompt,
+            'bank_accounts': BankAccount.objects.filter(owner=request.user),
         }
         return render(request, 'dashboard/complex_bet_form.html', context)
 

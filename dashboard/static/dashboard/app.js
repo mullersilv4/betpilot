@@ -1960,9 +1960,79 @@ function applyBankrollFilters() {
   });
 }
 
+const hideZeroBalanceBankrollsInput = document.querySelector("#hideZeroBalanceBankrolls");
+if (hideZeroBalanceBankrollsInput) {
+  hideZeroBalanceBankrollsInput.checked = localStorage.getItem("freebetarHideZeroBalanceBankrolls") === "1";
+  applyBankrollFilters();
+}
+
 document.querySelector("#bankrollEntityFilter")?.addEventListener("change", applyBankrollFilters);
 document.querySelector("#bankrollSearch")?.addEventListener("input", applyBankrollFilters);
-document.querySelector("#hideZeroBalanceBankrolls")?.addEventListener("change", applyBankrollFilters);
+hideZeroBalanceBankrollsInput?.addEventListener("change", () => {
+  localStorage.setItem("freebetarHideZeroBalanceBankrolls", hideZeroBalanceBankrollsInput.checked ? "1" : "0");
+  applyBankrollFilters();
+});
+
+document.addEventListener("click", (event) => {
+  document.querySelectorAll(".finance-filter-menu[open]").forEach((menu) => {
+    if (!menu.contains(event.target)) {
+      menu.open = false;
+    }
+  });
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  document.querySelectorAll(".finance-filter-menu[open]").forEach((menu) => {
+    menu.open = false;
+  });
+});
+
+const balanceModal = document.querySelector("[data-balance-modal]");
+const balanceModalBankroll = balanceModal?.querySelector("[data-balance-modal-bankroll]");
+const balanceModalTitle = balanceModal?.querySelector("[data-balance-modal-title]");
+const balanceModalAmount = balanceModal?.querySelector("[data-balance-modal-amount]");
+
+document.querySelectorAll("[data-open-balance-modal]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!balanceModal) return;
+    if (balanceModalBankroll) balanceModalBankroll.value = button.dataset.bankrollId || "";
+    if (balanceModalTitle) balanceModalTitle.textContent = button.dataset.bankrollName || "Casa de aposta";
+    if (balanceModalAmount) {
+      const missingAmount = Number.parseFloat(button.dataset.missingAmount || "0");
+      balanceModalAmount.value = missingAmount > 0 ? missingAmount.toFixed(2) : "";
+    }
+    if (typeof balanceModal.showModal === "function") {
+      balanceModal.showModal();
+    } else {
+      balanceModal.setAttribute("open", "");
+    }
+    balanceModalAmount?.focus();
+  });
+});
+
+document.querySelectorAll("[data-close-balance-modal]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!balanceModal) return;
+    if (typeof balanceModal.close === "function") {
+      balanceModal.close();
+    } else {
+      balanceModal.removeAttribute("open");
+    }
+  });
+});
+
+balanceModal?.addEventListener("click", (event) => {
+  if (event.target === balanceModal) {
+    balanceModal.close();
+  }
+});
+
+document.querySelectorAll("[data-dismiss-balance-alert]").forEach((button) => {
+  button.addEventListener("click", () => {
+    button.closest("[data-balance-shortfall]")?.remove();
+  });
+});
 
 document.querySelectorAll(".finance-card-form").forEach((form) => {
   const kindInput = form.querySelector("[data-finance-kind]");

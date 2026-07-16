@@ -421,14 +421,7 @@ class Bet(models.Model):
 
     @property
     def accounting_at(self):
-        if self.strategy == 'Extração de freebet':
-            try:
-                source_bet = self.extracted_freebet.source_bet
-            except FreeBet.DoesNotExist:
-                source_bet = None
-            if source_bet is not None:
-                return source_bet.settled_at or source_bet.created_at
-        return self.settled_at or self.created_at
+        return self.event_date or self.created_at
 
     @property
     def simple_freebet_amount(self):

@@ -539,7 +539,7 @@ class AnalyticsTests(TestCase):
         self.assertEqual(days[0]['count'], 2)
         self.assertEqual(days[0]['tone'], 'positive')
 
-    def test_freebet_extraction_uses_source_bet_settlement_day(self):
+    def test_freebet_extraction_uses_selected_event_day(self):
         source_day = timezone.localtime().replace(day=7, hour=18, minute=0, second=0, microsecond=0)
         extraction_day = timezone.localtime().replace(day=20, hour=12, minute=0, second=0, microsecond=0)
         source_bet = Bet.objects.create(
@@ -551,6 +551,7 @@ class AnalyticsTests(TestCase):
             status=Bet.Status.WON,
             settled_at=source_day,
             created_at=source_day - timezone.timedelta(days=1),
+            event_date=source_day,
         )
         extraction_bet = Bet.objects.create(
             bankroll=self.bankroll,
@@ -562,6 +563,7 @@ class AnalyticsTests(TestCase):
             status=Bet.Status.WON,
             actual_net_result=Decimal('30.00'),
             created_at=extraction_day,
+            event_date=extraction_day,
         )
         FreeBet.objects.create(
             source_bet=source_bet,
@@ -578,10 +580,10 @@ class AnalyticsTests(TestCase):
         day_7 = [day for week in calendar['weeks'] for day in week if day.get('day') == 7][0]
         day_20 = [day for week in calendar['weeks'] for day in week if day.get('day') == 20][0]
 
-        self.assertEqual(day_7['profit'], Decimal('80.00'))
-        self.assertEqual(day_7['count'], 2)
-        self.assertEqual(day_20['profit'], Decimal('0.00'))
-        self.assertEqual(day_20['count'], 0)
+        self.assertEqual(day_7['profit'], Decimal('50.00'))
+        self.assertEqual(day_7['count'], 1)
+        self.assertEqual(day_20['profit'], Decimal('30.00'))
+        self.assertEqual(day_20['count'], 1)
 
 
 class BankrollTransactionFormTests(TestCase):

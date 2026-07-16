@@ -516,6 +516,9 @@ def build_dashboard_context(request, **forms):
         'entity',
         'extracted_freebet',
         'extracted_freebet__source_bet',
+    ).prefetch_related(
+        'surebet_entries',
+        'surebet_entries__bankroll',
     )
     all_bet_list = list(all_bets)
     dashboard_filter = dashboard_period(request, all_bet_list)
@@ -695,6 +698,14 @@ def build_dashboard_context(request, **forms):
             'complete': all_bets.exists(),
         },
     ]
+    double_protection_source = None
+    double_protection_entry_options = []
+    double_protection_data = forms.get('double_protection_data') or {}
+    if not double_protection_data:
+        double_protection_source = double_protection_source_from_request(request)
+        if double_protection_source is not None:
+            double_protection_entry_options = double_protection_source_entries(double_protection_source)
+            double_protection_data = double_protection_data_from_source(double_protection_source)
 
     return {
         'bankroll_form': forms.get('bankroll_form') or BankrollForm(user=request.user),
@@ -727,7 +738,9 @@ def build_dashboard_context(request, **forms):
         'surebet_data': forms.get('surebet_data') or {},
         'surebet_rows': build_surebet_rows(forms.get('surebet_data')),
         'double_protection_errors': forms.get('double_protection_errors') or [],
-        'double_protection_data': forms.get('double_protection_data') or {},
+        'double_protection_data': double_protection_data,
+        'double_protection_source': double_protection_source,
+        'double_protection_source_entries': double_protection_entry_options,
         'freebet_extract_errors': forms.get('freebet_extract_errors') or [],
         'freebet_extract_data': forms.get('freebet_extract_data') or {},
         'freebet_extract_rows': build_freebet_extract_rows(forms.get('freebet_extract_data')),
@@ -905,6 +918,59 @@ def build_freebet_extract_rows(post_data=None):
             }
         )
     return rows
+
+
+def double_protection_source_from_request(request):
+    source_id = request.GET.get('protect_bet')
+    if not source_id:
+        return None
+    return (
+        user_bets(request.user)
+        .filter(pk=source_id, strategy__in={'Surebet', 'Proteção', 'Arbitragem'})
+        .prefetch_related('surebet_entries', 'surebet_entries__bankroll')
+        .first()
+    )
+
+
+def double_protection_source_entries(source_bet):
+    if source_bet is None:
+        return []
+    entries = list(source_bet.surebet_entries.select_related('bankroll').all())
+    source_entries = []
+    for entry in entries:
+        other_results = [
+            other.return_amount
+            for other in entries
+            if other.pk != entry.pk
+        ]
+        second_chance_profit = max(other_results, default=Decimal('0.00'))
+        source_entries.append(
+            {
+                'id': entry.pk,
+                'label': f'{entry.bookmaker} - {entry.label}',
+                'early_profit': entry.return_amount,
+                'second_chance_profit': second_chance_profit,
+            }
+        )
+    return source_entries
+
+
+def double_protection_data_from_source(source_bet):
+    if source_bet is None:
+        return {}
+    return {
+        'double_entity': str(source_bet.entity_id or ''),
+        'double_sport': source_bet.sport,
+        'double_competition': source_bet.competition,
+        'double_event_date': datetime_to_input(source_bet.event_date),
+        'double_game': source_bet.game,
+        'double_external_event_id': source_bet.external_event_id,
+        'double_external_sport_key': source_bet.external_sport_key,
+        'double_home_team': source_bet.home_team,
+        'double_away_team': source_bet.away_team,
+        'double_commission': '0',
+        'double_notes': f'Proteção criada a partir da arbitragem #{source_bet.pk}.',
+    }
 
 
 def decimal_to_input(value):
@@ -2613,9 +2679,9 @@ def index(request):
             elif entity is not None and bankroll.entity_id and bankroll.entity_id != entity.id:
                 double_errors.append('A casa selecionada precisa pertencer à entidade escolhida.')
             if early_profit is None or early_profit < 0:
-                double_errors.append('Informe o ganho já pago com valor igual ou maior que zero.')
+                double_errors.append('Informe o retorno já pago com valor igual ou maior que zero.')
             if second_chance_profit is None or second_chance_profit <= 0:
-                double_errors.append('Informe o ganho possível no empate/virada maior que zero.')
+                double_errors.append('Informe o retorno possível no empate/virada maior que zero.')
             if live_odd is None or live_odd <= 1:
                 double_errors.append('Informe a odd atual do time 1 maior que 1.00.')
             if commission is None or commission < 0 or commission > 100:
@@ -2654,8 +2720,8 @@ def index(request):
             market = 'Proteção do duplo: Time 1 confirma / Empate ou virada'
             protection_lines = [
                 'Proteção do duplo cadastrada:',
-                f'Ganho já pago: {format_money(early_profit)}',
-                f'Ganho possível no empate/virada: {format_money(second_chance_profit)}',
+                f'Retorno já pago: {format_money(early_profit)}',
+                f'Retorno possível no empate/virada: {format_money(second_chance_profit)}',
                 f'Odd atual do time 1: {live_odd}',
                 f'Comissão: {commission}%',
                 f'Nova aposta sugerida: {format_money(calculation["stake"])}',

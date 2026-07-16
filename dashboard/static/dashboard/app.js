@@ -1857,6 +1857,22 @@ function updateDoubleProtectionPreview() {
   `;
 }
 
+function applyDoubleProtectionSourceEntry() {
+  const sourceSelect = document.querySelector("[data-double-source-select]");
+  if (!sourceSelect) return;
+  const selectedOption = sourceSelect.selectedOptions[0];
+  if (!selectedOption || !selectedOption.value) return;
+
+  const earlyProfit = Number.parseFloat(selectedOption.dataset.earlyProfit || "0");
+  const secondChanceProfit = Number.parseFloat(selectedOption.dataset.secondChanceProfit || "0");
+  const earlyProfitInput = document.querySelector('[name="double_early_profit"]');
+  const secondChanceInput = document.querySelector('[name="double_second_chance_profit"]');
+
+  if (earlyProfitInput) earlyProfitInput.value = earlyProfit.toFixed(2);
+  if (secondChanceInput) secondChanceInput.value = secondChanceProfit.toFixed(2);
+  updateDoubleProtectionPreview();
+}
+
 function createFreebetEntry(index) {
   const group = document.createElement("div");
   group.className = "surebet-entry-group";
@@ -1984,6 +2000,7 @@ document.querySelector(".surebet-form")?.addEventListener("click", (event) => {
 
 document.querySelector(".double-protection-form")?.addEventListener("input", updateDoubleProtectionPreview);
 document.querySelector(".double-protection-form")?.addEventListener("change", updateDoubleProtectionPreview);
+document.querySelector("[data-double-source-select]")?.addEventListener("change", applyDoubleProtectionSourceEntry);
 
 document.querySelector(".freebet-extraction-form")?.addEventListener("input", (event) => {
   if (event.target.classList.contains("surebet-stake")) {
@@ -2123,6 +2140,10 @@ if (document.querySelector('[data-bet-mode-panel="surebet"] .form-errors')) {
 }
 
 if (document.querySelector('[data-bet-mode-panel="double-protection"] .form-errors')) {
+  setBetMode("double-protection");
+}
+
+if (document.querySelector("[data-double-source-select]")) {
   setBetMode("double-protection");
 }
 

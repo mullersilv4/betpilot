@@ -316,7 +316,7 @@
                 <h2>Resultado diário de {{ analytics.month_calendar.label }}</h2>
               </div>
               <div class="calendar-summary">
-                <span>{{ analytics.month_calendar.count }} aposta(s) fechada(s)</span>
+                <span>{{ analytics.month_calendar.count }} aposta(s) registrada(s)</span>
                 <strong class="{% if analytics.month_calendar.profit >= 0 %}positive{% else %}negative{% endif %}">
                   R$ {{ analytics.month_calendar.profit|floatformat:2 }}
                 </strong>
@@ -1307,6 +1307,26 @@
                 </div>
               {% endif %}
 
+              {% if double_protection_source %}
+                <div class="form-row">
+                  <label>
+                    <span>Casa onde já ganhou</span>
+                    <select name="double_source_entry" data-double-source-select>
+                      <option value="">Selecione a casa vencedora</option>
+                      {% for entry in double_protection_source_entries %}
+                        <option
+                          value="{{ entry.id }}"
+                          data-early-profit="{{ entry.early_profit|unlocalize }}"
+                          data-second-chance-profit="{{ entry.second_chance_profit|unlocalize }}"
+                        >
+                          {{ entry.label }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                </div>
+              {% endif %}
+
               <div class="form-row">
                 <label>
                   <span>Entidade</span>
@@ -1376,12 +1396,12 @@
 
               <div class="form-row">
                 <label>
-                  <span>Ganho já pago</span>
+                  <span>Retorno já pago</span>
                   <input type="number" name="double_early_profit" value="{{ double_protection_data.double_early_profit }}" step="0.01" min="0" placeholder="Ex: 120.00" />
                 </label>
 
                 <label>
-                  <span>Ganho possível no empate/virada</span>
+                  <span>Retorno possível no empate/virada</span>
                   <input type="number" name="double_second_chance_profit" value="{{ double_protection_data.double_second_chance_profit }}" step="0.01" min="0.01" placeholder="Ex: 80.00" />
                 </label>
               </div>
@@ -2472,6 +2492,9 @@
                           <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' bet.pk %}?next={{ history_return_url|urlencode }}">Editar</a>
                           {% if bet.status == 'open' %}
                             {% if bet.strategy == 'Surebet' or bet.strategy == 'Proteção' or bet.strategy == 'Arbitragem' or bet.strategy == 'Extração de freebet' %}
+                              {% if bet.strategy == 'Surebet' or bet.strategy == 'Proteção' or bet.strategy == 'Arbitragem' %}
+                                <a class="mini-button cashout link-button" href="{% url 'dashboard:index' %}?protect_bet={{ bet.pk }}#new-bet">Proteger</a>
+                              {% endif %}
                               <a class="mini-button won link-button" href="{% url 'dashboard:settle_surebet' bet.pk %}?next={{ history_return_url|urlencode }}">Finalizar arbitragem</a>
                             {% else %}
                               <form method="post" action="{% url 'dashboard:settle_bet' bet.pk 'won' %}">

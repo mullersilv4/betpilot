@@ -294,13 +294,13 @@ def is_protection_bet(bet):
     return bet.strategy in PROTECTION_STRATEGIES
 
 
-def sync_simple_bet_freebet(bet):
+def sync_simple_bet_freebet(bet, force_release=False):
     try:
         current_freebet = bet.simple_freebet
     except FreeBet.DoesNotExist:
         current_freebet = None
 
-    if current_freebet and bet.freebet_amount <= 0:
+    if current_freebet and (force_release or bet.freebet_amount <= 0):
         current_freebet.is_used = False
         current_freebet.simple_bet = None
         current_freebet.save(update_fields=['is_used', 'simple_bet'])
@@ -823,12 +823,13 @@ def calculate_double_protection(early_profit, second_chance_profit, live_odd, co
     if payout_multiplier <= 0:
         return None
     stake = (second_chance_profit / payout_multiplier).quantize(Decimal('0.01'))
-    team_one_net = (early_profit + (stake * (payout_multiplier - Decimal('1')))).quantize(Decimal('0.01'))
-    double_net = (early_profit + second_chance_profit - stake).quantize(Decimal('0.01'))
+    return_amount = second_chance_profit.quantize(Decimal('0.01'))
+    team_one_net = return_amount
+    double_net = (second_chance_profit - stake).quantize(Decimal('0.01'))
     return {
         'stake': stake,
         'payout_multiplier': payout_multiplier,
-        'return_amount': (stake * payout_multiplier).quantize(Decimal('0.01')),
+        'return_amount': return_amount,
         'team_one_net': team_one_net,
         'double_net': double_net,
         'best': max(team_one_net, double_net),
@@ -2763,7 +2764,7 @@ def index(request):
                 commission=commission,
                 cashback=Decimal('0.00'),
                 boost=Decimal('0.00'),
-                return_amount=(calculation['team_one_net'] + calculation['stake']).quantize(Decimal('0.01')),
+                return_amount=calculation['return_amount'],
                 cashback_return=Decimal('0.00'),
                 net_result=calculation['team_one_net'],
                 notes='Nova aposta de proteção no time 1',
@@ -2781,7 +2782,7 @@ def index(request):
                 commission=Decimal('0.00'),
                 cashback=Decimal('0.00'),
                 boost=Decimal('0.00'),
-                return_amount=(calculation['double_net'] + calculation['stake']).quantize(Decimal('0.01')),
+                return_amount=second_chance_profit.quantize(Decimal('0.01')),
                 cashback_return=Decimal('0.00'),
                 net_result=calculation['double_net'],
                 notes='Cenário calculado da arbitragem original',
@@ -3403,7 +3404,7 @@ def delete_bet(request, pk):
     bet = get_object_or_404(user_bets(request.user), pk=pk)
     if request.method == 'POST':
         with transaction.atomic():
-            sync_simple_bet_freebet(bet, None)
+            sync_simple_bet_freebet(bet, force_release=True)
             bet.delete()
         messages.success(request, 'Aposta excluída.')
     return redirect_to_history(request)

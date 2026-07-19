@@ -1806,8 +1806,8 @@ function updateDoubleProtectionPreview() {
   const payoutMultiplier = liveOdd > 1 ? 1 + (liveOdd - 1) * (1 - commission / 100) : 0;
   const stake = secondChanceProfit > 0 && payoutMultiplier > 0 ? secondChanceProfit / payoutMultiplier : 0;
   const returnAmount = stake * payoutMultiplier;
-  const teamOneNet = earlyProfit + returnAmount - stake;
-  const secondNet = earlyProfit + secondChanceProfit - stake;
+  const teamOneNet = returnAmount;
+  const secondNet = secondChanceProfit - stake;
   const worst = Math.min(teamOneNet, secondNet);
   const bookmaker = selectedBankrollText("double_bankroll");
   const values = {
@@ -1850,7 +1850,7 @@ function updateDoubleProtectionPreview() {
       <span>Cenário protegido</span>
       <span>-</span>
       <span>${formatCurrency(stake)}</span>
-      <span>${formatCurrency(earlyProfit + secondChanceProfit)}</span>
+      <span>${formatCurrency(secondChanceProfit)}</span>
       <span>${formatCurrency(0)}</span>
       <strong class="${secondNet >= 0 ? "positive" : "negative"}">${formatCurrency(secondNet)}</strong>
     </div>

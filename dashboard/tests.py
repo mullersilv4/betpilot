@@ -48,6 +48,7 @@ from .result_settlement import apply_surebet_settlement
 from .result_settlement import resolve_bet_from_event
 from .result_settlement import resolve_surebet_from_event
 from .views import build_surebet_payload
+from .views import calculate_double_protection
 from .views import parse_import_lines
 
 
@@ -107,6 +108,20 @@ class BetCalculationTests(TestCase):
 
         self.assertEqual(outcomes[0]['effective_odd'].quantize(Decimal('0.01')), Decimal('1.55'))
         self.assertEqual(outcomes[0]['payout_multiplier'].quantize(Decimal('0.01')), Decimal('1.55'))
+
+    def test_double_protection_does_not_count_already_paid_return_again(self):
+        calculation = calculate_double_protection(
+            Decimal('225.00'),
+            Decimal('225.00'),
+            Decimal('2.20'),
+            Decimal('0.00'),
+        )
+
+        self.assertEqual(calculation['stake'], Decimal('102.27'))
+        self.assertEqual(calculation['return_amount'], Decimal('225.00'))
+        self.assertEqual(calculation['team_one_net'], Decimal('225.00'))
+        self.assertEqual(calculation['double_net'], Decimal('122.73'))
+        self.assertEqual(calculation['worst'], Decimal('122.73'))
 
     def test_lost_bet_returns_negative_stake(self):
         bet = Bet(
@@ -201,6 +216,37 @@ class HistoryFilterRedirectTests(TestCase):
         self.assertRedirects(response, next_url, fetch_redirect_response=False)
         self.bet.refresh_from_db()
         self.assertEqual(self.bet.status, Bet.Status.WON)
+
+    def test_delete_bet_removes_bet_without_server_error(self):
+        self.client.login(username='owner', password='StrongPass123!')
+        next_url = '/?status=open#bets'
+
+        response = self.client.post(
+            reverse('dashboard:delete_bet', args=[self.bet.pk]),
+            {'next': next_url},
+        )
+
+        self.assertRedirects(response, next_url, fetch_redirect_response=False)
+        self.assertFalse(Bet.objects.filter(pk=self.bet.pk).exists())
+
+    def test_delete_bet_releases_linked_freebet(self):
+        freebet = FreeBet.objects.create(
+            owner=self.user,
+            simple_bet=self.bet,
+            bookmaker='Betfair',
+            amount=Decimal('100.00'),
+            is_used=True,
+        )
+        self.bet.freebet_amount = Decimal('100.00')
+        self.bet.save(update_fields=['freebet_amount'])
+        self.client.login(username='owner', password='StrongPass123!')
+
+        response = self.client.post(reverse('dashboard:delete_bet', args=[self.bet.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        freebet.refresh_from_db()
+        self.assertFalse(freebet.is_used)
+        self.assertIsNone(freebet.simple_bet_id)
 
 
 class BetFormTests(TestCase):

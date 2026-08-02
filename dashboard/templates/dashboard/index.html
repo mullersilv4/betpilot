@@ -1187,7 +1187,7 @@
                       </div>
                       <label>
                         <span class="sr-only">Valor {{ row.index }}</span>
-                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado{% else %}Ex: 100.00{% endif %}" {% if row.readonly %}readonly aria-label="Valor calculado automaticamente"{% endif %} />
+                        <input type="number" name="surebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" placeholder="{% if row.readonly %}Calculado ou manual{% else %}Ex: 100.00{% endif %}" />
                         <output class="surebet-liability" data-surebet-liability="{{ row.index }}"></output>
                       </label>
                       <label>
@@ -1484,6 +1484,20 @@
                   <span>Na primeira linha, selecione a casa da freebet e informe somente o valor que será usado. Nas linhas seguintes, informe as casas e odds da proteção.</span>
                 </div>
               {% endif %}
+
+              <div class="form-row">
+                <label>
+                  <span>Vincular freebet existente</span>
+                  <select name="freebet_source" data-freebet-source-select>
+                    <option value="">Extração livre, sem vínculo com ciclo</option>
+                    {% for freebet in available_freebet_list %}
+                      <option value="{{ freebet.pk }}" data-amount="{{ freebet.amount|floatformat:2 }}" {% if freebet_extract_data.freebet_source == freebet.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+              </div>
 
               <div class="form-row mobile-pair">
                 <label>
@@ -2570,7 +2584,7 @@
                     {% if freebet.source_bet %}
                       <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.source_bet.pk %}">Ver origem</a>
                     {% endif %}
-                    <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}#new-bet">Registrar extração</a>
+                    <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}?freebet_source={{ freebet.pk }}#new-bet">Registrar extração</a>
                     <form method="post" action="{% url 'dashboard:delete_freebet' freebet.pk %}" onsubmit="return confirm('Excluir esta freebet cadastrada?');">
                       {% csrf_token %}
                       <input type="hidden" name="next" value="{{ history_return_url }}" />
@@ -2692,6 +2706,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    <script src="{% static 'dashboard/app.js' %}?v=20260718-double-protection-1"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260802-editable-stakes-1"></script>
   </body>
 </html>

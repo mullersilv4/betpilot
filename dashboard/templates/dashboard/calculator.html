@@ -179,7 +179,7 @@
             <div class="form-grid two-columns">
               <label>
                 <span>Valor da freebet</span>
-                <input type="number" name="freebet_stake_1" class="surebet-stake" step="0.01" min="0.01" placeholder="Ex: 30.00" />
+                <input type="number" class="surebet-stake" step="0.01" min="0.01" placeholder="Ex: 30.00" data-freebet-source-mirror aria-label="Valor da freebet" />
               </label>
             </div>
 
@@ -215,7 +215,7 @@
                     <label>
                       <span class="sr-only">Valor {{ forloop.counter }}</span>
                       {% if forloop.first %}
-                        <input type="number" name="freebet_stake_shadow_{{ forloop.counter }}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Valor acima" disabled />
+                        <input type="number" name="freebet_stake_{{ forloop.counter }}" class="surebet-stake" step="0.01" min="0.01" placeholder="Ex: 30.00" />
                       {% else %}
                         <input type="number" name="freebet_stake_{{ forloop.counter }}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado ou manual" />
                       {% endif %}
@@ -249,6 +249,6 @@
       </main>
     </div>
 
-    <script src="{% static 'dashboard/app.js' %}?v=20260617-1"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260802-editable-stakes-1"></script>
   </body>
 </html>

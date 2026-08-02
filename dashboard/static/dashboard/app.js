@@ -1451,7 +1451,7 @@ function createSurebetEntry(index) {
       </div>
       <label>
         <span class="sr-only">Valor ${index}</span>
-        <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado" readonly aria-label="Valor calculado automaticamente" />
+        <input type="number" name="surebet_stake_${index}" class="surebet-stake calculated-stake" step="0.01" min="0.01" placeholder="Calculado ou manual" />
         <output class="surebet-liability" data-surebet-liability="${index}"></output>
       </label>
       <label>
@@ -1505,6 +1505,12 @@ function getFreebetIndices() {
     .sort((a, b) => a - b);
 }
 
+function freebetStakeInput(index) {
+  return document
+    .querySelector(`[data-freebet-row="${index}"] input[name="freebet_stake_${index}"]`)
+    || document.querySelector(`[name="freebet_stake_${index}"]`);
+}
+
 function readFreebetMode(index) {
   if (index === 1) return "back";
   return document.querySelector(`[name="freebet_mode_${index}"]`)?.value === "lay" ? "lay" : "back";
@@ -1521,6 +1527,8 @@ function prepareFreebetExtractionFromUrl() {
   }
 
   setBetMode("freebet-extract");
+  setFieldValue("freebet_source", freebetSource);
+  applySelectedFreebetSource();
   updateFreebetExtractionPreview();
   requestAnimationFrame(() => {
     document.querySelector(".freebet-extraction-form")?.scrollIntoView({
@@ -1610,6 +1618,19 @@ function freebetExposure(row) {
   return surebetExposure(row);
 }
 
+function applySelectedFreebetSource() {
+  const select = document.querySelector("[data-freebet-source-select]");
+  if (!select) return;
+  const option = select.selectedOptions?.[0];
+  const amount = Number.parseFloat((option?.dataset.amount || "").replace(",", "."));
+  const stakeInput = freebetStakeInput(1);
+  const mirrorInput = document.querySelector("[data-freebet-source-mirror]");
+  if (!stakeInput || !Number.isFinite(amount) || amount <= 0) return;
+  stakeInput.value = amount.toFixed(2);
+  stakeInput.dataset.manualStake = "true";
+  if (mirrorInput) mirrorInput.value = stakeInput.value;
+}
+
 function updateFreebetExtractionPreview() {
   if (!document.querySelector("#freebetEntries")) return;
 
@@ -1617,17 +1638,27 @@ function updateFreebetExtractionPreview() {
     ? document.activeElement
     : null;
   const firstOdd = readNumber(document.querySelector('[name="freebet_odd_1"]'));
-  const firstStake = readNumber(document.querySelector('[name="freebet_stake_1"]'));
+  const firstStake = readNumber(freebetStakeInput(1));
   const firstCommission = readNumber(document.querySelector('[name="freebet_commission_1"]'));
   const firstBoost = readNumber(document.querySelector('[name="freebet_boost_1"]'));
   const firstEffectiveOdd = boostedProfitOdds(firstOdd, firstBoost);
   const firstMultiplier = freebetSourceMultiplier(firstEffectiveOdd, firstCommission);
   const targetReturn = firstMultiplier > 0 && firstStake > 0 ? firstMultiplier * firstStake : 0;
   const indices = getFreebetIndices();
+  const sourceMirrorInput = document.querySelector("[data-freebet-source-mirror]");
+  const sourceStakeInput = freebetStakeInput(1);
+  if (
+    sourceMirrorInput &&
+    sourceStakeInput &&
+    sourceMirrorInput !== document.activeElement &&
+    sourceStakeInput !== document.activeElement
+  ) {
+    sourceMirrorInput.value = sourceStakeInput.value;
+  }
 
   indices.filter((index) => index > 1).forEach((index) => {
     const oddInput = document.querySelector(`[name="freebet_odd_${index}"]`);
-    const stakeInput = document.querySelector(`[name="freebet_stake_${index}"]`);
+    const stakeInput = freebetStakeInput(index);
     const odd = readNumber(oddInput);
     const commission = readNumber(document.querySelector(`[name="freebet_commission_${index}"]`));
     const boost = readNumber(document.querySelector(`[name="freebet_boost_${index}"]`));
@@ -1645,7 +1676,7 @@ function updateFreebetExtractionPreview() {
 
   const rows = indices.map((index) => {
     const oddInput = document.querySelector(`[name="freebet_odd_${index}"]`);
-    const stakeInput = document.querySelector(`[name="freebet_stake_${index}"]`);
+    const stakeInput = freebetStakeInput(index);
     const commission = readNumber(document.querySelector(`[name="freebet_commission_${index}"]`));
     const cashback = readNumber(document.querySelector(`[name="freebet_cashback_${index}"]`));
     const boost = readNumber(document.querySelector(`[name="freebet_boost_${index}"]`));
@@ -1957,9 +1988,9 @@ document.querySelector(".manual-freebet-form")?.addEventListener("input", (event
 
 document.querySelector(".surebet-form")?.addEventListener("input", (event) => {
   if (event.target.classList.contains("surebet-entry-return")) {
-    event.target.dataset.manualResult = "true";
+    event.target.dataset.manualResult = event.target.value.trim() === "" ? "false" : "true";
   } else if (event.target.classList.contains("surebet-stake")) {
-    event.target.dataset.manualStake = "true";
+    event.target.dataset.manualStake = event.target.value.trim() === "" ? "false" : "true";
   } else {
     document.querySelectorAll("[data-surebet-result]").forEach((input) => {
       input.dataset.manualResult = "false";
@@ -2003,12 +2034,23 @@ document.querySelector(".double-protection-form")?.addEventListener("change", up
 document.querySelector("[data-double-source-select]")?.addEventListener("change", applyDoubleProtectionSourceEntry);
 
 document.querySelector(".freebet-extraction-form")?.addEventListener("input", (event) => {
+  if (event.target.matches("[data-freebet-source-mirror]")) {
+    const sourceInput = freebetStakeInput(1);
+    if (sourceInput && sourceInput !== event.target) {
+      sourceInput.value = event.target.value;
+      sourceInput.dataset.manualStake = event.target.value.trim() === "" ? "false" : "true";
+    }
+  }
   if (event.target.classList.contains("surebet-stake")) {
-    event.target.dataset.manualStake = "true";
+    event.target.dataset.manualStake = event.target.value.trim() === "" ? "false" : "true";
   }
   updateFreebetExtractionPreview();
 });
 document.querySelector(".freebet-extraction-form")?.addEventListener("change", updateFreebetExtractionPreview);
+document.querySelector("[data-freebet-source-select]")?.addEventListener("change", () => {
+  applySelectedFreebetSource();
+  updateFreebetExtractionPreview();
+});
 document.querySelector(".freebet-extraction-form")?.addEventListener("click", (event) => {
   const modeToggle = event.target.closest(".surebet-mode-toggle");
   if (modeToggle && !modeToggle.disabled) {

@@ -102,6 +102,20 @@
               <span>Na primeira linha, selecione a casa da freebet e informe somente o valor que será usado. Nas linhas seguintes, informe as casas e odds da proteção.</span>
             </div>
 
+            <div class="form-row">
+              <label>
+                <span>Vincular freebet existente</span>
+                <select name="freebet_source" data-freebet-source-select>
+                  <option value="">Extração livre, sem vínculo com ciclo</option>
+                  {% for freebet in available_freebet_list %}
+                    <option value="{{ freebet.pk }}" data-amount="{{ freebet.amount|floatformat:2 }}" {% if freebet_extract_data.freebet_source == freebet.pk|stringformat:"s" %}selected{% endif %}>
+                      {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+
             <div class="form-row mobile-pair">
               <label>
                 <span>Esporte</span>
@@ -165,7 +179,7 @@
                     </div>
                     <label>
                       <span class="sr-only">Valor {{ row.index }}</span>
-                      <input type="number" name="freebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" {% if row.readonly %}readonly{% endif %} />
+                      <input type="number" name="freebet_stake_{{ row.index }}" value="{{ row.stake }}" class="surebet-stake{% if row.readonly %} calculated-stake{% endif %}" step="0.01" min="0.01" />
                       <output class="surebet-liability" data-freebet-liability="{{ row.index }}"></output>
                     </label>
                     <label><span class="sr-only">Odd</span><input type="number" name="freebet_odd_{{ row.index }}" value="{{ row.odd }}" class="surebet-odd" step="0.01" min="1.01" /></label>
@@ -407,6 +421,6 @@
         {% endif %}
       </article>
     </main>
-    <script src="{% static 'dashboard/app.js' %}?v=20260602-3"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260802-editable-stakes-1"></script>
   </body>
 </html>

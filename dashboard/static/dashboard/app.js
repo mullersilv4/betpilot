@@ -626,6 +626,10 @@ function activateScreen() {
     const linkScreen = screenAliases[link.hash.replace("#", "")] || link.hash.replace("#", "");
     link.classList.toggle("active", linkScreen === safeScreen);
   });
+  document.querySelectorAll("[data-mobile-screen]").forEach((link) => {
+    const linkScreen = screenAliases[link.dataset.mobileScreen] || link.dataset.mobileScreen;
+    link.classList.toggle("is-active", linkScreen === safeScreen);
+  });
 
   const messageStack = document.querySelector(".message-stack");
   if (messageStack) {
@@ -644,17 +648,21 @@ function activateScreen() {
 
 function closeSidebar() {
   document.body.classList.remove("sidebar-open");
-  document.querySelector(".mobile-menu-toggle")?.setAttribute("aria-expanded", "false");
+  document.querySelectorAll(".mobile-menu-toggle").forEach((toggle) => {
+    toggle.setAttribute("aria-expanded", "false");
+  });
 }
 
 function setupMobileSidebar() {
-  const toggle = document.querySelector(".mobile-menu-toggle");
+  const toggles = document.querySelectorAll(".mobile-menu-toggle");
   const sidebar = document.querySelector(".sidebar");
-  if (!toggle || !sidebar) return;
+  if (!toggles.length || !sidebar) return;
 
-  toggle.addEventListener("click", () => {
-    const isOpen = document.body.classList.toggle("sidebar-open");
-    toggle.setAttribute("aria-expanded", String(isOpen));
+  toggles.forEach((toggle) => {
+    toggle.addEventListener("click", () => {
+      const isOpen = document.body.classList.toggle("sidebar-open");
+      toggles.forEach((item) => item.setAttribute("aria-expanded", String(isOpen)));
+    });
   });
 
   document.querySelector("[data-sidebar-close]")?.addEventListener("click", closeSidebar);
@@ -1516,28 +1524,6 @@ function readFreebetMode(index) {
   return document.querySelector(`[name="freebet_mode_${index}"]`)?.value === "lay" ? "lay" : "back";
 }
 
-function prepareFreebetExtractionFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const freebetSource = params.get("freebet_source");
-  if (!freebetSource) return;
-
-  const dateInput = document.querySelector('[name="freebet_event_date"]');
-  if (dateInput && !dateInput.value) {
-    dateInput.value = localDateInputValue();
-  }
-
-  setBetMode("freebet-extract");
-  setFieldValue("freebet_source", freebetSource);
-  applySelectedFreebetSource();
-  updateFreebetExtractionPreview();
-  requestAnimationFrame(() => {
-    document.querySelector(".freebet-extraction-form")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  });
-}
-
 function setFieldValue(name, value) {
   const field = document.getElementsByName(name)[0];
   if (!field || value === null) return;
@@ -1616,19 +1602,6 @@ function freebetSourceMultiplier(effectiveOdd, commission) {
 function freebetExposure(row) {
   if (row.isFreebetSource) return 0;
   return surebetExposure(row);
-}
-
-function applySelectedFreebetSource() {
-  const select = document.querySelector("[data-freebet-source-select]");
-  if (!select) return;
-  const option = select.selectedOptions?.[0];
-  const amount = Number.parseFloat((option?.dataset.amount || "").replace(",", "."));
-  const stakeInput = freebetStakeInput(1);
-  const mirrorInput = document.querySelector("[data-freebet-source-mirror]");
-  if (!stakeInput || !Number.isFinite(amount) || amount <= 0) return;
-  stakeInput.value = amount.toFixed(2);
-  stakeInput.dataset.manualStake = "true";
-  if (mirrorInput) mirrorInput.value = stakeInput.value;
 }
 
 function updateFreebetExtractionPreview() {
@@ -2047,10 +2020,6 @@ document.querySelector(".freebet-extraction-form")?.addEventListener("input", (e
   updateFreebetExtractionPreview();
 });
 document.querySelector(".freebet-extraction-form")?.addEventListener("change", updateFreebetExtractionPreview);
-document.querySelector("[data-freebet-source-select]")?.addEventListener("change", () => {
-  applySelectedFreebetSource();
-  updateFreebetExtractionPreview();
-});
 document.querySelector(".freebet-extraction-form")?.addEventListener("click", (event) => {
   const modeToggle = event.target.closest(".surebet-mode-toggle");
   if (modeToggle && !modeToggle.disabled) {
@@ -2215,7 +2184,6 @@ setupEventAutocomplete();
 setupEventOddsLookup();
 setupCalculatorRegistration();
 activateScreen();
-prepareFreebetExtractionFromUrl();
 prepareCalculatorDraftFromUrl();
 drawChart();
 drawBarChart();

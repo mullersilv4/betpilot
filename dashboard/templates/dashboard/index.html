@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freebetar | Dashboard de Apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260622-onboarding-2" />
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260802-mobile-bottom-nav-6" />
   </head>
   <body
     data-language="{{ user_preference.language|default:'pt-BR' }}"
@@ -14,11 +14,6 @@
     data-currency-symbol="{{ currency_symbol|default:'R$' }}"
   >
     <div class="app-shell">
-      <button class="mobile-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
       <div class="sidebar-backdrop" data-sidebar-close></div>
 
       <aside id="appSidebar" class="sidebar" aria-label="Navegação principal">
@@ -82,6 +77,43 @@
           <button class="ghost-button compact full-button" type="submit">Sair</button>
         </form>
       </aside>
+
+      <nav class="mobile-bottom-nav" aria-label="Navegação rápida">
+        <a class="mobile-bottom-item" href="#dashboard" data-mobile-screen="dashboard" aria-label="Dashboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 11.5 12 4l9 7.5"></path>
+            <path d="M5 10.5V20h5v-5h4v5h5v-9.5"></path>
+          </svg>
+          <span>Dash</span>
+        </a>
+        <a class="mobile-bottom-item" href="#bets" data-mobile-screen="bets" aria-label="Histórico">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 8v5l3 2"></path>
+            <path d="M21 12a9 9 0 1 1-2.6-6.4"></path>
+            <path d="M21 4v5h-5"></path>
+          </svg>
+          <span>Histórico</span>
+        </a>
+        <a class="mobile-bottom-item mobile-bottom-primary" href="#new-bet" data-mobile-screen="new-bet" aria-label="Nova aposta" title="Nova aposta">
+          <strong>FB</strong>
+        </a>
+        <a class="mobile-bottom-item" href="#bankroll" data-mobile-screen="bankroll" aria-label="Financeiro">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16v12H4z"></path>
+            <path d="M4 10h16"></path>
+            <path d="M8 15h3"></path>
+          </svg>
+          <span>Financeiro</span>
+        </a>
+        <button class="mobile-bottom-item mobile-menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h.01"></path>
+            <path d="M12 12h.01"></path>
+            <path d="M19 12h.01"></path>
+          </svg>
+          <span>Mais</span>
+        </button>
+      </nav>
 
       <main class="main-content">
         {% if messages %}
@@ -1485,20 +1517,6 @@
                 </div>
               {% endif %}
 
-              <div class="form-row">
-                <label>
-                  <span>Vincular freebet existente</span>
-                  <select name="freebet_source" data-freebet-source-select>
-                    <option value="">Extração livre, sem vínculo com ciclo</option>
-                    {% for freebet in available_freebet_list %}
-                      <option value="{{ freebet.pk }}" data-amount="{{ freebet.amount|floatformat:2 }}" {% if freebet_extract_data.freebet_source == freebet.pk|stringformat:"s" %}selected{% endif %}>
-                        {{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}
-                      </option>
-                    {% endfor %}
-                  </select>
-                </label>
-              </div>
-
               <div class="form-row mobile-pair">
                 <label>
                   <span>Esporte</span>
@@ -2547,105 +2565,6 @@
             </div>
           </article>
 
-          <article class="panel freebet-pending-panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Ciclo de freebets</p>
-                <h2>Pendentes de extração</h2>
-              </div>
-            </div>
-
-            <div class="freebet-cycle-list compact-cycle-list">
-              {% for freebet in pending_freebet_cycles %}
-                <article class="freebet-cycle-card compact-cycle-card">
-                  <div class="goal-title">
-                    <strong>{{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}</strong>
-                    <span>{{ freebet.cycle_status }}</span>
-                  </div>
-                  <div class="report-metrics">
-                    <article>
-                      <span>Origem</span>
-                      {% if freebet.source_bet %}
-                        <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
-                          R$ {{ freebet.source_result|floatformat:2 }}
-                        </strong>
-                      {% else %}
-                        <strong>Avulsa</strong>
-                      {% endif %}
-                    </article>
-                    <article>
-                      <span>Resultado parcial</span>
-                      <strong class="{% if freebet.cycle_result >= 0 %}positive{% else %}negative{% endif %}">
-                        R$ {{ freebet.cycle_result|floatformat:2 }}
-                      </strong>
-                    </article>
-                  </div>
-                  <div class="cycle-links">
-                    {% if freebet.source_bet %}
-                      <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.source_bet.pk %}">Ver origem</a>
-                    {% endif %}
-                    <a class="primary-button compact link-button" href="{% url 'dashboard:index' %}?freebet_source={{ freebet.pk }}#new-bet">Registrar extração</a>
-                    <form method="post" action="{% url 'dashboard:delete_freebet' freebet.pk %}" onsubmit="return confirm('Excluir esta freebet cadastrada?');">
-                      {% csrf_token %}
-                      <input type="hidden" name="next" value="{{ history_return_url }}" />
-                      <button class="ghost-button compact link-button danger-link" type="submit">Excluir</button>
-                    </form>
-                  </div>
-                </article>
-              {% empty %}
-                <div class="empty-state">Nenhuma freebet pendente de extração.</div>
-              {% endfor %}
-            </div>
-          </article>
-
-          <details class="panel settings-disclosure extraction-history-panel">
-            <summary>Histórico de extração</summary>
-            <div class="freebet-cycle-list compact-cycle-list">
-              {% for freebet in freebet_extraction_history %}
-                <article class="freebet-cycle-card compact-cycle-card">
-                  <div class="goal-title">
-                    <strong>{{ freebet.bookmaker }} - R$ {{ freebet.amount|floatformat:2 }}</strong>
-                    <span>{{ freebet.cycle_status }}</span>
-                  </div>
-                  <div class="report-metrics">
-                    <article>
-                      <span>Origem</span>
-                      {% if freebet.source_bet %}
-                        <strong class="{% if freebet.source_result >= 0 %}positive{% else %}negative{% endif %}">
-                          R$ {{ freebet.source_result|floatformat:2 }}
-                        </strong>
-                      {% else %}
-                        <strong>Avulsa</strong>
-                      {% endif %}
-                    </article>
-                    <article>
-                      <span>Extração</span>
-                      <strong class="{% if freebet.extraction_result >= 0 %}positive{% else %}negative{% endif %}">
-                        R$ {{ freebet.extraction_result|floatformat:2 }}
-                      </strong>
-                    </article>
-                    <article>
-                      <span>Resultado do ciclo</span>
-                      <strong class="{% if freebet.cycle_result >= 0 %}positive{% else %}negative{% endif %}">
-                        R$ {{ freebet.cycle_result|floatformat:2 }}
-                      </strong>
-                    </article>
-                  </div>
-                  <div class="cycle-links">
-                    {% if freebet.source_bet %}
-                      <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.source_bet.pk %}">Ver origem</a>
-                    {% endif %}
-                    {% if freebet.extraction_bet %}
-                      <a class="ghost-button compact link-button subtle-link" href="{% url 'dashboard:edit_bet' freebet.extraction_bet.pk %}">Ver extração</a>
-                    {% endif %}
-                  </div>
-                </article>
-              {% empty %}
-                <div class="empty-state">Nenhuma extração finalizada ainda.</div>
-              {% endfor %}
-            </div>
-          </details>
-
           <article class="panel">
             <div class="panel-header">
               <div>
@@ -2706,6 +2625,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    <script src="{% static 'dashboard/app.js' %}?v=20260802-editable-stakes-1"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260802-mobile-bottom-nav-1"></script>
   </body>
 </html>

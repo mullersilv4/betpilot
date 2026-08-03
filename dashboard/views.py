@@ -553,20 +553,12 @@ def build_dashboard_context(request, **forms):
         start=Decimal('0.00'),
     )
     open_bet_count = sum(1 for bet in dashboard_bets if bet.status == Bet.Status.OPEN)
-    available_freebets = user_freebets_queryset(request.user).filter(
+    available_freebets = FreeBet.objects.filter(
+        Q(owner=request.user)
+        | Q(source_bet__bankroll__owner=request.user)
+        | Q(source_bet__entity__owner=request.user),
         is_used=False,
-        extraction_bet__isnull=True,
-        simple_bet__isnull=True,
-    )
-    freebet_cycles_base = user_freebets_queryset(request.user).select_related('source_bet', 'extraction_bet', 'simple_bet')
-    pending_freebet_cycles = freebet_cycles_base.filter(
-        is_used=False,
-        extraction_bet__isnull=True,
-        simple_bet__isnull=True,
-    )[:4]
-    freebet_extraction_history = freebet_cycles_base.filter(
-        Q(is_used=True) | Q(extraction_bet__isnull=False)
-    )[:12]
+    ).distinct()
     available_freebet_total = available_freebets.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     total_initial_balance = sum(
         (bankroll.initial_balance for bankroll in bankrolls),
@@ -748,8 +740,6 @@ def build_dashboard_context(request, **forms):
             'source_bet__entity',
             'source_bet__bankroll',
         ),
-        'pending_freebet_cycles': pending_freebet_cycles,
-        'freebet_extraction_history': freebet_extraction_history,
         'bankrolls': bankrolls,
         'bank_accounts': bank_accounts,
         'primary_bank_account': primary_bank_account,
@@ -999,7 +989,6 @@ def surebet_data_from_bet(bet):
 
 def freebet_data_from_bet(bet, source_freebet=None):
     return {
-        'freebet_source': str(source_freebet.pk if source_freebet else ''),
         'freebet_sport': bet.sport,
         'freebet_competition': bet.competition,
         'freebet_event_date': datetime_to_input(bet.event_date),
@@ -1010,27 +999,6 @@ def freebet_data_from_bet(bet, source_freebet=None):
         'freebet_away_team': bet.away_team,
         'freebet_general_notes': bet.notes,
     }
-
-
-def user_freebets_queryset(user):
-    return FreeBet.objects.filter(
-        Q(owner=user)
-        | Q(source_bet__bankroll__owner=user)
-        | Q(source_bet__entity__owner=user)
-        | Q(extraction_bet__entity__owner=user)
-    ).distinct()
-
-
-def source_freebet_from_post(user, post_data, existing_bet=None):
-    freebet_id = (post_data.get('freebet_source') or '').strip()
-    if not freebet_id:
-        return None
-    queryset = user_freebets_queryset(user).filter(pk=freebet_id)
-    if existing_bet is not None:
-        queryset = queryset.filter(Q(is_used=False) | Q(extraction_bet=existing_bet))
-    else:
-        queryset = queryset.filter(is_used=False, extraction_bet__isnull=True, simple_bet__isnull=True)
-    return queryset.select_related('source_bet').first()
 
 
 def rows_from_surebet_entries(bet, prefix):
@@ -2809,10 +2777,7 @@ def index(request):
 
         if form_type == 'freebet_extract':
             extraction_errors = []
-            selected_source_freebet = source_freebet_from_post(request.user, request.POST)
-            if (request.POST.get('freebet_source') or '').strip() and selected_source_freebet is None:
-                extraction_errors.append('Selecione uma freebet disponível para vincular ou deixe o campo em branco.')
-            outcomes = build_freebet_extract_payload(request.POST, selected_source_freebet)
+            outcomes = build_freebet_extract_payload(request.POST)
             game = (request.POST.get('freebet_game') or '').strip()
             sport = (request.POST.get('freebet_sport') or 'Futebol').strip()
             competition = (request.POST.get('freebet_competition') or '').strip()
@@ -2950,11 +2915,6 @@ def index(request):
                             if outcome['is_freebet_source'] else outcome['notes']
                         ),
                     )
-                if selected_source_freebet:
-                    selected_source_freebet.is_used = True
-                    selected_source_freebet.extraction_bet = bet
-                    selected_source_freebet.save(update_fields=['is_used', 'extraction_bet'])
-
             messages.success(request, 'Extração de freebet cadastrada com sucesso.')
             return redirect('dashboard:index')
 
@@ -2977,19 +2937,13 @@ def edit_bet(request, pk):
     if is_protection_bet(bet):
         is_freebet_edit = bet.strategy == 'Extração de freebet'
         current_source_freebet = FreeBet.objects.filter(extraction_bet=bet).first()
-        source_freebets = user_freebets_queryset(request.user).filter(
-            Q(is_used=False) | Q(extraction_bet=bet),
-        ).select_related('source_bet').distinct()
         errors = []
         balance_prompt = None
 
         if request.method == 'POST':
             winner_signatures = selected_winner_signatures(bet, request.POST.getlist('winner_entry'))
             if is_freebet_edit:
-                selected_source_freebet = source_freebet_from_post(request.user, request.POST, existing_bet=bet)
-                if (request.POST.get('freebet_source') or '').strip() and selected_source_freebet is None:
-                    errors.append('Selecione uma freebet disponível para vincular ou deixe o campo em branco.')
-                outcomes = build_freebet_extract_payload(request.POST, selected_source_freebet)
+                outcomes = build_freebet_extract_payload(request.POST)
                 game = (request.POST.get('freebet_game') or '').strip()
                 sport = (request.POST.get('freebet_sport') or 'Futebol').strip()
                 competition = (request.POST.get('freebet_competition') or '').strip()
@@ -3074,10 +3028,6 @@ def edit_bet(request, pk):
                             current_source_freebet.is_used = False
                             current_source_freebet.extraction_bet = None
                             current_source_freebet.save(update_fields=['is_used', 'extraction_bet'])
-                        if selected_source_freebet:
-                            selected_source_freebet.is_used = True
-                            selected_source_freebet.extraction_bet = bet
-                            selected_source_freebet.save(update_fields=['is_used', 'extraction_bet'])
                         winners = find_winners_by_signatures(
                             bet.surebet_entries.select_related('bankroll').all(),
                             winner_signatures,
@@ -3197,7 +3147,6 @@ def edit_bet(request, pk):
             'errors': errors,
             'entities': Entity.objects.filter(owner=request.user),
             'bankrolls': Bankroll.objects.filter(owner=request.user).select_related('entity'),
-            'available_freebet_list': source_freebets,
             'freebet_extract_data': data if is_freebet_edit else {},
             'freebet_extract_rows': rows if is_freebet_edit else [],
             'surebet_data': data if not is_freebet_edit else {},

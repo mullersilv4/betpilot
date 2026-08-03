@@ -21,6 +21,10 @@ def bet_accounting_at(bet):
     return bet.accounting_at
 
 
+def bonus_accounting_at(transaction):
+    return transaction.created_at
+
+
 def period_start(days=None, month=False, reference_date=None):
     now = reference_date or timezone.localtime()
     if month:
@@ -30,13 +34,22 @@ def period_start(days=None, month=False, reference_date=None):
     return now - timezone.timedelta(days=days)
 
 
-def result_for_period(bets, start):
+def result_for_period(bets, start, bonus_transactions=None):
     period_bets = [
         bet
         for bet in settled_bets(bets)
         if timezone.localtime(bet_accounting_at(bet)) >= start
     ]
+    period_bonus_transactions = [
+        transaction
+        for transaction in (bonus_transactions or [])
+        if timezone.localtime(bonus_accounting_at(transaction)) >= start
+    ]
     profit = sum((bet.net_result for bet in period_bets), start=Decimal('0.00'))
+    profit += sum(
+        (transaction.amount for transaction in period_bonus_transactions),
+        start=Decimal('0.00'),
+    )
     stake = sum((bet.stake for bet in period_bets), start=Decimal('0.00'))
     return {
         'profit': profit,
@@ -70,11 +83,19 @@ def grouped_roi(bets, key_func):
     return sorted(rows, key=lambda row: row['profit'], reverse=True)
 
 
-def equity_curve(bets, initial_balance):
+def equity_curve(bets, initial_balance, bonus_transactions=None):
     values = [float(initial_balance)]
     running_total = Decimal(initial_balance)
-    for bet in sorted(settled_bets(bets), key=bet_accounting_at):
-        running_total += bet.net_result
+    events = [
+        (bet_accounting_at(bet), bet.net_result)
+        for bet in settled_bets(bets)
+    ]
+    events.extend(
+        (bonus_accounting_at(transaction), transaction.amount)
+        for transaction in (bonus_transactions or [])
+    )
+    for _, amount in sorted(events, key=lambda event: event[0]):
+        running_total += amount
         values.append(float(running_total))
     return values
 
@@ -108,7 +129,7 @@ def current_streak(bets):
     }
 
 
-def build_month_calendar(bets, reference_date=None):
+def build_month_calendar(bets, reference_date=None, bonus_transactions=None):
     current_date = reference_date or timezone.localdate()
     month_start = current_date.replace(day=1)
     _, days_in_month = monthrange(current_date.year, current_date.month)
@@ -120,6 +141,10 @@ def build_month_calendar(bets, reference_date=None):
         if bet_date.year == current_date.year and bet_date.month == current_date.month:
             daily_results[bet_date]['profit'] += bet.net_result
             daily_results[bet_date]['count'] += 1
+    for transaction in bonus_transactions or []:
+        transaction_date = timezone.localtime(bonus_accounting_at(transaction)).date()
+        if transaction_date.year == current_date.year and transaction_date.month == current_date.month:
+            daily_results[transaction_date]['profit'] += transaction.amount
 
     days = []
     for _ in range(first_weekday):
@@ -165,7 +190,7 @@ def build_month_calendar(bets, reference_date=None):
     }
 
 
-def period_chart_for_month(bets, reference_date):
+def period_chart_for_month(bets, reference_date, bonus_transactions=None):
     current_date = reference_date or timezone.localdate()
     _, days_in_month = monthrange(current_date.year, current_date.month)
     monthly_results = defaultdict(Decimal)
@@ -173,6 +198,10 @@ def period_chart_for_month(bets, reference_date):
         bet_date = timezone.localtime(bet_accounting_at(bet)).date()
         if bet_date.year == current_date.year and bet_date.month == current_date.month:
             monthly_results[bet_date.day] += bet.net_result
+    for transaction in bonus_transactions or []:
+        transaction_date = timezone.localtime(bonus_accounting_at(transaction)).date()
+        if transaction_date.year == current_date.year and transaction_date.month == current_date.month:
+            monthly_results[transaction_date.day] += transaction.amount
 
     values = []
     labels = []
@@ -184,19 +213,24 @@ def period_chart_for_month(bets, reference_date):
     return labels, values
 
 
-def build_analytics(bets, initial_balance, reference_date=None):
+def build_analytics(bets, initial_balance, reference_date=None, bonus_transactions=None):
     bet_list = list(bets)
-    today = result_for_period(bet_list, period_start(reference_date=None))
-    week = result_for_period(bet_list, period_start(days=7, reference_date=None))
-    month = result_for_period(bet_list, period_start(month=True, reference_date=None))
-    curve = equity_curve(bet_list, initial_balance)
+    bonus_transaction_list = list(bonus_transactions or [])
+    today = result_for_period(bet_list, period_start(reference_date=None), bonus_transaction_list)
+    week = result_for_period(bet_list, period_start(days=7, reference_date=None), bonus_transaction_list)
+    month = result_for_period(bet_list, period_start(month=True, reference_date=None), bonus_transaction_list)
+    curve = equity_curve(bet_list, initial_balance, bonus_transaction_list)
     market_rows = grouped_roi(bet_list, lambda bet: bet.market)
     bankroll_rows = grouped_roi(
         bet_list,
         lambda bet: bet.bankroll.name if bet.bankroll else bet.entity.name if bet.entity else 'Sem origem',
     )
     sport_rows = grouped_roi(bet_list, lambda bet: bet.sport or 'Sem esporte')
-    period_labels, period_chart = period_chart_for_month(bet_list, reference_date or timezone.localdate())
+    period_labels, period_chart = period_chart_for_month(
+        bet_list,
+        reference_date or timezone.localdate(),
+        bonus_transaction_list,
+    )
 
     return {
         'periods': [
@@ -218,5 +252,5 @@ def build_analytics(bets, initial_balance, reference_date=None):
         'streak': current_streak(bet_list),
         'period_chart': period_chart,
         'period_labels': period_labels,
-        'month_calendar': build_month_calendar(bet_list, reference_date),
+        'month_calendar': build_month_calendar(bet_list, reference_date, bonus_transaction_list),
     }

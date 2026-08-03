@@ -164,6 +164,18 @@ class BetCalculationTests(TestCase):
         self.assertEqual(self.bankroll.transaction_total, Decimal('150.00'))
         self.assertEqual(self.bankroll.current_balance, Decimal('1150.00'))
 
+    def test_bankroll_bonus_increases_balance(self):
+        BankrollTransaction.objects.create(
+            bankroll=self.bankroll,
+            kind=BankrollTransaction.Kind.BONUS,
+            amount=Decimal('20.00'),
+            note='Giros da sorte',
+        )
+
+        self.assertEqual(self.bankroll.transaction_total, Decimal('20.00'))
+        self.assertEqual(self.bankroll.current_balance, Decimal('1020.00'))
+        self.assertEqual(self.bankroll.available_balance, Decimal('1020.00'))
+
     def test_bankroll_adjustment_sets_exact_current_balance(self):
         BankrollTransaction.objects.create(
             bankroll=self.bankroll,
@@ -584,6 +596,42 @@ class AnalyticsTests(TestCase):
         self.assertEqual(days[0]['profit'], Decimal('20.00'))
         self.assertEqual(days[0]['count'], 2)
         self.assertEqual(days[0]['tone'], 'positive')
+
+    def test_bonus_counts_as_daily_profit_without_increasing_bet_count(self):
+        reference = timezone.localtime().replace(hour=12, minute=0, second=0, microsecond=0)
+        Bet.objects.create(
+            bankroll=self.bankroll,
+            game='Aposta para giros',
+            market='Promo',
+            odds=Decimal('2.00'),
+            stake=Decimal('30.00'),
+            status=Bet.Status.LOST,
+            created_at=reference,
+        )
+        bonus = BankrollTransaction.objects.create(
+            bankroll=self.bankroll,
+            kind=BankrollTransaction.Kind.BONUS,
+            amount=Decimal('20.00'),
+            note='Giros da sorte',
+            created_at=reference + timezone.timedelta(minutes=5),
+        )
+
+        analytics = build_analytics(
+            Bet.objects.select_related('bankroll'),
+            Decimal('1000.00'),
+            reference.date(),
+            [bonus],
+        )
+        day = [
+            day
+            for week in analytics['month_calendar']['weeks']
+            for day in week
+            if day.get('day') == reference.day
+        ][0]
+
+        self.assertEqual(analytics['periods'][0]['profit'], Decimal('-10.00'))
+        self.assertEqual(day['profit'], Decimal('-10.00'))
+        self.assertEqual(day['count'], 1)
 
     def test_freebet_extraction_uses_selected_event_day(self):
         source_day = timezone.localtime().replace(day=7, hour=18, minute=0, second=0, microsecond=0)

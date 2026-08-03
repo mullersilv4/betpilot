@@ -528,10 +528,26 @@ def build_dashboard_context(request, **forms):
         if dashboard_filter['bet_type'] == 'all'
         or dashboard_bet_type(bet) == dashboard_filter['bet_type']
     ]
+    all_bonus_transactions = list(
+        BankrollTransaction.objects.filter(
+            bankroll__owner=request.user,
+            kind=BankrollTransaction.Kind.BONUS,
+        )
+    )
+    filtered_bonus_transactions = (
+        all_bonus_transactions
+        if dashboard_filter['bet_type'] == 'all'
+        else []
+    )
     dashboard_bets = [
         bet
         for bet in filtered_all_bet_list
         if dashboard_filter['reference_date'] <= timezone.localtime(bet_accounting_at(bet)) < dashboard_filter['next_month']
+    ]
+    dashboard_bonus_transactions = [
+        transaction
+        for transaction in filtered_bonus_transactions
+        if dashboard_filter['reference_date'] <= timezone.localtime(transaction.created_at) < dashboard_filter['next_month']
     ]
     filter_form = forms.get('filter_form') or BetFilterForm(request.GET or None, user=request.user)
     bets = apply_bet_filters(all_bets, filter_form)
@@ -546,7 +562,8 @@ def build_dashboard_context(request, **forms):
     settled_bets = [bet for bet in dashboard_bets if bet.status != Bet.Status.OPEN]
     total_stake = sum((bet.stake for bet in dashboard_bets), start=Decimal('0.00'))
     total_registered_stake = sum((bet.stake for bet in filtered_all_bet_list), start=Decimal('0.00'))
-    net_profit = sum((bet.net_result for bet in dashboard_bets), start=Decimal('0.00'))
+    bonus_profit = sum((transaction.amount for transaction in dashboard_bonus_transactions), start=Decimal('0.00'))
+    net_profit = sum((bet.net_result for bet in dashboard_bets), start=Decimal('0.00')) + bonus_profit
     won_bets = sum(1 for bet in dashboard_bets if bet.status == Bet.Status.WON)
     open_exposure = sum(
         (bet.stake for bet in dashboard_bets if bet.status == Bet.Status.OPEN),
@@ -607,10 +624,26 @@ def build_dashboard_context(request, **forms):
         ),
         start=Decimal('0.00'),
     )
+    balance_before_period += sum(
+        (
+            transaction.amount
+            for transaction in filtered_bonus_transactions
+            if timezone.localtime(transaction.created_at) < dashboard_filter['reference_date']
+        ),
+        start=Decimal('0.00'),
+    )
     running_total = float(balance_before_period)
     chart_values = [round(running_total, 2)]
-    for bet in sorted(settled_bets, key=bet_accounting_at):
-        running_total += float(bet.net_result)
+    chart_events = [
+        (bet_accounting_at(bet), bet.net_result)
+        for bet in settled_bets
+    ]
+    chart_events.extend(
+        (transaction.created_at, transaction.amount)
+        for transaction in dashboard_bonus_transactions
+    )
+    for _, amount in sorted(chart_events, key=lambda event: event[0]):
+        running_total += float(amount)
         chart_values.append(round(running_total, 2))
 
     latest_transactions = BankrollTransaction.objects.filter(
@@ -655,6 +688,7 @@ def build_dashboard_context(request, **forms):
         dashboard_bets,
         balance_before_period,
         dashboard_filter['reference_date'].date(),
+        dashboard_bonus_transactions,
     )
     onboarding_steps = [
         {

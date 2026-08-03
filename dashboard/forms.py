@@ -339,6 +339,7 @@ class BankrollTransactionForm(forms.ModelForm):
             (BankrollTransaction.Kind.DEPOSIT, 'Deposito'),
             (BankrollTransaction.Kind.WITHDRAW, 'Saque'),
             (BankrollTransaction.Kind.ADJUSTMENT, 'Ajuste'),
+            (BankrollTransaction.Kind.BONUS, 'Bônus'),
         ]
         if self.instance.pk and self.instance.kind == BankrollTransaction.Kind.ADJUSTMENT:
             self.initial['amount'] = self.instance.bankroll.current_balance
@@ -365,6 +366,9 @@ class BankrollTransactionForm(forms.ModelForm):
         kind = cleaned_data.get('kind')
         bank_account = cleaned_data.get('bank_account')
         amount = cleaned_data.get('amount')
+
+        if kind in {BankrollTransaction.Kind.ADJUSTMENT, BankrollTransaction.Kind.BONUS}:
+            cleaned_data['bank_account'] = None
 
         if (
             bankroll

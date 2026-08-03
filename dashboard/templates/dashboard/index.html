@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Freebetar | Dashboard de Apostas</title>
-    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260802-mobile-bottom-nav-7" />
+    <link rel="stylesheet" href="{% static 'dashboard/styles.css' %}?v=20260802-bonus-1" />
   </head>
   <body
     data-language="{{ user_preference.language|default:'pt-BR' }}"
@@ -568,6 +568,7 @@
                     <div class="finance-action-row" role="group" aria-label="Tipo de movimentação">
                       <button class="finance-action is-active" type="button" data-finance-action="deposit">+ Depósito</button>
                       <button class="finance-action" type="button" data-finance-action="withdraw">- Saque</button>
+                      <button class="finance-action" type="button" data-finance-action="bonus">+ Bônus</button>
                       <button class="finance-action" type="button" data-finance-action="adjustment">Reajuste</button>
                     </div>
                     <div class="finance-inline-fields">
@@ -2625,6 +2626,6 @@
     {{ analytics.period_chart|json_script:"period-values" }}
     {{ analytics.period_labels|json_script:"period-labels" }}
     {{ analytics.equity_curve|json_script:"equity-values" }}
-    <script src="{% static 'dashboard/app.js' %}?v=20260802-mobile-bottom-nav-1"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=20260802-bonus-1"></script>
   </body>
 </html>

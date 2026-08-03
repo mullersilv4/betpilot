@@ -80,6 +80,7 @@ const UI_TRANSLATIONS = {
     "Valor total": "Valor total",
     "+ Depósito": "+ Depósito",
     "- Saque": "- Retiro",
+    "+ Bônus": "+ Bônus",
     "Reajuste": "Ajuste",
     "Valor": "Valor",
     "Conta": "Cuenta",
@@ -216,6 +217,7 @@ const UI_TRANSLATIONS = {
     "Valor total": "Total value",
     "+ Depósito": "+ Deposit",
     "- Saque": "- Withdraw",
+    "+ Bônus": "+ Bonus",
     "Reajuste": "Adjustment",
     "Valor": "Amount",
     "Conta": "Account",
@@ -2134,9 +2136,10 @@ document.querySelectorAll(".finance-card-form").forEach((form) => {
       button.classList.toggle("is-active", button.dataset.financeAction === kind);
     });
     if (bankAccount) {
+      const skipsBankAccount = kind === "adjustment" || kind === "bonus";
       bankAccount.required = false;
-      bankAccount.disabled = kind === "adjustment";
-      if (kind === "adjustment") bankAccount.value = "";
+      bankAccount.disabled = skipsBankAccount;
+      if (skipsBankAccount) bankAccount.value = "";
     }
     if (shouldFocus) form.querySelector('[name="amount"]')?.focus();
   };

@@ -901,6 +901,7 @@ class BankrollTransaction(models.Model):
         DEPOSIT = 'deposit', 'Deposito'
         WITHDRAW = 'withdraw', 'Saque'
         ADJUSTMENT = 'adjustment', 'Ajuste'
+        BONUS = 'bonus', 'Bônus'
         TRANSFER_IN = 'transfer_in', 'Transferência entrada'
         TRANSFER_OUT = 'transfer_out', 'Transferência saida'
 
